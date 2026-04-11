@@ -16,6 +16,64 @@ Trading crypto memiliki risiko tinggi, termasuk kehilangan modal. Gunakan bot in
 
 Author tidak bertanggung jawab atas kerugian finansial, error exchange, penyalahgunaan API, salah konfigurasi, atau perilaku bot yang tidak terduga.
 
+## Quick Start
+
+Clone repository:
+
+```bash
+git clone https://github.com/airplanestar888/airplanestar-spot-bot.git
+cd airplanestar-spot-bot
+```
+
+Install dependency:
+
+```bash
+npm install
+```
+
+Copy env template:
+
+```bash
+cp .env.example .env
+```
+
+Untuk Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Isi `.env` dengan API key dan Telegram token milik sendiri:
+
+```env
+BITGET_API_KEY=your_key
+BITGET_SECRET_KEY=your_secret
+BITGET_PASSPHRASE=your_passphrase
+TELEGRAM_BOT_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
+```
+
+Sebelum trading live, jalankan dengan `dryRun: true` di `config.json`.
+
+Start bot:
+
+```bash
+npm start
+```
+
+Dashboard lokal:
+
+```text
+http://localhost:3841
+```
+
+## Deploy Notes
+
+- File `.env` tidak ikut repository dan wajib dibuat sendiri di server/komputer deploy.
+- Jangan pernah upload API key, secret key, passphrase, token Telegram, log trading, atau runtime state.
+- Mulai dari `dryRun: true`, lalu test report, dashboard, balance, dan order flow sebelum memakai dana asli.
+- Gunakan API key exchange dengan permission minimum yang diperlukan. Hindari permission withdrawal.
+
 ## Tech Stack
 
 - `Node.js`
