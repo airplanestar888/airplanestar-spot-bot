@@ -72,11 +72,10 @@
 <h1>Trade Journal Dashboard</h1>
 <div class="sub">Dashboard lokal untuk memantau performa bot, kondisi runtime, dan histori trading dalam satu tampilan yang rapi. Semua waktu ditampilkan dalam <strong>Asia/Jakarta (GMT+7)</strong>.</div>
 <div class="actions">
-<button class="btn" id="openFolderBtn" type="button">Load Local Data</button>
-<button class="btn secondary" id="reloadFolderBtn" type="button">Refresh Data</button>
 <button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
-<span class="hint" id="statusText">Menunggu data dari localhost.</span>
+<span class="hint" id="statusText">Memuat data dari localhost gateway...</span>
 </div>
+<div class="hint" style="margin-top:10px;font-size:12px;opacity:.9;text-align:left">Catatan: PnL Today dan Rounds Today memakai <code>trade_journal.json</code>.</div>
 </section>
 <section class="tabs">
 <button class="tab-btn active" data-tab="reportTab">Report</button>
@@ -302,6 +301,25 @@ function jakartaKey(v){const d=v?new Date(v):new Date();if(isNaN(d.getTime()))re
 function relKey(off){const n=new Date();const j=new Date(n.toLocaleString('en-US',{timeZone:'Asia/Jakarta'}));j.setDate(j.getDate()+off);return jakartaKey(j)}
 function tradeKey(t){return jakartaKey(t.closedAt||t.openedAt)}
 function tradeNet(t){const n=Number(t.metrics?.netPnlEstPct);if(Number.isFinite(n))return n;const g=Number(t.metrics?.grossPnlPct);return Number.isFinite(g)?g:null}
+function tradeEntryUsdt(t){const v=Number(t.entry?.sizeUSDT);return Number.isFinite(v)&&v>0?v:0}
+function tradeGrossUsdt(t){
+  const direct=Number(t.metrics?.grossPnlUSDT);
+  if(Number.isFinite(direct))return direct;
+  const entry=tradeEntryUsdt(t), pct=Number(t.metrics?.grossPnlPct);
+  return entry>0&&Number.isFinite(pct)?(entry*pct/100):0;
+}
+function tradeNetUsdt(t){
+  const entry=tradeEntryUsdt(t);
+  const np=Number(t.metrics?.netPnlEstPct);
+  if(entry>0&&Number.isFinite(np))return entry*np/100;
+  return tradeGrossUsdt(t);
+}
+function weightedPct(trades, usdtFn){
+  const base=trades.reduce((s,t)=>s+tradeEntryUsdt(t),0);
+  if(!base)return 0;
+  const pnl=trades.reduce((s,t)=>s+usdtFn(t),0);
+  return (pnl/base)*100;
+}
 function gEv(id){const e=document.getElementById(id);if(!e)return null;return e.type==='checkbox'?e.checked:e.value}
 function sEv(id,v){const e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=Boolean(v);else e.value=v??''}
 async function rH(h){return(await h.getFile()).text()}
@@ -551,10 +569,11 @@ function render(){
   const fj=applyFilters(journal);
   const open=fj.filter(t=>t.status==='open');const closed=fj.filter(t=>t.status==='closed');
   const tk=jakartaKey();
-  const gt=closed.map(t=>Number(t.metrics?.grossPnlPct)).filter(Number.isFinite).reduce((s,v)=>s+v,0);
-  const nt=closed.map(tradeNet).filter(Number.isFinite).reduce((s,v)=>s+v,0);
-  const tp=closed.filter(t=>jakartaKey(t.closedAt||t.openedAt)===tk).map(tradeNet).filter(Number.isFinite).reduce((s,v)=>s+v,0);
-  const tc=journal.filter(t=>t.status==='closed'&&tradeKey(t)===tk).length;
+  const closedToday=journal.filter(t=>t.status==='closed'&&tradeKey(t)===tk);
+  const gt=weightedPct(closed, tradeGrossUsdt);
+  const nt=weightedPct(closed, tradeNetUsdt);
+  const tp=weightedPct(closedToday, tradeNetUsdt);
+  const tc=closedToday.length;
   const wins=closed.filter(t=>Number(t.metrics?.grossPnlPct)>0).length;
   const wr=closed.length?(wins/closed.length)*100:0;
   const lt=fj.map(t=>t.closedAt||t.openedAt).filter(Boolean).sort().slice(-1)[0];
@@ -563,7 +582,8 @@ function render(){
   const ge=document.getElementById('grossPnl');ge.textContent=fmtP(gt);ge.className=`value ${gt>=0?'green':'red'}`;
   const ne=document.getElementById('netPnl');ne.textContent=fmtP(nt);ne.className=`value ${nt>=0?'green':'red'}`;
   document.getElementById('winRate').textContent=fmtP(wr);
-  const te=document.getElementById('pnlToday');te.textContent=fmtP(tp);te.className=`value ${tp>=0?'green':'red'}`;
+  const te=document.getElementById('pnlToday');te.textContent=fmtP(tp);te.title=`Journal-only net PnL today: ${fmt(closedToday.reduce((s,t)=>s+tradeNetUsdt(t),0),4)} USDT`;
+  te.className=`value ${tp>=0?'green':'red'}`;
   document.getElementById('tradesToday').textContent=String(tc);
   document.getElementById('lastUpdated').textContent=lt?fmtD(lt):'-';
   setStats(closed);setBars(closed);setPairStats(closed);setOpenTrades(open);setTable(fj);
@@ -649,12 +669,6 @@ async function loadFolder(){
 }
 
 /* --- Event listeners --- */
-document.getElementById('openFolderBtn').addEventListener('click',async()=>{
-  await loadFolder()
-});
-document.getElementById('reloadFolderBtn').addEventListener('click',async()=>{
-  try{await loadFolder()}catch(e){document.getElementById('statusText').textContent=`Gagal reload: ${e.message}`}
-});
 document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
   if(!currentConfig){document.getElementById('configStatus').textContent='Config belum dimuat.';return}
   try{
@@ -670,6 +684,7 @@ document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
 ['scopeFilter','pairFilter','botTypeFilter','modeFilter','marketProfileFilter','reasonFilter'].forEach(id=>{
   document.getElementById(id).addEventListener('change',()=>{if(journal.length)render()})
 });
+loadFolder();
 document.getElementById('selectedBotTypeEditor').addEventListener('change',()=>{
   if(!currentConfig)return;currentConfig.selectedBotType=document.getElementById('selectedBotTypeEditor').value;popCfg()
 });
@@ -691,5 +706,4 @@ document.querySelectorAll('[data-tab]').forEach(btn=>{
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===t))
   })
 });
-loadFolder();
 </script></body></html>

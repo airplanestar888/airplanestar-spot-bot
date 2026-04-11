@@ -2,7 +2,7 @@
   "baseUrl": "https://api.bitget.com",
   "selectedBotType": "custom",
   "selectedMode": "aggressive",
-  "marketProfileMode": "manual",
+  "marketProfileMode": "auto",
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
     "BTCUSDT": {
@@ -24,7 +24,7 @@
       "enabled": false
     },
     "HYPEUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "DOGEUSDT": {
       "enabled": true
@@ -51,7 +51,7 @@
       "enabled": false
     },
     "REDUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "GRASSUSDT": {
       "enabled": true
@@ -224,11 +224,11 @@
       "description": "Profile bot type buatan user. Gunakan ini kalau mau mengatur struktur setup sendiri tanpa mengubah profile bot type bawaan.",
       "overrides": {
         "signalTimeframe": "3min",
-        "trendTimeframe": "15min",
+        "trendTimeframe": "30min",
         "minScalpTargetPct": 0.008,
         "maxScalpTargetPct": 0.016,
         "timeStopMinutes": 12,
-        "maxHoldMinutes": 24,
+        "maxHoldMinutes": 30,
         "breakEvenMinutes": 6,
         "minConfirmation": 3,
         "breakoutPct": 0.9985,
@@ -245,8 +245,8 @@
         "optimalAtrLow": 0.005,
         "optimalAtrHigh": 0.012,
         "requireRsiMomentum": false,
-        "requireBreakout": false,
-        "enableRsiBandFilter": false,
+        "requireBreakout": true,
+        "enableRsiBandFilter": true,
         "enableAtrFilter": false,
         "enableVolumeFilter": true,
         "enableCandleStrengthFilter": true,

@@ -14,7 +14,7 @@ function startServer() {
   const port = Number(process.env.DASHBOARD_PORT || DEFAULT_PORT);
 
   activeServer = http.createServer((req, res) => handleRequest(req, res, { rootDir }));
-  activeServer.listen(port, "127.0.0.1");
+  activeServer.listen(port, "0.0.0.0");
 
   activeServer.on("error", (err) => {
     console.error(`[DASHBOARD ERROR] ${err.message}`);

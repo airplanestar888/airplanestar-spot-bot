@@ -102,7 +102,7 @@ function isCandleTimestampFresh(closeTime, timeframe, now = Date.now()) {
   if (!Number.isFinite(closeTime) || closeTime <= 0) return false;
   const timeframeMs = timeframeToMs(timeframe);
   if (!timeframeMs) return false;
-  const maxAgeMs = Math.max(timeframeMs * 2.2, 2 * 60 * 1000);
+  const maxAgeMs = Math.max(timeframeMs * 3, 2 * 60 * 1000);
   return (now - closeTime) <= maxAgeMs;
 }
 
@@ -449,6 +449,18 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function jakartaDateKey(input = Date.now()) {
+  const date = input instanceof Date ? input : new Date(input);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const get = (type) => parts.find((part) => part.type === type)?.value || "00";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 function countClosedRoundsForDate(dateKey) {
   try {
     if (!fs.existsSync(JOURNAL_PATH)) return 0;
@@ -462,7 +474,7 @@ function countClosedRoundsForDate(dateKey) {
       if (!closedAt) return false;
       const parsed = new Date(closedAt);
       if (Number.isNaN(parsed.getTime())) return false;
-      return parsed.toISOString().slice(0, 10) === dateKey;
+      return jakartaDateKey(parsed) === dateKey;
     }).length;
   } catch {
     return 0;
@@ -927,36 +939,74 @@ async function getCandles(symbol, timeframe = "3min", limit = 50) {
   try {
     // Throttle: delay between requests to avoid rate limits
     await new Promise(resolve => setTimeout(resolve, 100));
-    
-    const fetchCandles = async (path) => {
-      const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", path);
-      return Array.isArray(data) ? data : [];
+
+    const timeframeMs = timeframeToMs(timeframe);
+    const isFreshEnough = (rows, now = Date.now()) => {
+      if (!Array.isArray(rows) || rows.length === 0 || !timeframeMs) return false;
+      const last = rows[rows.length - 1];
+      const closeTime = Number(last[0]) + timeframeMs;
+      return isCandleTimestampFresh(closeTime, timeframe, now);
     };
 
-    let candles = normalizeCandleRows(
-      await fetchCandles(`/api/v2/spot/market/candles?symbol=${symbol}&granularity=${timeframe}&limit=${limit + 2}`),
-      timeframe
-    );
-    if (candles.length === 0) {
-      candles = normalizeCandleRows(
-        await fetchCandles(`/api/v2/spot/market/history-candles?symbol=${symbol}&granularity=${timeframe}&endTime=${Date.now()}&limit=${limit + 2}`),
-        timeframe
-      );
+    const describeRows = (rows, source) => {
+      if (!Array.isArray(rows) || rows.length === 0 || !timeframeMs) {
+        return `${source}:empty`;
+      }
+      const last = rows[rows.length - 1];
+      const closeTime = Number(last[0]) + timeframeMs;
+      const ageMin = ((Date.now() - closeTime) / 60000).toFixed(1);
+      return `${source}:close=${new Date(closeTime).toISOString()} ageMin=${ageMin}`;
+    };
+
+    const fetchCandles = async (path, source) => {
+      const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", path);
+      const rows = normalizeCandleRows(Array.isArray(data) ? data : [], timeframe);
+      logEvent(LOG_FILE, "DEBUG", `Candle fetch ${symbol} (${timeframe}) ${describeRows(rows, source)}`);
+      return rows;
+    };
+
+    const primaryPath = `/api/v2/spot/market/candles?symbol=${symbol}&granularity=${timeframe}&limit=${limit + 2}`;
+    const historyPath = `/api/v2/spot/market/history-candles?symbol=${symbol}&granularity=${timeframe}&endTime=${Date.now()}&limit=${limit + 2}`;
+
+    let candles = await fetchCandles(primaryPath, "primary");
+    let sourceUsed = "primary";
+
+    if (candles.length === 0 || !isFreshEnough(candles)) {
+      if (candles.length > 0) {
+        logEvent(LOG_FILE, "WARN", `Stale primary candles for ${symbol} (${timeframe}), retrying before fallback`);
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const retryCandles = await fetchCandles(primaryPath, "primary-retry");
+        if (retryCandles.length > 0) {
+          candles = retryCandles;
+          sourceUsed = "primary-retry";
+        }
+      }
+
+      if (candles.length === 0 || !isFreshEnough(candles)) {
+        const historyCandles = await fetchCandles(historyPath, "history-fallback");
+        if (historyCandles.length > 0) {
+          candles = historyCandles;
+          sourceUsed = "history-fallback";
+        }
+      }
     }
+
     if (candles.length > limit) {
       candles = candles.slice(-limit);
     }
-    // Track last candle timestamp for heartbeat data freshness
+
     if (Array.isArray(candles) && candles.length > 0) {
-      const last = candles[candles.length-1];
+      const last = candles[candles.length - 1];
       const key = `${symbol}:${timeframe}`;
-      const timeframeMs = timeframeToMs(timeframe);
       lastCandleData[key] = {
         closeTime: Number(last[0]) + timeframeMs,
         close: parseFloat(last[4])
       };
+      if (!isFreshEnough(candles)) {
+        logEvent(LOG_FILE, "WARN", `Using stale candles for ${symbol} (${timeframe}) after fallback chain, source=${sourceUsed}`);
+      }
     } else {
-      logEvent(LOG_FILE, "WARN", `Empty/invalid closed candles for ${symbol} (${timeframe})`);
+      logEvent(LOG_FILE, "WARN", `Empty/invalid closed candles for ${symbol} (${timeframe}) after fallback chain`);
     }
     return candles;
   } catch (err) {
@@ -1382,7 +1432,7 @@ async function runBot() {
   try {
     const loopStartedAt = Date.now();
     const now = Date.now();
-    const today = new Date().toISOString().slice(0,10);
+    const today = jakartaDateKey(now);
 
     // Track data freshness for heartbeat
     let lastDataUpdate = 0;
