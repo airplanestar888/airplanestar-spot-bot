@@ -1,0 +1,695 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>airplanestar Dashboard</title>
+  <style>
+    :root { --bg:#08111f; --panel:#132338; --line:rgba(255,255,255,0.08); --text:#eef4ff; --muted:#9fb3cf; --green:#41d98e; --red:#ff6e6e; --yellow:#ffd24d; --blue:#5cb7ff; }
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;font-family:"Segoe UI",Tahoma,sans-serif;color:var(--text);background:radial-gradient(circle at top left,rgba(92,183,255,0.18),transparent 28%),radial-gradient(circle at top right,rgba(255,210,77,0.14),transparent 24%),linear-gradient(180deg,#060d18 0%,var(--bg) 100%)}
+    .wrap{width:min(1180px,calc(100% - 32px));margin:28px auto 40px}
+    .hero,.panel,.card,.table-wrap{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.28)}
+    .hero{padding:24px;margin-bottom:18px}
+    .brand{font-size:12px;letter-spacing:0.32em;text-transform:uppercase;color:var(--yellow);margin-bottom:8px}
+    h1{margin:0;font-size:clamp(28px,4vw,48px);line-height:1}
+    .sub{margin-top:10px;color:var(--muted);max-width:720px;line-height:1.6}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;align-items:center}
+    .btn{border:0;border-radius:12px;padding:12px 16px;color:#07111e;background:linear-gradient(180deg,#ffd24d,#f4b92a);font-weight:700;cursor:pointer}
+    .btn.secondary{background:linear-gradient(180deg,#7ec7ff,#4ba7ff)}
+    .hint{color:var(--muted);font-size:14px}
+    .note{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:14px}
+    .info-box{margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03);color:var(--text);line-height:1.5;min-height:48px;white-space:pre-wrap}
+    .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+    .filter{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:16px;padding:14px}
+    .filter label{display:block;margin-bottom:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+    .filter select{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(8,17,31,0.72);color:var(--text);padding:10px 12px;font:inherit}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
+    .card{padding:18px}
+    .label{font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+    .value{margin-top:10px;font-size:28px;font-weight:800}
+    .value.small{font-size:22px}
+    .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}
+    .two-col{display:grid;grid-template-columns:1.15fr 0.85fr;gap:14px;margin-bottom:18px}
+    .panel{padding:18px}.panel h2{margin:0 0 14px;font-size:18px}.panel h3{margin:18px 0 10px;font-size:14px;color:var(--yellow);letter-spacing:0.04em;text-transform:uppercase}
+    .stat-list{display:grid;gap:10px}.row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row span:first-child{color:var(--muted)}
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .field{display:grid;gap:8px;margin-bottom:12px}.field label{color:var(--muted);font-size:12px;letter-spacing:0.08em;text-transform:uppercase}
+    .field input,.field select{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(8,17,31,0.72);color:var(--text);padding:10px 12px;font:inherit}
+    .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .check-item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03)}
+    .pair-grid{display:grid;gap:10px}
+    .pair-item{display:grid;grid-template-columns:auto minmax(0,1fr) 132px;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03)}
+    .pair-item input[type="number"]{width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.72);color:var(--text);padding:8px 10px;font:inherit}
+    .pair-main{display:grid;gap:4px}
+    .pair-sub{font-size:12px;color:var(--muted)}
+    .live-box{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,17,31,0.56);text-align:right}
+    .live-box strong{display:block;font-size:16px;color:var(--blue)}
+    .live-box span{display:block;font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase}
+    .config-status{margin-top:12px;margin-bottom:14px;color:var(--muted);font-size:13px}
+    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+    .tab-btn{border:1px solid var(--line);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,0.04);color:var(--text);cursor:pointer;font:inherit;font-weight:600}
+    .tab-btn.active{background:linear-gradient(180deg,#ffd24d,#f4b92a);color:#07111e;border-color:transparent}
+    .tab-panel{display:none}.tab-panel.active{display:block}
+    .bars{display:grid;gap:10px}.bar-line{display:grid;gap:6px}.bar-label{display:flex;justify-content:space-between;color:var(--muted);font-size:14px}
+    .bar{height:10px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden}.bar>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#5cb7ff,#41d98e)}
+    .table-wrap{overflow:hidden}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600;background:rgba(255,255,255,0.02)}tr:last-child td{border-bottom:0}
+    .pill{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(255,255,255,0.08)}
+    .combo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .combo-card{padding:16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,0.03)}
+    .combo-card strong{display:block;font-size:16px}
+    .combo-formula{margin-top:10px;color:var(--yellow);font-weight:700}
+    .combo-desc{margin-top:8px;color:var(--muted);line-height:1.5;font-size:14px}
+    .empty{padding:18px;color:var(--muted)}
+    @media(max-width:980px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:720px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr}.wrap{width:min(100% - 20px,100%)}}
+  </style>
+</head>
+<body>
+<div class="wrap">
+<section class="hero">
+<div class="brand">airplanestar</div>
+<h1>Trade Journal Dashboard</h1>
+<div class="sub">Dashboard lokal untuk memantau performa bot, kondisi runtime, dan histori trading dalam satu tampilan yang rapi. Semua waktu ditampilkan dalam <strong>Asia/Jakarta (GMT+7)</strong>.</div>
+<div class="actions">
+<button class="btn" id="openFolderBtn" type="button">Load Local Data</button>
+<button class="btn secondary" id="reloadFolderBtn" type="button">Refresh Data</button>
+<button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
+<span class="hint" id="statusText">Menunggu data dari localhost.</span>
+</div>
+</section>
+<section class="tabs">
+<button class="tab-btn active" data-tab="reportTab">Report</button>
+<button class="tab-btn" data-tab="botTab">Global & Entry</button>
+<button class="tab-btn" data-tab="marketTab">Market Setting</button>
+<button class="tab-btn" data-tab="tradeTab">Risk & Exit</button>
+<button class="tab-btn" data-tab="readmeTab">README</button>
+</section>
+
+<!-- REPORT -->
+<section class="tab-panel active" id="reportTab">
+<section class="filters">
+<div class="filter"><label>Scope</label><select id="scopeFilter"><option value="all">All Time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This Week</option><option value="month">This Month</option></select></div>
+<div class="filter"><label>Pair</label><select id="pairFilter"><option value="all">All Pairs</option></select></div>
+<div class="filter"><label>Entry Style</label><select id="botTypeFilter"><option value="all">All Entry Styles</option></select></div>
+<div class="filter"><label>Mode</label><select id="modeFilter"><option value="all">All Modes</option></select></div>
+<div class="filter"><label>Market Profile</label><select id="marketProfileFilter"><option value="all">All Profiles</option></select></div>
+<div class="filter"><label>Exit Reason</label><select id="reasonFilter"><option value="all">All Reasons</option></select></div>
+</section>
+<section class="grid">
+<div class="card"><div class="label">Closed Trades</div><div class="value" id="closedCount">0</div></div>
+<div class="card"><div class="label">Open Trades</div><div class="value blue" id="openCount">0</div></div>
+<div class="card"><div class="label">Gross PnL</div><div class="value" id="grossPnl">0.00%</div></div>
+<div class="card"><div class="label">Net PnL</div><div class="value" id="netPnl">0.00%</div></div>
+<div class="card"><div class="label">PnL Today</div><div class="value" id="pnlToday">0.00%</div></div>
+<div class="card"><div class="label">Rounds Today</div><div class="value blue" id="tradesToday">0</div></div>
+<div class="card"><div class="label">Win Rate</div><div class="value yellow" id="winRate">0.00%</div></div>
+<div class="card"><div class="label">Last Updated</div><div class="value small" id="lastUpdated">-</div></div>
+</section>
+<section class="two-col">
+<div class="panel"><h2>Performance Summary</h2><div class="stat-list" id="summaryStats"></div></div>
+<div class="panel"><h2>Exit Reason Breakdown</h2><div class="bars" id="reasonBars"></div></div>
+</section>
+<section class="two-col">
+<div class="panel"><h2>Pair Performance</h2><div class="stat-list" id="pairStats"></div></div>
+<div class="panel"><h2>Recent Open Trades</h2><div class="stat-list" id="openTrades"></div></div>
+</section>
+<div class="table-wrap"><table><thead><tr><th>Pair</th><th>Status</th><th>Opened</th><th>Closed</th><th>Entry Style</th><th>Mode</th><th>Profile</th><th>Entry</th><th>Exit</th><th>Gross</th><th>Reason</th></tr></thead><tbody id="tradeTable"><tr><td class="empty" colspan="11">Load data dari localhost.</td></tr></tbody></table></div>
+</section>
+
+<!-- BOT SETTING -->
+<section class="tab-panel" id="botTab">
+<section class="panel">
+<h2>Global & Entry</h2>
+<div class="note">Global setting tetap di sini. Untuk strategi, anggap <strong>Bot Type</strong> sebagai <strong>Entry Style</strong>: dia menentukan timeframe, confirmation, breakout, dan bentuk setup masuk.</div>
+<div class="check-grid">
+<label class="check-item"><input id="dryRunEditor" type="checkbox"><span>Dry Run</span></label>
+<label class="check-item"><input id="enableCostGuardEditor" type="checkbox"><span>Enable Cost Guard</span></label>
+<label class="check-item"><input id="telegramEnabledEditor" type="checkbox"><span>Telegram Enabled</span></label>
+<label class="check-item"><input id="threeLossHaltEditor" type="checkbox"><span>3 Loss Halt</span></label>
+<label class="check-item"><input id="useDynamicTpEditor" type="checkbox"><span>Use Dynamic TP</span></label>
+<label class="check-item"><input id="enableMultiTradeEditor" type="checkbox"><span>Enable Multi Trade</span></label>
+</div>
+<div class="field-grid">
+<div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
+<div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
+<div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
+<div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
+<div class="field"><label>Exposure Cap %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
+<div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ff8f8f">Recommended: keep exposure cap under 50% of your portfolio.</div></div>
+<div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
+<div class="field"><label>Cost Guard Arm Pct</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Cost Guard Floor Pct</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
+<div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
+<div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
+<div class="field"><label>Daily Profit Target Pct</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
+<div class="field"><label>Daily Loss Limit Pct</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
+<div class="field"><label>Loop Interval (ms)</label><input id="loopIntervalEditor" type="number" step="1000" min="0"></div>
+<div class="field"><label>Heartbeat Interval (ms)</label><input id="heartbeatIntervalEditor" type="number" step="1000" min="0"></div>
+<div class="field"><label>Market Report Interval (ms)</label><input id="marketIntervalEditor" type="number" step="1000" min="0"></div>
+<div class="field"><label>Balance Report Interval (ms)</label><input id="balanceIntervalEditor" type="number" step="1000" min="0"></div>
+<div class="field"><label>Hold Report Interval (ms)</label><input id="holdIntervalEditor" type="number" step="1000" min="0"></div>
+<div class="field"><label>No Signal Interval (ms)</label><input id="noSignalIntervalEditor" type="number" step="1000" min="0"></div>
+</div>
+<h3>Entry Style</h3>
+<div class="note">Entry style menentukan cara bot masuk. Pilih <strong>Custom Bot Type</strong> kalau mau ubah kerangka setup tanpa mengganggu preset bawaan.</div>
+<div class="field"><label>Selected Entry Style</label><select id="selectedBotTypeEditor"></select></div>
+<div class="check-grid">
+<label class="check-item"><input id="btReqEma21" type="checkbox"><span>Require EMA21 Rising</span></label>
+<label class="check-item"><input id="btReqFast" type="checkbox"><span>Require Fast Trend</span></label>
+<label class="check-item"><input id="btReqPriceEma9" type="checkbox"><span>Require Price Above EMA9</span></label>
+<label class="check-item"><input id="tReqEdge" type="checkbox"><span>Require Edge (net &gt; minExpected)</span></label>
+</div>
+<div class="field"><label>Description</label><div class="info-box" id="activeBotTypeDescription">-</div></div>
+<div class="field-grid">
+<div class="field"><label>Signal Timeframe</label><select id="btSignalTimeframe"><option value="1min">1min</option><option value="3min">3min</option><option value="5min">5min</option><option value="15min">15min</option><option value="1h">1h</option><option value="4h">4h</option></select></div>
+<div class="field"><label>Trend Timeframe</label><select id="btTrendTimeframe"><option value="5min">5min</option><option value="15min">15min</option><option value="30min">30min</option><option value="1h">1h</option><option value="4h">4h</option><option value="1day">1day</option></select></div>
+<div class="field"><label>Min Scalp Target Pct</label><input id="btMinTarget" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Max Scalp Target Pct</label><input id="btMaxTarget" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Time Stop Minutes</label><input id="btTimeStopMinutes" type="number" step="1" min="0"></div>
+<div class="field"><label>Stale Check After (min)</label><input id="btMaxHold" type="number" step="1" min="0"></div>
+<div class="field"><label>Break Even Minutes</label><input id="btBreakEvenMinutes" type="number" step="1" min="0"></div>
+<div class="field"><label>Min Confirmation</label><input id="btMinConfirmation" type="number" step="1" min="0"></div>
+<div class="field"><label>Breakout Pct</label><input id="btBreakoutPct" type="number" step="0.0001" min="0"></div>
+</div>
+<h3>Entry Filters</h3>
+<div class="check-grid">
+<label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>Use RSI Momentum</span></label>
+<label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Use Breakout Check</span></label>
+<label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>Use RSI Band</span></label>
+<label class="check-item"><input id="btEnableAtr" type="checkbox"><span>Use ATR Filter</span></label>
+<label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Use Volume Filter</span></label>
+<label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Use Candle Strength</span></label>
+<label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Use Price Extension</span></label>
+<label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Use Range Recovery</span></label>
+</div>
+<div class="field-grid">
+<div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
+<div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
+<div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
+<div class="field"><label>EMA Gap Negative</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
+<div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
+<div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
+</div>
+<h3>Pairs</h3>
+<div class="note">Daftar pair aktif. Bot sekarang tidak memakai bobot pair manual. Prioritas pair dibaca dari live market snapshot.</div>
+<div class="config-status" id="pairLiveStatus">Live pair weight belum dimuat.</div>
+<div class="pair-grid" id="pairEditor"></div>
+<div class="config-status" id="configStatus">Config belum dimuat.</div>
+</section></section>
+
+<!-- MARKET SETTING -->
+<section class="tab-panel" id="marketTab">
+<section class="panel">
+<h2>Market Setting</h2>
+<div class="note">Market profile <strong>hanya</strong> filter entry. Risk, sizing, exit mengikuti trading style.</div>
+<div class="field-grid">
+<div class="field"><label>Market Profile Mode</label><select id="marketProfileModeEditor"><option value="auto">Auto</option><option value="manual">Manual</option></select></div>
+<div class="field"><label>Selected Market Profile</label><select id="selectedMarketProfileEditor"></select></div>
+</div>
+<div class="field"><label>Description</label><div class="info-box" id="activeMarketDescription">-</div></div>
+<div class="check-grid"><label class="check-item"><input id="marketAllowEntriesEditor" type="checkbox"><span>Allow Entries</span></label></div>
+<h3>Entry Filters</h3>
+<div class="field-grid">
+<div class="field"><label>Min Expected Net Pct</label><input id="mMinExpNet" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Min Volume Ratio</label><input id="mMinVol" type="number" step="0.01" min="0"></div>
+<div class="field"><label>Min Trend RSI</label><input id="mMinRsi" type="number" step="1" min="0"></div>
+<div class="field"><label>Min ATR Pct</label><input id="mMinAtr" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Max ATR Pct</label><input id="mMaxAtr" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Max EMA Gap Pct</label><input id="mMaxEma" type="number" step="0.0005" min="0"></div>
+</div></section></section>
+
+<!-- TRADE SETTING -->
+<section class="tab-panel" id="tradeTab">
+<section class="panel">
+<h2>Risk & Exit</h2>
+<div class="note">Layer ini mengatur agresivitas, risk, TP, trailing, cost-aware exit, dan proteksi profit. Struktur entry utama tidak diatur di sini. Jika <strong>Use Dynamic TP</strong> aktif, TP mode tetap dipakai sebagai <strong>profit activation</strong>, bukan target utama.</div>
+<h3>Mode</h3>
+<div class="field"><label>Selected Trading Style</label><select id="selectedModeEditor"></select></div>
+<div class="field"><label>Description</label><div class="info-box" id="activeModeDescription">-</div></div>
+<h3>Risk & Sizing</h3>
+<div class="field-grid">
+<div class="field"><label>Risk Percent</label><input id="tRisk" type="number" step="0.001" min="0"></div>
+<div class="field"><label>Cooldown (ms)</label><input id="tCooldown" type="number" step="1000" min="0"></div>
+</div>
+<h3>Exit Targets</h3>
+<div class="field-grid">
+<div class="field"><label>Take Profit Pct</label><input id="tTP" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Trailing Activation</label><input id="tTrailAct" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Trailing Drawdown</label><input id="tTrailDD" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Trailing Protection</label><input id="tTrailProt" type="number" step="0.0005" min="0"></div>
+</div>
+<h3>Soft Exits</h3>
+<div class="field-grid">
+<div class="field"><label>Min Momentum Exit Pct</label><input id="tMomentum" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Break Even Armed Pct</label><input id="tBeArmed" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Break Even Floor Pct</label><input id="tBeFloor" type="number" step="0.0005" min="0"></div>
+</div>
+<h3>Time Limits & Stale</h3>
+<div class="check-grid">
+<label class="check-item"><input id="tEnableTS" type="checkbox"><span>Enable Time Stop</span></label>
+<label class="check-item"><input id="tEnableStale" type="checkbox"><span>Enable Stale Trade</span></label>
+</div>
+<div class="field-grid">
+<div class="field"><label>Time Stop Profit Pct</label><input id="tTsProfit" type="number" step="0.0005"></div>
+<div class="field"><label>Min Hold PnL Pct</label><input id="tMinHoldPnl" type="number" step="0.0005"></div>
+<div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
+</div></section></section>
+
+<!-- README -->
+<section class="tab-panel" id="readmeTab">
+<section class="two-col">
+<div class="panel">
+<h2>Quick Guide</h2>
+<div class="info-box" id="quickGuideBox">Data panduan akan dimuat otomatis dari localhost.</div>
+</div>
+<div class="panel">
+<h2>Recommended Combos</h2>
+<div class="combo-grid" id="comboGuide"></div>
+</div>
+</section>
+<section class="panel">
+<h2>Entry Style Cores</h2>
+<div class="table-wrap"><table><thead><tr><th>Entry Style</th><th>Entry Core</th><th>Exit Core</th><th>Cocok Untuk</th></tr></thead><tbody id="botTypeCoreTable"><tr><td class="empty" colspan="4">Memuat data localhost...</td></tr></tbody></table></div>
+</section>
+<section class="panel">
+<h2>README.md</h2>
+<div class="note">Dokumentasi produk dan panduan penggunaan akan tampil di sini.</div>
+<div class="info-box" id="readmeContent">Dokumentasi belum dimuat.</div>
+</section>
+</section>
+</div>
+<script>
+let journal=[],currentConfig=null,folderHandle=null,configHandle=null,journalHandle=null,readmeHandle=null,marketSnapshotHandle=null,readmeText='',marketSnapshot=null;
+
+/* --- Editor maps (STRICT layer separation) --- */
+const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',loopIntervalMs:'loopIntervalEditor'};
+const BOT_BOOL_KEYS=new Set(['dryRun','enableCostGuard','useDynamicTakeProfit','enableMultiTrade','stopAfterThreeConsecutiveLosses']);
+const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor'};
+const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled']);
+const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTimeframe',minScalpTargetPct:'btMinTarget',maxScalpTargetPct:'btMaxTarget',timeStopMinutes:'btTimeStopMinutes',maxHoldMinutes:'btMaxHold',breakEvenMinutes:'btBreakEvenMinutes',minConfirmation:'btMinConfirmation',breakoutPct:'btBreakoutPct',requireEma21Rising:'btReqEma21',requireFastTrend:'btReqFast',requirePriceAboveEma9:'btReqPriceEma9',requireEdge:'tReqEdge',requireRsiMomentum:'btReqRsiMomentum',requireBreakout:'btReqBreakout',enableRsiBandFilter:'btEnableRsiBand',enableAtrFilter:'btEnableAtr',enableVolumeFilter:'btEnableVolume',enableCandleStrengthFilter:'btEnableCandleStrength',enablePriceExtensionFilter:'btEnablePriceExtension',enableRangeRecoveryFilter:'btEnableRangeRecovery',rsiBandLower:'tRsiLo',rsiBandUpper:'tRsiHi',minCandleStrength:'tCandle',minEmaGapNeg:'tEmaNeg',optimalRsiLow:'tOrsiLo',optimalRsiHigh:'tOrsiHi',optimalAtrLow:'tOatrLo',optimalAtrHigh:'tOatrHi'};
+const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge','requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
+const BTYPE_STRING_KEYS=new Set(['signalTimeframe','trendTimeframe']);
+const MKT_MAP={minExpectedNetPct:'mMinExpNet',minVolumeRatio:'mMinVol',minTrendRsi:'mMinRsi',minAtrPct:'mMinAtr',maxAtrPct:'mMaxAtr',maxEmaGapPct:'mMaxEma'};
+const TRD_MAP={riskPercent:'tRisk',cooldownMs:'tCooldown',takeProfitPct:'tTP',trailingActivationPct:'tTrailAct',trailingDrawdownPct:'tTrailDD',trailingProtectionPct:'tTrailProt',minMomentumExitPct:'tMomentum',enableTimeStop:'tEnableTS',enableStaleTrade:'tEnableStale',timeStopProfitPct:'tTsProfit',minHoldPnlPct:'tMinHoldPnl',breakEvenArmedPct:'tBeArmed',breakEvenFloorPct:'tBeFloor',exitRSIThreshold:'tExitRsi'};
+
+function fmt(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d):'N/A'}
+function fmtP(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d)+'%':'N/A'}
+function fmtD(v){if(!v)return'-';const d=new Date(v);if(isNaN(d.getTime()))return v;return d.toLocaleString('en-GB',{timeZone:'Asia/Jakarta',year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}
+function jakartaKey(v){const d=v?new Date(v):new Date();if(isNaN(d.getTime()))return'';return new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'}).format(d)}
+function relKey(off){const n=new Date();const j=new Date(n.toLocaleString('en-US',{timeZone:'Asia/Jakarta'}));j.setDate(j.getDate()+off);return jakartaKey(j)}
+function tradeKey(t){return jakartaKey(t.closedAt||t.openedAt)}
+function tradeNet(t){const n=Number(t.metrics?.netPnlEstPct);if(Number.isFinite(n))return n;const g=Number(t.metrics?.grossPnlPct);return Number.isFinite(g)?g:null}
+function gEv(id){const e=document.getElementById(id);if(!e)return null;return e.type==='checkbox'?e.checked:e.value}
+function sEv(id,v){const e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=Boolean(v);else e.value=v??''}
+async function rH(h){return(await h.getFile()).text()}
+async function wH(h,c){const w=await h.createWritable();await w.write(c);await w.close()}
+async function fJ(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`${url} -> ${r.status}`);return r.json()}
+async function pJ(url,payload){
+  const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const data=await r.json().catch(()=>({}));
+  if(!r.ok||data.ok===false)throw new Error(data.error||`${url} -> ${r.status}`);
+  return data;
+}
+function getByPath(obj,path){return path.split('.').reduce((acc,key)=>acc&&acc[key],obj)}
+function setByPath(obj,path,val){const keys=path.split('.');let cur=obj;for(let i=0;i<keys.length-1;i++){const k=keys[i];if(!cur[k]||typeof cur[k]!=='object')cur[k]={};cur=cur[k]}cur[keys[keys.length-1]]=val}
+function snapshotMap(){return new Map((marketSnapshot?.pairs||[]).map(p=>[p.symbol,p]))}
+function pairSnapshotStatus(live){
+  if(!live) return 'Belum ada live snapshot';
+  if(live.eligible) return 'eligible';
+  return Array.isArray(live.failed) && live.failed.length ? 'failed filters' : 'watch only';
+}
+
+function botTypeVal(cfg,k){const t=cfg.selectedBotType;const o=cfg.botTypeProfiles?.[t]?.overrides?.[k];return o!==undefined?o:cfg[k]}
+function effVal(cfg,k){const m=cfg.selectedMode;const o=cfg.modeProfiles?.[m]?.overrides?.[k];return o!==undefined?o:botTypeVal(cfg,k)}
+
+function popBotType(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedBotTypeEditor');
+  const e=Object.entries(currentConfig.botTypeProfiles||{});
+  s.innerHTML=e.map(([k,v])=>`<option value="${k}">${v.label||k}</option>`).join('');
+  s.value=currentConfig.selectedBotType||e[0]?.[0]||'';
+  syncBotType();updBotTypeDesc();
+}
+function syncBotType(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedBotTypeEditor');
+  const p=currentConfig.botTypeProfiles?.[s.value]||{};
+  for(const[k,id]of Object.entries(BTYPE_MAP))sEv(id,p.overrides?.[k]!==undefined?p.overrides[k]:currentConfig[k]);
+}
+function updBotTypeDesc(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedBotTypeEditor');
+  const p=currentConfig.botTypeProfiles?.[s.value];
+  document.getElementById('activeBotTypeDescription').textContent=p?.description||'-';
+}
+
+function popMode(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedModeEditor');
+  const e=Object.entries(currentConfig.modeProfiles||{});
+  s.innerHTML=e.map(([k,v])=>`<option value="${k}">${v.label||k}</option>`).join('');
+  s.value=currentConfig.selectedMode||e[0]?.[0]||'';updModeDesc();
+}
+function updModeDesc(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedModeEditor');
+  document.getElementById('activeModeDescription').textContent=currentConfig.modeProfiles?.[s.value]?.description||'-';
+}
+function popMktProf(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedMarketProfileEditor');
+  const m=document.getElementById('marketProfileModeEditor');
+  const e=Object.entries(currentConfig.marketProfiles||{});
+  s.innerHTML=e.map(([k,v])=>`<option value="${k}">${v.label||k}</option>`).join('');
+  m.value=currentConfig.marketProfileMode||'auto';
+  s.value=currentConfig.selectedMarketProfile||e[0]?.[0]||'';
+  s.disabled=m.value!=='manual';
+  syncMktProf();updMktDesc();
+}
+function syncMktProf(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedMarketProfileEditor');
+  const p=currentConfig.marketProfiles?.[s.value]||{};
+  document.getElementById('marketAllowEntriesEditor').checked=p.allowEntries!==false;
+  for(const[k,id]of Object.entries(MKT_MAP))sEv(id,p.entryOverrides?.[k]);
+}
+function updMktDesc(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedMarketProfileEditor');
+  const m=document.getElementById('marketProfileModeEditor');
+  const p=currentConfig.marketProfiles?.[s.value];
+  const t=m.value==='auto'?'Auto: profile dipilih berdasarkan market scan.':'Manual: profile ini dipaksa.';
+  document.getElementById('activeMarketDescription').textContent=t+'\n\n'+(p?.description||'-');
+}
+function popPairs(ps={}){
+  const c=document.getElementById('pairEditor');
+  const snap=snapshotMap();
+  const pairStatus=document.getElementById('pairLiveStatus');
+  const e=Object.entries(ps);
+  if(pairStatus){
+    if(marketSnapshot?.generatedAt){
+      pairStatus.textContent=`Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}`;
+    }else{
+      pairStatus.textContent='Live pair weight belum tersedia. Jalankan bot sampai minimal satu kali scan.';
+    }
+  }
+  c.innerHTML=e.length?e.map(([sym,se])=>{
+    const en=se===true||(typeof se==='object'&&se?.enabled!==false);
+    const live=snap.get(sym);
+    const lw=Number.isFinite(Number(live?.liveWeight))?Number(live.liveWeight):null;
+    const sc=Number.isFinite(Number(live?.score))?Number(live.score):null;
+    const status=pairSnapshotStatus(live);
+    return`<label class="pair-item">
+      <input type="checkbox" data-pe="${sym}" ${en?'checked':''}>
+      <span class="pair-main">
+        <strong>${sym}</strong>
+        <span class="pair-sub">Score ${live?fmt(sc,2):'-'} | ${status}</span>
+      </span>
+      <span class="live-box" title="${live?`Score ${fmt(sc,2)} | ${status}`:'Belum ada live snapshot'}">
+        <span>Live Weight</span>
+        <strong>${lw!=null?fmt(lw,2)+'x':'-'}</strong>
+      </span>
+    </label>`;
+  }).join(''):'<div class="empty">Pair settings tidak ditemukan.</div>';
+}
+
+function popCfg(){
+  if(!currentConfig)return;
+  if(currentConfig.maxRoundsPerDay==null&&currentConfig.maxTradesPerDay!=null)currentConfig.maxRoundsPerDay=currentConfig.maxTradesPerDay;
+  popBotType();popMode();popMktProf();
+  for(const[k,id]of Object.entries(BOT_MAP))sEv(id,currentConfig[k]);
+  for(const[path,id]of Object.entries(BOT_NESTED_MAP))sEv(id,getByPath(currentConfig,path));
+  for(const[k,id]of Object.entries(BTYPE_MAP))sEv(id,botTypeVal(currentConfig,k));
+  for(const[k,id]of Object.entries(TRD_MAP))sEv(id,effVal(currentConfig,k));
+  popPairs(currentConfig.pairSettings||{});
+  document.getElementById('configStatus').textContent=`Config â€” bot type: ${currentConfig.selectedBotType||'-'}, mode: ${currentConfig.selectedMode||'-'}, profile: ${currentConfig.selectedMarketProfile||'-'} (${currentConfig.marketProfileMode||'auto'})`;
+  renderReadmeTab();
+}
+
+function applyCfg(){
+  if(!currentConfig)return null;
+  const nc=structuredClone(currentConfig);
+  for(const[k,id]of Object.entries(BOT_MAP)){const raw=gEv(id);nc[k]=BOT_BOOL_KEYS.has(k)?Boolean(raw):Number(raw)}
+  nc.maxTradesPerDay=nc.maxRoundsPerDay;
+  for(const[path,id]of Object.entries(BOT_NESTED_MAP)){const raw=gEv(id);setByPath(nc,path,BOT_NESTED_BOOL_KEYS.has(path)?Boolean(raw):Number(raw))}
+  nc.selectedBotType=document.getElementById('selectedBotTypeEditor').value;
+  nc.selectedMode=document.getElementById('selectedModeEditor').value;
+  nc.marketProfileMode=document.getElementById('marketProfileModeEditor').value;
+  nc.selectedMarketProfile=document.getElementById('selectedMarketProfileEditor').value;
+  const bo=nc.botTypeProfiles?.[nc.selectedBotType]?.overrides||{};
+  for(const[k,id]of Object.entries(BTYPE_MAP)){
+    const raw=gEv(id);
+    bo[k]=BTYPE_BOOL_KEYS.has(k)?Boolean(raw):(BTYPE_STRING_KEYS.has(k)?raw:Number(raw));
+  }
+  if(nc.botTypeProfiles?.[nc.selectedBotType])nc.botTypeProfiles[nc.selectedBotType].overrides=bo;
+  const mo=nc.modeProfiles?.[nc.selectedMode]?.overrides||{};
+  for(const[k,id]of Object.entries(TRD_MAP)){const e=document.getElementById(id);mo[k]=e?.type==='checkbox'?gEv(id):Number(gEv(id))}
+  if(nc.modeProfiles?.[nc.selectedMode])nc.modeProfiles[nc.selectedMode].overrides=mo;
+  const mp=nc.marketProfiles?.[nc.selectedMarketProfile]||{};
+  mp.allowEntries=document.getElementById('marketAllowEntriesEditor').checked;
+  const mpo=mp.entryOverrides||{};
+  for(const[k,id]of Object.entries(MKT_MAP))mpo[k]=Number(gEv(id));
+  mp.entryOverrides=mpo;
+  if(nc.marketProfiles?.[nc.selectedMarketProfile])nc.marketProfiles[nc.selectedMarketProfile]=mp;
+  const ps={};
+  for(const c of document.getElementById('pairEditor').querySelectorAll('[data-pe]')){
+    const s=c.getAttribute('data-pe');
+    ps[s]={enabled:c.checked};
+  }
+  nc.pairSettings=ps;
+  return nc;
+}
+
+/* --- Report rendering --- */
+function popFilters(){
+  const pairs=[...new Set(journal.map(t=>t.pair).filter(Boolean))].sort();
+  const botTypes=[...new Set(journal.map(t=>t.botType||'-').filter(Boolean))].sort();
+  const modes=[...new Set(journal.map(t=>t.mode||'-').filter(Boolean))].sort();
+  const profiles=[...new Set(journal.map(t=>t.marketProfile||'-').filter(Boolean))].sort();
+  const reasons=[...new Set(journal.map(t=>t.exit?.reason||'Open').filter(Boolean))].sort();
+  const fill=(el,vals,all)=>{const cur=el.value||'all';el.innerHTML=[`<option value="all">${all}</option>`].concat(vals.map(v=>`<option value="${v}">${v}</option>`)).join('');el.value=vals.includes(cur)||cur==='all'?cur:'all'};
+  fill(document.getElementById('pairFilter'),pairs,'All Pairs');
+  fill(document.getElementById('botTypeFilter'),botTypes,'All Entry Styles');
+  fill(document.getElementById('modeFilter'),modes,'All Modes');
+  fill(document.getElementById('marketProfileFilter'),profiles,'All Profiles');
+  fill(document.getElementById('reasonFilter'),reasons,'All Reasons');
+}
+function inCurrentJakartaWeek(v){
+  if(!v)return false;
+  const now=new Date();
+  const partsNow=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',weekday:'short'}).formatToParts(now);
+  const weekDayMap={Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+  const currentDay=weekDayMap[partsNow.find(p=>p.type==='weekday')?.value||'Sun']||0;
+  const todayKey=jakartaKey(now);
+  const targetKey=jakartaKey(v);
+  const todayDate=new Date(`${todayKey}T00:00:00Z`);
+  const targetDate=new Date(`${targetKey}T00:00:00Z`);
+  const diffDays=Math.round((todayDate-targetDate)/86400000);
+  const mondayOffset=(currentDay+6)%7;
+  return diffDays>=0&&diffDays<=mondayOffset;
+}
+function inCurrentJakartaMonth(v){
+  if(!v)return false;
+  const d1=jakartaKey(v).slice(0,7);
+  const d2=jakartaKey().slice(0,7);
+  return d1===d2;
+}
+function applyFilters(trades){
+  const tk=relKey(0),yk=relKey(-1);
+  return trades.filter(t=>{
+    const dk=tradeKey(t);const botType=t.botType||'-';const mode=t.mode||'-';const profile=t.marketProfile||'-';const reason=t.exit?.reason||'Open';
+    const sf=document.getElementById('scopeFilter').value;
+    if(sf==='today'&&dk!==tk)return false;
+    if(sf==='yesterday'&&dk!==yk)return false;
+    if(sf==='week'&&!inCurrentJakartaWeek(t.closedAt||t.openedAt))return false;
+    if(sf==='month'&&!inCurrentJakartaMonth(t.closedAt||t.openedAt))return false;
+    const pf=document.getElementById('pairFilter').value;
+    if(pf!=='all'&&t.pair!==pf)return false;
+    const btf=document.getElementById('botTypeFilter').value;
+    if(btf!=='all'&&botType!==btf)return false;
+    const mf=document.getElementById('modeFilter').value;
+    if(mf!=='all'&&mode!==mf)return false;
+    const mpf=document.getElementById('marketProfileFilter').value;
+    if(mpf!=='all'&&profile!==mpf)return false;
+    const rf=document.getElementById('reasonFilter').value;
+    if(rf!=='all'&&reason!==rf)return false;
+    return true;
+  });
+}
+function setStats(closed){
+  const gv=closed.map(t=>Number(t.metrics?.grossPnlPct)).filter(Number.isFinite);
+  const nv=closed.map(tradeNet).filter(Number.isFinite);
+  const w=gv.filter(v=>v>0),l=gv.filter(v=>v<0);
+  const ah=closed.map(t=>Number(t.holdMinutes)).filter(Number.isFinite);
+  const mh=ah.length?[...ah].sort((a,b)=>a-b)[Math.floor(ah.length/2)]:null;
+  const best=gv.length?Math.max(...gv):null;const worst=gv.length?Math.min(...gv):null;
+  const stats=[['Gross PnL total',fmtP(gv.reduce((s,v)=>s+v,0))],['Net PnL total',fmtP(nv.reduce((s,v)=>s+v,0))],['Avg winner',w.length?fmtP(w.reduce((s,v)=>s+v,0)/w.length):'N/A'],['Avg loser',l.length?fmtP(l.reduce((s,v)=>s+v,0)/l.length):'N/A'],['Avg hold',ah.length?fmt(ah.reduce((s,v)=>s+v,0)/ah.length,1)+'m':'N/A'],['Median hold',mh!=null?fmt(mh,1)+'m':'N/A'],['Best trade',best!=null?fmtP(best):'N/A'],['Worst trade',worst!=null?fmtP(worst):'N/A']];
+  document.getElementById('summaryStats').innerHTML=stats.map(([l,v])=>`<div class="row"><span>${l}</span><strong>${v}</strong></div>`).join('');
+}
+function setBars(closed){
+  const ct={};for(const t of closed){const r=t.exit?.reason||'Unknown';if(!ct[r])ct[r]={c:0,n:0};ct[r].c++;ct[r].n+=tradeNet(t)||0}
+  const e=Object.entries(ct).sort((a,b)=>b[1].c-a[1].c).slice(0,6);const mx=e[0]?.[1]?.c||1;
+  document.getElementById('reasonBars').innerHTML=e.length?e.map(([r,d])=>`<div class="bar-line"><div class="bar-label"><span>${r}</span><strong>${d.c} | ${fmtP(d.n)}</strong></div><div class="bar"><div style="width:${(d.c/mx)*100}%"></div></div></div>`).join(''):'<div class="empty">Belum ada closed trade.</div>';
+}
+function setPairStats(closed){
+  const bp={};for(const t of closed){const p=t.pair||'UNK';const pnl=Number(t.metrics?.grossPnlPct)||0;if(!bp[p])bp[p]={c:0,p:0};bp[p].c++;bp[p].p+=pnl}
+  const e=Object.entries(bp).sort((a,b)=>b[1].p-a[1].p).slice(0,8);
+  document.getElementById('pairStats').innerHTML=e.length?e.map(([p,d])=>`<div class="row"><span>${p} (${d.c}x)</span><strong class="${d.p>=0?'green':'red'}">${fmtP(d.p)}</strong></div>`).join(''):'<div class="empty">Belum ada data pair.</div>';
+}
+function setOpenTrades(ot){
+  document.getElementById('openTrades').innerHTML=ot.length?ot.map(t=>`<div class="row"><span>${t.pair}</span><strong>${t.botType||'-'} | ${t.mode||'-'}</strong></div>`).join(''):'<div class="empty">Tidak ada posisi terbuka.</div>';
+}
+function setTable(trades){
+  const rows=trades.slice().reverse().slice(0,20);
+  document.getElementById('tradeTable').innerHTML=rows.length?rows.map(t=>{const gp=Number(t.metrics?.grossPnlPct);return`<tr><td>${t.pair||'-'}</td><td><span class="pill">${t.status||'-'}</span></td><td>${fmtD(t.openedAt)}</td><td>${fmtD(t.closedAt)}</td><td>${t.botType||'-'}</td><td>${t.mode||'-'}</td><td>${t.marketProfile||'-'}</td><td>${fmt(t.entry?.price,4)}</td><td>${fmt(t.exit?.price,4)}</td><td class="${gp>=0?'green':'red'}">${fmtP(gp)}</td><td>${t.exit?.reason||t.entry?.reason||'-'}</td></tr>`}).join(''):'<tr><td class="empty" colspan="11">Belum ada trade.</td></tr>';
+}
+
+function render(){
+  const fj=applyFilters(journal);
+  const open=fj.filter(t=>t.status==='open');const closed=fj.filter(t=>t.status==='closed');
+  const tk=jakartaKey();
+  const gt=closed.map(t=>Number(t.metrics?.grossPnlPct)).filter(Number.isFinite).reduce((s,v)=>s+v,0);
+  const nt=closed.map(tradeNet).filter(Number.isFinite).reduce((s,v)=>s+v,0);
+  const tp=closed.filter(t=>jakartaKey(t.closedAt||t.openedAt)===tk).map(tradeNet).filter(Number.isFinite).reduce((s,v)=>s+v,0);
+  const tc=journal.filter(t=>t.status==='closed'&&tradeKey(t)===tk).length;
+  const wins=closed.filter(t=>Number(t.metrics?.grossPnlPct)>0).length;
+  const wr=closed.length?(wins/closed.length)*100:0;
+  const lt=fj.map(t=>t.closedAt||t.openedAt).filter(Boolean).sort().slice(-1)[0];
+  document.getElementById('closedCount').textContent=String(closed.length);
+  document.getElementById('openCount').textContent=String(open.length);
+  const ge=document.getElementById('grossPnl');ge.textContent=fmtP(gt);ge.className=`value ${gt>=0?'green':'red'}`;
+  const ne=document.getElementById('netPnl');ne.textContent=fmtP(nt);ne.className=`value ${nt>=0?'green':'red'}`;
+  document.getElementById('winRate').textContent=fmtP(wr);
+  const te=document.getElementById('pnlToday');te.textContent=fmtP(tp);te.className=`value ${tp>=0?'green':'red'}`;
+  document.getElementById('tradesToday').textContent=String(tc);
+  document.getElementById('lastUpdated').textContent=lt?fmtD(lt):'-';
+  setStats(closed);setBars(closed);setPairStats(closed);setOpenTrades(open);setTable(fj);
+}
+
+function loadJ(raw,src){
+  try{const p=JSON.parse(raw);if(!Array.isArray(p))throw new Error('trade_journal.json harus array');journal=p;popFilters();document.getElementById('statusText').textContent=`Loaded ${p.length} trade(s) from ${src}.`;render()}catch(e){document.getElementById('statusText').textContent=`Gagal parse: ${e.message}`}
+}
+async function loadC(raw,src){
+  try{currentConfig=JSON.parse(raw);if(currentConfig.maxRoundsPerDay==null&&currentConfig.maxTradesPerDay!=null)currentConfig.maxRoundsPerDay=currentConfig.maxTradesPerDay;popCfg();renderReadmeTab();document.getElementById('configStatus').textContent=`Config loaded from ${src}.`}catch(e){document.getElementById('configStatus').textContent=`Gagal parse config: ${e.message}`}
+}
+function loadSnapshot(raw){
+  try{marketSnapshot=raw?JSON.parse(raw):null}catch(_){marketSnapshot=null}
+}
+function renderReadmeTab(){
+  const quick=document.getElementById('quickGuideBox');
+  const combo=document.getElementById('comboGuide');
+  const coreTable=document.getElementById('botTypeCoreTable');
+  const raw=document.getElementById('readmeContent');
+  if(!quick||!combo||!raw||!coreTable)return;
+  if(!currentConfig){
+    quick.textContent='Buka folder bot dulu untuk melihat panduan kombinasi.';
+    combo.innerHTML='<div class="empty">Belum ada config.</div>';
+    coreTable.innerHTML='<tr><td class="empty" colspan="4">Belum ada config.</td></tr>';
+    raw.textContent=readmeText||'README belum dimuat.';
+    return;
+  }
+  const bt=currentConfig.selectedBotType||'-';
+  const md=currentConfig.selectedMode||'-';
+  const mp=currentConfig.marketProfileMode==='auto'
+    ? `auto (${currentConfig.selectedMarketProfile||'market scan'})`
+    : (currentConfig.selectedMarketProfile||'-');
+  quick.textContent=
+`Layer formula:
+Entry Style = gaya masuk utama
+Trading Style = agresivitas, risk, dan exit
+Market Profile = kondisi market dan filter entry
+
+Config aktif:
+Entry Style: ${bt}
+Trading Style: ${md}
+Market Profile: ${mp}
+
+Formula cepat:
+- scalp_trend cocok untuk bullish / bullish_slow
+- day_trade cocok untuk bullish_slow / neutral
+- swing_trade cocok untuk bullish kuat dan sabar hold
+- range_scalp cocok untuk choppy / neutral / sideway`;
+  const combos=[
+    ['Scalp harian aktif','scalp_trend + professional + bullish','Saat market hidup dan masih ada follow-through cepat.'],
+    ['Harian lebih tenang','day_trade + professional + bullish_slow','Untuk target harian kecil tapi lebih sabar.'],
+    ['Trend besar','swing_trade + bigmoney + bullish','Untuk ikut struktur lebih besar, entry lebih jarang.'],
+    ['Sideway/range','range_scalp + professional + choppy','Untuk market noise tinggi yang kurang cocok di-trend-follow.'],
+    ['Eksperimen aman','custom + custom + custom','Kalau mau test tanpa mengubah preset bawaan.']
+  ];
+  combo.innerHTML=combos.map(([label,formula,desc])=>`<div class="combo-card"><strong>${label}</strong><div class="combo-formula">${formula}</div><div class="combo-desc">${desc}</div></div>`).join('');
+  const coreRows=[
+    ['scalp_trend','Trend 15m + trigger cepat 3m, breakout continuation, momentum RSI, volume, edge bersih.','Take profit cepat, ATR stop, cost guard, trailing, stale invalidation cepat.','Bullish atau bullish slow yang masih punya follow-through.'],
+    ['day_trade','Trend lebih besar, signal lebih sabar, confirmation lebih rapi, tetap continuation.','Exit lebih tenang dari scalp, masih cost-aware, break-even dan stale lebih sabar.','Target harian kecil dengan noise lebih rendah.'],
+    ['swing_trade','Trend utama 1D, validasi 4H, breakout higher timeframe, bukan entry mikro.','ATR stop dan structural invalidation lebih dominan, soft exit ala scalp dikurangi, cost guard tetap aktif.','Trend besar yang ingin diikuti lebih lama.'],
+    ['range_scalp','Recovery/range entry di area netral, tidak terlalu bergantung breakout trend.','Cepat keluar jika recovery gagal, invalidation range, cost guard tetap menjaga profit tipis.','Neutral, choppy, atau sideway.']
+  ];
+  coreTable.innerHTML=coreRows.map(([type,entryCore,exitCore,fit])=>`<tr><td>${type}</td><td>${entryCore}</td><td>${exitCore}</td><td>${fit}</td></tr>`).join('');
+  raw.textContent=readmeText||'Dokumentasi belum tersedia.';
+}
+async function loadFolder(){
+  try{
+    const [cfg,jrn,snap,readme]=await Promise.all([
+      fJ('/api/config'),
+      fJ('/api/trades'),
+      fJ('/api/snapshot').catch(()=>({})),
+      fJ('/api/readme').catch(()=>({content:''}))
+    ]);
+    readmeText=(readme&&typeof readme.content==='string')?readme.content:'';
+    loadSnapshot(JSON.stringify(snap||{}));
+    await loadC(JSON.stringify(cfg,null,2),'localhost:/api/config');
+    loadJ(JSON.stringify(jrn||[],null,2),'localhost:/api/trades');
+    renderReadmeTab();
+    document.getElementById('statusText').textContent='Data loaded from localhost gateway.';
+  }catch(e){
+    document.getElementById('statusText').textContent=`Gagal load localhost data: ${e.message}`;
+  }
+}
+
+/* --- Event listeners --- */
+document.getElementById('openFolderBtn').addEventListener('click',async()=>{
+  await loadFolder()
+});
+document.getElementById('reloadFolderBtn').addEventListener('click',async()=>{
+  try{await loadFolder()}catch(e){document.getElementById('statusText').textContent=`Gagal reload: ${e.message}`}
+});
+document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
+  if(!currentConfig){document.getElementById('configStatus').textContent='Config belum dimuat.';return}
+  try{
+    const nc=applyCfg();
+    const saved=await pJ('/api/config',nc);
+    currentConfig=saved.config||nc;
+    popCfg();
+    document.getElementById('configStatus').textContent='Config saved to localhost bot.'
+  }catch(e){
+    document.getElementById('configStatus').textContent=`Gagal save config: ${e.message}`
+  }
+});
+['scopeFilter','pairFilter','botTypeFilter','modeFilter','marketProfileFilter','reasonFilter'].forEach(id=>{
+  document.getElementById(id).addEventListener('change',()=>{if(journal.length)render()})
+});
+document.getElementById('selectedBotTypeEditor').addEventListener('change',()=>{
+  if(!currentConfig)return;currentConfig.selectedBotType=document.getElementById('selectedBotTypeEditor').value;popCfg()
+});
+document.getElementById('selectedModeEditor').addEventListener('change',()=>{
+  if(!currentConfig)return;currentConfig.selectedMode=document.getElementById('selectedModeEditor').value;popCfg()
+});
+document.getElementById('marketProfileModeEditor').addEventListener('change',()=>{
+  if(!currentConfig)return;
+  document.getElementById('selectedMarketProfileEditor').disabled=document.getElementById('marketProfileModeEditor').value!=='manual';
+  updMktDesc();
+});
+document.getElementById('selectedMarketProfileEditor').addEventListener('change',()=>{
+  if(!currentConfig)return;syncMktProf();updMktDesc()
+});
+document.querySelectorAll('[data-tab]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const t=btn.getAttribute('data-tab');
+    document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===t))
+  })
+});
+loadFolder();
+</script></body></html>

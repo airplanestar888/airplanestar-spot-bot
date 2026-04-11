@@ -1,0 +1,492 @@
+{
+  "baseUrl": "https://api.bitget.com",
+  "selectedBotType": "custom",
+  "selectedMode": "aggressive",
+  "marketProfileMode": "manual",
+  "selectedMarketProfile": "bullish_slow",
+  "pairSettings": {
+    "BTCUSDT": {
+      "enabled": true
+    },
+    "ETHUSDT": {
+      "enabled": true
+    },
+    "SOLUSDT": {
+      "enabled": true
+    },
+    "BGBUSDT": {
+      "enabled": true
+    },
+    "XRPUSDT": {
+      "enabled": true
+    },
+    "RIVERUSDT": {
+      "enabled": false
+    },
+    "HYPEUSDT": {
+      "enabled": true
+    },
+    "DOGEUSDT": {
+      "enabled": true
+    },
+    "ADAUSDT": {
+      "enabled": true
+    },
+    "TRXUSDT": {
+      "enabled": false
+    },
+    "LINKUSDT": {
+      "enabled": false
+    },
+    "WLDUSDT": {
+      "enabled": true
+    },
+    "BNBUSDT": {
+      "enabled": true
+    },
+    "XIONUSDT": {
+      "enabled": false
+    },
+    "SWARMSUSDT": {
+      "enabled": false
+    },
+    "REDUSDT": {
+      "enabled": true
+    },
+    "GRASSUSDT": {
+      "enabled": true
+    }
+  },
+  "riskPercent": 0.15,
+  "dryRun": false,
+  "minBuyUSDT": 5,
+  "maxBuyUSDT": 10,
+  "reserveUSDT": 2,
+  "enableMultiTrade": true,
+  "maxOpenPositions": 2,
+  "exposureCapPct": 0.5,
+  "minManagedPositionUSDT": 2.5,
+  "minRecoverUSDT": 3,
+  "takeProfitPct": 0.012,
+  "useDynamicTakeProfit": true,
+  "dynamicTakeProfitAtrMultiplier": 1.35,
+  "trailingActivationPct": 0.008,
+  "trailingDrawdownPct": 0.004,
+  "trailingProtectionPct": 0.0025,
+  "atrStopMultiplier": 1.5,
+  "minStopPct": -0.025,
+  "maxStopPct": -0.006,
+  "emergencyStopLossPct": -0.02,
+  "exitRSIThreshold": 70,
+  "requireEma21Rising": true,
+  "requireFastTrend": true,
+  "requirePriceAboveEma9": true,
+  "requireEdge": true,
+  "requireRsiMomentum": true,
+  "requireBreakout": true,
+  "enableRsiBandFilter": true,
+  "enableAtrFilter": true,
+  "enableVolumeFilter": true,
+  "enableCandleStrengthFilter": true,
+  "enablePriceExtensionFilter": true,
+  "enableRangeRecoveryFilter": true,
+  "enableTimeStop": false,
+  "enableStaleTrade": true,
+  "enableCostGuard": true,
+  "costGuardArmPct": 0.0055,
+  "costGuardFloorPct": 0.003,
+  "roundTripFeePct": 0.004,
+  "slippageBufferPct": 0.001,
+  "minExpectedNetPct": 0.003,
+  "minScalpTargetPct": 0.008,
+  "maxScalpTargetPct": 0.012,
+  "minTrendRsi": 42,
+  "minAtrPct": 0.0035,
+  "maxAtrPct": 0.018,
+  "minVolumeRatio": 1.15,
+  "maxEmaGapPct": 0.008,
+  "minMomentumExitPct": 0.004,
+  "timeStopMinutes": 18,
+  "timeStopProfitPct": 0.003,
+  "maxHoldMinutes": 45,
+  "minHoldPnlPct": 0.0035,
+  "breakEvenMinutes": 9,
+  "breakEvenArmedPct": 0.006,
+  "breakEvenFloorPct": 0.0015,
+  "cooldownMs": 300000,
+  "lossCooldownMs": 600000,
+  "maxRoundsPerDay": 100,
+  "stopAfterThreeConsecutiveLosses": false,
+  "lossStreakHaltThreshold": 10,
+  "dailyProfitTargetPct": 0.05,
+  "dailyLossLimitPct": -0.3,
+  "rsiBandLower": 46,
+  "rsiBandUpper": 64,
+  "minCandleStrength": 0.35,
+  "minConfirmation": 3,
+  "breakoutPct": 0.9985,
+  "optimalRsiLow": 49,
+  "optimalRsiHigh": 58,
+  "optimalAtrLow": 0.005,
+  "optimalAtrHigh": 0.012,
+  "minEmaGapNeg": 0.0015,
+  "report": {
+    "heartbeatIntervalMs": 300000,
+    "marketReportIntervalMs": 3600000,
+    "balanceReportIntervalMs": 3600000,
+    "holdReportIntervalMs": 600000,
+    "noSignalReportIntervalMs": 3600000
+  },
+  "loopIntervalMs": 60000,
+  "signalTimeframe": "3min",
+  "trendTimeframe": "15min",
+  "telegram": {
+    "enabled": true
+  },
+  "logging": {
+    "logFile": "logs/bot.log"
+  },
+  "botTypeProfiles": {
+    "scalp_trend": {
+      "label": "Scalp Trend",
+      "description": "Bot dasar seperti sekarang. Fokus ke follow-through cepat dengan trend 15m dan trigger 3m untuk ambil gerakan pendek yang bersih.",
+      "overrides": {
+        "signalTimeframe": "3min",
+        "trendTimeframe": "15min",
+        "minScalpTargetPct": 0.008,
+        "maxScalpTargetPct": 0.016,
+        "timeStopMinutes": 12,
+        "maxHoldMinutes": 24,
+        "breakEvenMinutes": 6,
+        "minConfirmation": 3,
+        "breakoutPct": 0.9985,
+        "requireEma21Rising": true,
+        "requireFastTrend": true,
+        "requirePriceAboveEma9": true
+      }
+    },
+    "day_trade": {
+      "label": "Day Trade",
+      "description": "Lebih sabar untuk target harian kecil tapi rapi. Entry lebih jarang, target sedikit lebih lebar, dan hold lebih panjang daripada scalp murni.",
+      "overrides": {
+        "signalTimeframe": "5min",
+        "trendTimeframe": "30min",
+        "minScalpTargetPct": 0.01,
+        "maxScalpTargetPct": 0.022,
+        "timeStopMinutes": 25,
+        "maxHoldMinutes": 90,
+        "breakEvenMinutes": 18,
+        "minConfirmation": 4,
+        "breakoutPct": 0.999,
+        "requireEma21Rising": true,
+        "requireFastTrend": true,
+        "requirePriceAboveEma9": true
+      }
+    },
+    "swing_trade": {
+      "label": "Swing Trade",
+      "description": "Untuk baca trend besar ala 1D dan cari setup lebih tenang di 4H. Cocok kalau mau lebih sabar dan tidak mengejar gerakan kecil setiap saat.",
+      "overrides": {
+        "signalTimeframe": "4h",
+        "trendTimeframe": "1day",
+        "minScalpTargetPct": 0.02,
+        "maxScalpTargetPct": 0.06,
+        "timeStopMinutes": 720,
+        "maxHoldMinutes": 4320,
+        "breakEvenMinutes": 720,
+        "minConfirmation": 4,
+        "breakoutPct": 0.9995,
+        "requireEma21Rising": true,
+        "requireFastTrend": true,
+        "requirePriceAboveEma9": true
+      }
+    },
+    "range_scalp": {
+      "label": "Range Scalp",
+      "description": "Eksperimental untuk market sideway. Tetap cepat, tapi lebih toleran ke trend yang tidak terlalu kuat dan lebih fokus ke re-entry di area netral.",
+      "overrides": {
+        "signalTimeframe": "3min",
+        "trendTimeframe": "15min",
+        "minScalpTargetPct": 0.006,
+        "maxScalpTargetPct": 0.012,
+        "timeStopMinutes": 10,
+        "maxHoldMinutes": 22,
+        "breakEvenMinutes": 5,
+        "minConfirmation": 2,
+        "breakoutPct": 0.9975,
+        "requireEma21Rising": false,
+        "requireFastTrend": false,
+        "requirePriceAboveEma9": false
+      }
+    },
+    "custom": {
+      "label": "Custom Bot Type",
+      "description": "Profile bot type buatan user. Gunakan ini kalau mau mengatur struktur setup sendiri tanpa mengubah profile bot type bawaan.",
+      "overrides": {
+        "signalTimeframe": "3min",
+        "trendTimeframe": "15min",
+        "minScalpTargetPct": 0.008,
+        "maxScalpTargetPct": 0.016,
+        "timeStopMinutes": 12,
+        "maxHoldMinutes": 24,
+        "breakEvenMinutes": 6,
+        "minConfirmation": 3,
+        "breakoutPct": 0.9985,
+        "requireEma21Rising": true,
+        "requireFastTrend": false,
+        "requirePriceAboveEma9": true,
+        "requireEdge": true,
+        "rsiBandLower": 46,
+        "rsiBandUpper": 64,
+        "minCandleStrength": 0.35,
+        "minEmaGapNeg": 0.0015,
+        "optimalRsiLow": 49,
+        "optimalRsiHigh": 58,
+        "optimalAtrLow": 0.005,
+        "optimalAtrHigh": 0.012,
+        "requireRsiMomentum": false,
+        "requireBreakout": false,
+        "enableRsiBandFilter": false,
+        "enableAtrFilter": false,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": false
+      }
+    }
+  },
+  "marketProfiles": {
+    "bullish": {
+      "label": "Bullish",
+      "description": "Market kuat dan cukup hidup. Entry boleh lebih percaya diri selama breakout dan volume tetap rapi.",
+      "allowEntries": true,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0022,
+        "minVolumeRatio": 1.04,
+        "minTrendRsi": 39,
+        "minAtrPct": 0.0025,
+        "maxAtrPct": 0.025,
+        "maxEmaGapPct": 0.018
+      }
+    },
+    "bullish_slow": {
+      "label": "Bullish Slow",
+      "description": "Trend naik tapi lambat. Fokus ke setup bersih, longgarkan sedikit volume dan ATR tanpa memaksa breakout jelek.",
+      "allowEntries": true,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.002,
+        "minVolumeRatio": 1.03,
+        "minTrendRsi": 38,
+        "minAtrPct": 0.0024,
+        "maxAtrPct": 0.025,
+        "maxEmaGapPct": 0.018
+      }
+    },
+    "neutral": {
+      "label": "Neutral",
+      "description": "Market belum jelas. Entry tetap boleh, tapi kualitas setup harus lebih rapi dan fee tetap tertutup.",
+      "allowEntries": true,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0026,
+        "minVolumeRatio": 1.06,
+        "minTrendRsi": 40,
+        "minAtrPct": 0.0028,
+        "maxAtrPct": 0.02,
+        "maxEmaGapPct": 0.015
+      }
+    },
+    "bearish": {
+      "label": "Bearish",
+      "description": "Market lemah. Default-nya watch only supaya style trading tidak dipaksa melawan arah market.",
+      "allowEntries": false,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0032,
+        "minVolumeRatio": 1.12,
+        "minTrendRsi": 43,
+        "minAtrPct": 0.0032,
+        "maxAtrPct": 0.018,
+        "maxEmaGapPct": 0.012
+      }
+    },
+    "choppy": {
+      "label": "Choppy",
+      "description": "Noise tinggi dan follow-through jelek. Default-nya watch only untuk menghindari overtrade.",
+      "allowEntries": false,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0034,
+        "minVolumeRatio": 1.12,
+        "minTrendRsi": 43,
+        "minAtrPct": 0.0032,
+        "maxAtrPct": 0.012,
+        "maxEmaGapPct": 0.008
+      }
+    },
+    "custom": {
+      "label": "Custom Market",
+      "description": "Profile market buatan user. Gunakan ini kalau mau tuning sendiri tanpa mengubah preset market bawaan.",
+      "allowEntries": true,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0024,
+        "minVolumeRatio": 1.05,
+        "minTrendRsi": 39,
+        "minAtrPct": 0.0026,
+        "maxAtrPct": 0.02,
+        "maxEmaGapPct": 0.016
+      }
+    }
+  },
+  "modeProfiles": {
+    "conservative": {
+      "label": "Conservative",
+      "description": "Paling selektif. Cocok kalau modal kecil dan mau minim noise.",
+      "overrides": {
+        "riskPercent": 0.1,
+        "reserveUSDT": 3,
+        "takeProfitPct": 0.011,
+        "trailingActivationPct": 0.009,
+        "trailingDrawdownPct": 0.0035,
+        "trailingProtectionPct": 0.002,
+        "minMomentumExitPct": 0.003,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.002,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.0025,
+        "breakEvenArmedPct": 0.004,
+        "breakEvenFloorPct": 0.001,
+        "exitRSIThreshold": 70
+      }
+    },
+    "normal": {
+      "label": "Normal",
+      "description": "Seimbang. Masih ketat, tapi tidak terlalu jarang entry.",
+      "overrides": {
+        "riskPercent": 0.15,
+        "reserveUSDT": 2,
+        "takeProfitPct": 0.012,
+        "trailingActivationPct": 0.008,
+        "trailingDrawdownPct": 0.004,
+        "trailingProtectionPct": 0.0025,
+        "minMomentumExitPct": 0.004,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.003,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.0035,
+        "breakEvenArmedPct": 0.006,
+        "breakEvenFloorPct": 0.0015,
+        "exitRSIThreshold": 70
+      }
+    },
+    "aggressive": {
+      "label": "Aggressive Light",
+      "description": "Lebih sering cari entry, tapi masih pakai guard fee dan time stop.",
+      "overrides": {
+        "riskPercent": 0.18,
+        "reserveUSDT": 1.5,
+        "takeProfitPct": 0.013,
+        "trailingActivationPct": 0.009,
+        "trailingDrawdownPct": 0.0045,
+        "trailingProtectionPct": 0.0025,
+        "minMomentumExitPct": 0.0055,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.004,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.0045,
+        "breakEvenArmedPct": 0.008,
+        "breakEvenFloorPct": 0.002,
+        "exitRSIThreshold": 70,
+        "cooldownMs": 300000
+      }
+    },
+    "professional": {
+      "label": "Professional",
+      "description": "Seimbang tapi tajam. Fokus ke setup yang rapi, proteksi profit, dan frekuensi entry yang tetap realistis.",
+      "overrides": {
+        "riskPercent": 0.16,
+        "reserveUSDT": 1.5,
+        "takeProfitPct": 0.013,
+        "trailingActivationPct": 0.0065,
+        "trailingDrawdownPct": 0.003,
+        "trailingProtectionPct": 0.004,
+        "minMomentumExitPct": 0.003,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.004,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.005,
+        "breakEvenArmedPct": 0.0045,
+        "breakEvenFloorPct": 0.0015,
+        "cooldownMs": 120000,
+        "maxRoundsPerDay": 30,
+        "exitRSIThreshold": 65
+      }
+    },
+    "bigmoney": {
+      "label": "Big Money",
+      "description": "Lebih sabar dan selektif. Cocok untuk modal lebih besar yang butuh entry bersih, sizing tenang, dan proteksi profit yang disiplin.",
+      "overrides": {
+        "riskPercent": 0.1,
+        "reserveUSDT": 4,
+        "takeProfitPct": 0.014,
+        "trailingActivationPct": 0.006,
+        "trailingDrawdownPct": 0.0028,
+        "trailingProtectionPct": 0.0045,
+        "minMomentumExitPct": 0.0035,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.004,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.0055,
+        "breakEvenArmedPct": 0.005,
+        "breakEvenFloorPct": 0.002,
+        "cooldownMs": 300000,
+        "maxRoundsPerDay": 12,
+        "exitRSIThreshold": 70
+      }
+    },
+    "hyper": {
+      "label": "Hyper Scalp",
+      "description": "Paling longgar. TP 1.5%, exit cepat, trailing ringan untuk kunci fee/slippage, tanpa limit trade harian.",
+      "overrides": {
+        "riskPercent": 0.2,
+        "reserveUSDT": 1,
+        "takeProfitPct": 0.015,
+        "trailingActivationPct": 0.0075,
+        "trailingDrawdownPct": 0.003,
+        "trailingProtectionPct": 0.0045,
+        "minMomentumExitPct": 0.002,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.006,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.006,
+        "breakEvenArmedPct": 0.003,
+        "breakEvenFloorPct": 0.0005,
+        "cooldownMs": 0,
+        "maxRoundsPerDay": 9999,
+        "exitRSIThreshold": 65
+      }
+    },
+    "custom": {
+      "label": "Custom Trade",
+      "description": "Profile gaya trading buatan user. Pakai ini kalau mau simpan setting sendiri tanpa mengubah mode bawaan.",
+      "overrides": {
+        "riskPercent": 0.2,
+        "reserveUSDT": 1,
+        "takeProfitPct": 0.015,
+        "trailingActivationPct": 0.0075,
+        "trailingDrawdownPct": 0.003,
+        "trailingProtectionPct": 0.0045,
+        "minMomentumExitPct": 0.002,
+        "enableTimeStop": false,
+        "timeStopProfitPct": 0.006,
+        "enableStaleTrade": true,
+        "minHoldPnlPct": 0.006,
+        "breakEvenArmedPct": 0.003,
+        "breakEvenFloorPct": 0.0005,
+        "cooldownMs": 0,
+        "maxRoundsPerDay": 9999,
+        "exitRSIThreshold": 65,
+        "minAtrPct": 0.002,
+        "maxAtrPct": 0.025
+      }
+    }
+  },
+  "maxTradesPerDay": 100
+}
