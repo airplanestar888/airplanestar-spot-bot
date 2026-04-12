@@ -12,7 +12,7 @@
       "enabled": true
     },
     "SOLUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BGBUSDT": {
       "enabled": true
@@ -42,7 +42,7 @@
       "enabled": true
     },
     "BNBUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "XIONUSDT": {
       "enabled": false
@@ -54,7 +54,7 @@
       "enabled": false
     },
     "GRASSUSDT": {
-      "enabled": true
+      "enabled": false
     }
   },
   "riskPercent": 0.15,
@@ -108,7 +108,7 @@
   "minMomentumExitPct": 0.004,
   "timeStopMinutes": 18,
   "timeStopProfitPct": 0.003,
-  "maxHoldMinutes": 45,
+  "maxHoldMinutes": 30,
   "minHoldPnlPct": 0.0035,
   "breakEvenMinutes": 9,
   "breakEvenArmedPct": 0.006,
@@ -224,7 +224,7 @@
       "description": "Profile bot type buatan user. Gunakan ini kalau mau mengatur struktur setup sendiri tanpa mengubah profile bot type bawaan.",
       "overrides": {
         "signalTimeframe": "3min",
-        "trendTimeframe": "30min",
+        "trendTimeframe": "15min",
         "minScalpTargetPct": 0.008,
         "maxScalpTargetPct": 0.016,
         "timeStopMinutes": 12,
@@ -244,10 +244,10 @@
         "optimalRsiHigh": 58,
         "optimalAtrLow": 0.005,
         "optimalAtrHigh": 0.012,
-        "requireRsiMomentum": false,
+        "requireRsiMomentum": true,
         "requireBreakout": true,
         "enableRsiBandFilter": true,
-        "enableAtrFilter": false,
+        "enableAtrFilter": true,
         "enableVolumeFilter": true,
         "enableCandleStrengthFilter": true,
         "enablePriceExtensionFilter": true,

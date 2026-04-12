@@ -14,6 +14,18 @@ function readJsonSafe(filePath, fallback) {
   }
 }
 
+function syncDisplayedConfig(nextConfig) {
+  const synced = { ...nextConfig };
+  const selectedBotType = synced.selectedBotType;
+  const botTypeOverrides = synced.botTypeProfiles?.[selectedBotType]?.overrides;
+
+  if (botTypeOverrides && Number.isFinite(Number(botTypeOverrides.maxHoldMinutes))) {
+    synced.maxHoldMinutes = Number(botTypeOverrides.maxHoldMinutes);
+  }
+
+  return synced;
+}
+
 function buildRuntimeStatus(rootDir) {
   const config = readJsonSafe(path.join(rootDir, "config.json"), {});
   const state = readJsonSafe(dataPath(rootDir, "state.json"), {});
@@ -39,6 +51,9 @@ function buildRuntimeStatus(rootDir) {
     lossStreak: Number(state.lossStreak || 0),
     tradesToday: Number(state.tradesToday || 0),
     realizedPnlToday: Number(state.realizedPnlToday || 0),
+    realizedNetPnlToday: Number(
+      state.realizedNetPnlToday ?? state.realizedPnlToday ?? 0
+    ),
     lastHeartbeatAt: health.lastHeartbeatAt || null,
     lastRunAt: health.lastRunAt || null,
     dataHealthy: health.dataHealthy !== false,
@@ -75,8 +90,9 @@ function saveConfig(rootDir, nextConfig) {
     throw new Error("Invalid config payload");
   }
 
-  fs.writeFileSync(filePath, JSON.stringify(nextConfig, null, 2), "utf8");
-  return readJsonSafe(filePath, nextConfig);
+  const normalizedConfig = syncDisplayedConfig(nextConfig);
+  fs.writeFileSync(filePath, JSON.stringify(normalizedConfig, null, 2), "utf8");
+  return readJsonSafe(filePath, normalizedConfig);
 }
 
 module.exports = { getPayload, saveConfig };

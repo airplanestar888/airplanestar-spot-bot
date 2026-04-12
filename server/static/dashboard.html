@@ -463,6 +463,7 @@ function applyCfg(){
     bo[k]=BTYPE_BOOL_KEYS.has(k)?Boolean(raw):(BTYPE_STRING_KEYS.has(k)?raw:Number(raw));
   }
   if(nc.botTypeProfiles?.[nc.selectedBotType])nc.botTypeProfiles[nc.selectedBotType].overrides=bo;
+  if(Number.isFinite(Number(bo.maxHoldMinutes))) nc.maxHoldMinutes=Number(bo.maxHoldMinutes);
   const mo=nc.modeProfiles?.[nc.selectedMode]?.overrides||{};
   for(const[k,id]of Object.entries(TRD_MAP)){const e=document.getElementById(id);mo[k]=e?.type==='checkbox'?gEv(id):Number(gEv(id))}
   if(nc.modeProfiles?.[nc.selectedMode])nc.modeProfiles[nc.selectedMode].overrides=mo;
