@@ -29,6 +29,11 @@ async function handleEntryFlow({
   LOG_FILE,
   safeToFixed
 }) {
+  const calcBuySlippagePct = (intendedPrice, fillPrice) => {
+    if (!Number.isFinite(intendedPrice) || intendedPrice <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) return null;
+    return Math.max(0, (fillPrice - intendedPrice) / intendedPrice);
+  };
+
   const positions = Array.isArray(state.positions)
     ? state.positions.filter(Boolean)
     : (state.position ? [state.position] : []);
@@ -68,7 +73,7 @@ async function handleEntryFlow({
 
   const entryPlan = buildEntryPlan({ usdtFree, bestEligible, config, maxAllowedSizeUSDT: remainingExposureUsdt });
   if (!entryPlan) return { handled: true };
-  const { reserveUSDT, plannedSize, estimatedQty, expectedNetPct, clientOrderId } = entryPlan;
+  const { reserveUSDT, plannedSize, estimatedQty, clientOrderId } = entryPlan;
   const sizeCapped = safeToFixed(plannedSize, 2);
   const dynamicTakeProfitEnabled = config.useDynamicTakeProfit === true;
   const baseTakeProfitPct = config._effectiveTakeProfitPct ?? config.takeProfitPct ?? 0.012;
@@ -118,9 +123,6 @@ async function handleEntryFlow({
       ? `TP ${(positionTakeProfitPct * 100).toFixed(2)}% | DTP ${(profitActivationPct * 100).toFixed(2)}%`
       : `Take profit ${(positionTakeProfitPct * 100).toFixed(2)}%`,
     `Path: E ${safeToFixed(bestEligible.price, 4)} | D +${safeToFixed(profitActivationPct * 100, 2)}% | T +${safeToFixed(positionTakeProfitPct * 100, 2)}%`,
-    config.requireEdge !== false
-      ? `Expected net edge ${(expectedNetPct * 100).toFixed(2)}% after fee buffer`
-      : `Expected net edge ${(expectedNetPct * 100).toFixed(2)}% (edge filter disabled)`,
     `Reserve kept: ${safeToFixed(reserveUSDT)} USDT`
   ];
 
@@ -131,6 +133,7 @@ async function handleEntryFlow({
     plannedSize,
     estimatedQty,
     now,
+    intendedEntryPrice: bestEligible.price,
     takeProfitPct: positionTakeProfitPct,
     profitActivationPct,
     profitActivationFloorPct,
@@ -180,8 +183,14 @@ async function handleEntryFlow({
   const balances = portfolio.balances;
 
   const actualQty = getCoinBalance(bestEligible.symbol, balances);
-  let actualEntryPrice = getPriceFromBreakdown(bestEligible.symbol, balances, portfolio.breakdown);
+  const orderAvgEntryPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
+    ? Number(orderResult.avgPrice)
+    : 0;
+  let actualEntryPrice = orderAvgEntryPrice || getPriceFromBreakdown(bestEligible.symbol, balances, portfolio.breakdown);
   let entryPriceSource = "portfolio";
+  if (orderAvgEntryPrice > 0) {
+    entryPriceSource = "fill-avg";
+  }
   if ((!actualEntryPrice || actualEntryPrice <= 0) && actualQty > 0) {
     const pCandles = await getCandles(bestEligible.symbol, config.signalTimeframe);
     if (pCandles?.length) {
@@ -189,10 +198,14 @@ async function handleEntryFlow({
       entryPriceSource = "candle-fallback";
     }
   }
-  const reconciledQty = Number.isFinite(orderResult.filledSize) && orderResult.filledSize > 0 ? Number(orderResult.filledSize) : actualQty;
-  if (actualEntryPrice <= 0 && Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0) {
-    actualEntryPrice = Number(orderResult.avgPrice);
-  }
+  const reconciledQty = Number.isFinite(actualQty) && actualQty > 0
+    ? Number(actualQty)
+    : (Number.isFinite(orderResult.filledSize) && orderResult.filledSize > 0 ? Number(orderResult.filledSize) : actualQty);
+  const entryFillPrice = orderAvgEntryPrice || actualEntryPrice;
+  const entrySlippagePct = calcBuySlippagePct(bestEligible.price, entryFillPrice);
+  const entryFeeAmount = Number.isFinite(orderResult.feeAmount) ? Number(orderResult.feeAmount) : null;
+  const entryFeeCoin = orderResult.feeCoin || null;
+  const entryFeeUSDT = Number.isFinite(orderResult.feeUSDT) ? Number(orderResult.feeUSDT) : null;
   const actualSizeUSDT = reconciledQty > 0 && actualEntryPrice > 0
     ? Number((reconciledQty * actualEntryPrice).toFixed(8))
     : actualQty > 0 && actualEntryPrice > 0
@@ -209,6 +222,12 @@ async function handleEntryFlow({
     entryPrice: actualEntryPrice,
     actualQty: reconciledQty,
     actualSizeUSDT,
+    intendedEntryPrice: bestEligible.price,
+    entryFillPrice,
+    entrySlippagePct,
+    entryFeeAmount,
+    entryFeeCoin,
+    entryFeeUSDT,
     takeProfitPct: positionTakeProfitPct,
     profitActivationPct,
     profitActivationFloorPct,
@@ -245,6 +264,12 @@ async function handleEntryFlow({
     pair: bestEligible.symbol,
     side: "buy",
     price: reconciledPositionMeta.entry,
+    intendedPrice: bestEligible.price,
+    fillPrice: entryFillPrice,
+    slippagePct: entrySlippagePct != null ? entrySlippagePct * 100 : null,
+    feeAmount: entryFeeAmount,
+    feeCoin: entryFeeCoin,
+    feeUSDT: entryFeeUSDT,
     qty: reconciledPositionMeta.qty,
     sizeUSDT: reconciledPositionMeta.sizeUSDT,
     reason: (reconciledPositionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),

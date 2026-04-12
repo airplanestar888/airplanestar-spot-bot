@@ -43,6 +43,7 @@ async function run(name, fn) {
 
 async function testConfigMerge() {
   const baseConfig = loadConfig();
+  baseConfig.marketProfileMode = "auto";
   const config = composeActiveConfig(baseConfig, {
     botTypeKey: "custom",
     modeKey: "aggressive",
@@ -52,7 +53,7 @@ async function testConfigMerge() {
   assert.equal(config.activeBotType, "custom");
   assert.equal(config.activeMode, "aggressive");
   assert.equal(config.requireFastTrend, false);
-  assert.equal(config.requireBreakout, false);
+  assert.equal(config.requireBreakout, true);
   assert.equal(config.enableVolumeFilter, true);
   assert.equal(config.riskPercent, 0.18);
   assert.equal(config.takeProfitPct, 0.013);

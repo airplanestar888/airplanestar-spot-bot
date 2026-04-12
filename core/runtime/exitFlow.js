@@ -25,6 +25,11 @@ async function handleExitFlow({
   LOG_FILE,
   safeToFixed
 }) {
+  const calcSellSlippagePct = (intendedPrice, fillPrice) => {
+    if (!Number.isFinite(intendedPrice) || intendedPrice <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) return null;
+    return Math.max(0, (intendedPrice - fillPrice) / intendedPrice);
+  };
+
   const positions = Array.isArray(state.positions)
     ? state.positions.filter(Boolean)
     : (state.position ? [state.position] : []);
@@ -93,12 +98,47 @@ async function handleExitFlow({
 
       const freshPortfolio = await getPortfolioValue();
       const freshUsdtFree = freshPortfolio.usdtFree;
-      const pnlFraction = exitEval.pnl;
-      const pnlAbsolute = openPosition.sizeUSDT * pnlFraction;
-      logEvent(LOG_FILE, "INFO", `SELL ${symbol} pnl=${safeToFixed(pnlFraction, 4)} reason=${exitEval.reason}`);
-
       const exitRsi = marketRow ? marketRow.rsi : null;
       const peakPnlPct = Number.isFinite(exitEval.peakPnlPct) ? exitEval.peakPnlPct : null;
+      const exitFillPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
+        ? Number(orderResult.avgPrice)
+        : exitPrice;
+      const exitQty = Number(orderResult.filledSize || coinBal || 0);
+      const entryFillPrice = Number.isFinite(openPosition?.entryFillPrice) && openPosition.entryFillPrice > 0
+        ? Number(openPosition.entryFillPrice)
+        : Number(openPosition.entry || 0);
+      const entryCostUSDT = Number.isFinite(entryFillPrice) && entryFillPrice > 0 && exitQty > 0
+        ? entryFillPrice * exitQty
+        : Number(openPosition.sizeUSDT || 0);
+      const exitValueUSDT = Number.isFinite(exitFillPrice) && exitFillPrice > 0 && exitQty > 0
+        ? exitFillPrice * exitQty
+        : 0;
+      const actualGrossPnlUSDT = exitValueUSDT - entryCostUSDT;
+      const actualGrossPnlFraction = entryCostUSDT > 0
+        ? actualGrossPnlUSDT / entryCostUSDT
+        : exitEval.pnl;
+      const exitSlippagePct = calcSellSlippagePct(exitPrice, exitFillPrice);
+      const entrySlippagePct = Number.isFinite(openPosition?.entrySlippagePct) ? Number(openPosition.entrySlippagePct) : null;
+      const totalActualSlippagePct = (entrySlippagePct ?? 0) + (exitSlippagePct ?? 0);
+      const entryFeeUSDT = Number.isFinite(openPosition?.entryFeeUSDT) ? Number(openPosition.entryFeeUSDT) : null;
+      const exitFeeAmount = Number.isFinite(orderResult.feeAmount) ? Number(orderResult.feeAmount) : null;
+      const exitFeeCoin = orderResult.feeCoin || null;
+      const exitFeeUSDT = Number.isFinite(orderResult.feeUSDT) ? Number(orderResult.feeUSDT) : null;
+      const actualFeeUSDT = Number.isFinite(entryFeeUSDT) && Number.isFinite(exitFeeUSDT)
+        ? entryFeeUSDT + exitFeeUSDT
+        : null;
+      const fallbackNetPnlPct = estimateNetPnlPct(actualGrossPnlFraction, {
+        actualSlippagePct: 0
+      });
+      const netPnlPct = Number.isFinite(actualFeeUSDT) && entryCostUSDT > 0
+        ? ((actualGrossPnlUSDT - actualFeeUSDT) / entryCostUSDT) * 100
+        : fallbackNetPnlPct;
+      const netPnlAbsolute = Number.isFinite(actualFeeUSDT)
+        ? actualGrossPnlUSDT - actualFeeUSDT
+        : entryCostUSDT * (netPnlPct / 100);
+      const pnlFraction = actualGrossPnlFraction;
+      const pnlAbsolute = actualGrossPnlUSDT;
+      logEvent(LOG_FILE, "INFO", `SELL ${symbol} pnl=${safeToFixed(pnlFraction, 4)} reason=${exitEval.reason}`);
 
       logTrade({
         type: "exit",
@@ -109,24 +149,31 @@ async function handleExitFlow({
         marketProfileMode: config.marketProfileMode || "",
         pair: symbol,
         side: "sell",
-        price: exitPrice,
-        qty: Number(orderResult.filledSize || coinBal),
-        sizeUSDT: Number(orderResult.filledSize || coinBal) * exitPrice,
+        price: exitFillPrice,
+        intendedPrice: exitPrice,
+        fillPrice: exitFillPrice,
+        slippagePct: exitSlippagePct != null ? exitSlippagePct * 100 : null,
+        totalSlippagePct: totalActualSlippagePct * 100,
+        feeAmount: exitFeeAmount,
+        feeCoin: exitFeeCoin,
+        feeUSDT: exitFeeUSDT,
+        totalFeeUSDT: actualFeeUSDT,
+        qty: exitQty,
+        sizeUSDT: exitValueUSDT,
         PnL: pnlAbsolute,
         PnL_pct: pnlFraction * 100,
         reason: exitEval.reason,
         exit_rsi: exitRsi,
-        netPnlEstPct: estimateNetPnlPct(pnlFraction),
+        netPnlEstPct: netPnlPct,
         peakPnlPct,
         drawdownFromPeak: Number.isFinite(exitEval.drawdownFromPeak) ? exitEval.drawdownFromPeak * 100 : null
       });
 
-      const estimatedNetPnlPct = estimateNetPnlPct(pnlFraction);
       const tpMainPct = Number.isFinite(openPosition?.takeProfitPct) ? openPosition.takeProfitPct * 100 : null;
       const activationPct = Number.isFinite(openPosition?.profitActivationPct) ? openPosition.profitActivationPct * 100 : null;
       await report(reporting.buildSellReport(
         symbol,
-        exitPrice,
+        exitFillPrice,
         pnlFraction,
         exitEval.reason,
         openPosition.entry,
@@ -137,11 +184,14 @@ async function handleExitFlow({
         [
           `Exit PnL ${safeToFixed(pnlFraction * 100, 2)}% with peak ${safeToFixed(peakPnlPct, 2)}%`,
           `Drawdown from peak ${safeToFixed((Number.isFinite(exitEval.drawdownFromPeak) ? exitEval.drawdownFromPeak : 0) * 100, 2)}%`,
-          `Est. net after fee/slippage ${safeToFixed(estimatedNetPnlPct, 2)}%`,
+          Number.isFinite(actualFeeUSDT)
+            ? `Net actual after fee ${safeToFixed(netPnlPct, 2)}% | fee ${safeToFixed(actualFeeUSDT, 4)} USDT`
+            : `Net after fallback fee ${safeToFixed(netPnlPct, 2)}%`,
+          `Actual slippage entry ${safeToFixed((entrySlippagePct ?? 0) * 100, 2)}% | exit ${safeToFixed((exitSlippagePct ?? 0) * 100, 2)}%`,
           `TP ${tpMainPct == null ? "N/A" : `${safeToFixed(tpMainPct, 2)}%`} | DTP ${activationPct == null ? "N/A" : `${safeToFixed(activationPct, 2)}%`}`,
           `Trailing ${openPosition.trailingActive ? "active" : "inactive"} | Stop ${safeToFixed((openPosition.stopPct || 0) * 100, 2)}%`
         ],
-        estimatedNetPnlPct,
+        netPnlPct,
         openPosition?.takeProfitPct ?? null,
         openPosition?.profitActivationPct ?? null
       ));
@@ -152,6 +202,7 @@ async function handleExitFlow({
       state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
       state.lastTradePnl = pnlFraction;
       state.realizedPnlToday += pnlAbsolute;
+      state.realizedNetPnlToday = Number(state.realizedNetPnlToday || 0) + netPnlAbsolute;
       state.lastReportedPnl = null;
       delete state.lastReportedPnlBySymbol[symbol];
 

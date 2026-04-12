@@ -132,7 +132,8 @@ async function runScheduledReports({
     }
 
     const otherAssets = freshEquity - freshUsdtFree - posValue;
-    const freshRealizedPnlPct = state.startOfDayEquity > 0 ? state.realizedPnlToday / state.startOfDayEquity : 0;
+    const realizedNetToday = Number(state.realizedNetPnlToday ?? state.realizedPnlToday ?? 0);
+    const freshRealizedPnlPct = state.startOfDayEquity > 0 ? realizedNetToday / state.startOfDayEquity : 0;
     logEvent(
       LOG_FILE,
       "DEBUG",

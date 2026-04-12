@@ -87,6 +87,12 @@ function createEntryRecord(trade) {
     holdMinutes: null,
     entry: {
       price: safeNumber(trade.price),
+      intendedPrice: safeNumber(trade.intendedPrice),
+      fillPrice: safeNumber(trade.fillPrice),
+      slippagePct: safeNumber(trade.slippagePct),
+      feeAmount: safeNumber(trade.feeAmount),
+      feeCoin: trade.feeCoin || null,
+      feeUSDT: safeNumber(trade.feeUSDT),
       qty: safeNumber(trade.qty),
       sizeUSDT: safeNumber(trade.sizeUSDT),
       reason: trade.reason || "",
@@ -134,6 +140,14 @@ function closeEntryRecord(record, trade) {
 
   record.exit = {
     price: safeNumber(trade.price),
+    intendedPrice: safeNumber(trade.intendedPrice),
+    fillPrice: safeNumber(trade.fillPrice),
+    slippagePct: safeNumber(trade.slippagePct),
+    totalSlippagePct: safeNumber(trade.totalSlippagePct),
+    feeAmount: safeNumber(trade.feeAmount),
+    feeCoin: trade.feeCoin || null,
+    feeUSDT: safeNumber(trade.feeUSDT),
+    totalFeeUSDT: safeNumber(trade.totalFeeUSDT),
     qty: safeNumber(trade.qty),
     sizeUSDT: safeNumber(trade.sizeUSDT),
     reason: trade.exit_reason || trade.reason || "",
@@ -143,6 +157,7 @@ function closeEntryRecord(record, trade) {
   record.metrics.grossPnlUSDT = safeNumber(trade.PnL);
   record.metrics.grossPnlPct = safeNumber(trade.PnL_pct);
   record.metrics.netPnlEstPct = safeNumber(trade.netPnlEstPct);
+  record.metrics.totalFeeUSDT = safeNumber(trade.totalFeeUSDT);
   record.metrics.peakPnlPct = safeNumber(trade.peakPnlPct);
   record.metrics.drawdownFromPeak = safeNumber(trade.drawdownFromPeak);
 
@@ -172,6 +187,12 @@ function upsertEntryRecord(entries, trade) {
     existing.openedAt = trade.timestamp || existing.openedAt;
     existing.entry = {
       price: safeNumber(trade.price),
+      intendedPrice: safeNumber(trade.intendedPrice),
+      fillPrice: safeNumber(trade.fillPrice),
+      slippagePct: safeNumber(trade.slippagePct),
+      feeAmount: safeNumber(trade.feeAmount),
+      feeCoin: trade.feeCoin || null,
+      feeUSDT: safeNumber(trade.feeUSDT),
       qty: safeNumber(trade.qty),
       sizeUSDT: safeNumber(trade.sizeUSDT),
       reason: trade.reason || existing.entry.reason || "",

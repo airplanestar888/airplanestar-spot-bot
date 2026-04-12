@@ -156,6 +156,144 @@ function isTerminalOrderStatus(status) {
   return ["FILLED", "PARTIAL", "CANCELED", "REJECTED"].includes(normalizeOrderStatus(status));
 }
 
+function toFiniteNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeFeeCoin(value) {
+  if (!value) return null;
+  return String(value).replace(/[^a-z0-9]/gi, "").toUpperCase() || null;
+}
+
+function splitSpotSymbol(symbol) {
+  const normalized = String(symbol || "").toUpperCase();
+  if (normalized.endsWith("USDT")) {
+    return {
+      baseCoin: normalized.replace(/USDT$/i, ""),
+      quoteCoin: "USDT"
+    };
+  }
+  return {
+    baseCoin: normalized,
+    quoteCoin: null
+  };
+}
+
+function inferFeeCoinFromSide(symbol, side) {
+  const { baseCoin, quoteCoin } = splitSpotSymbol(symbol);
+  const normalizedSide = String(side || "").toLowerCase();
+  if (normalizedSide === "buy") return baseCoin || null;
+  if (normalizedSide === "sell") return quoteCoin || baseCoin || null;
+  return quoteCoin || baseCoin || null;
+}
+
+function convertFeeToUsdt(symbol, feeAmount, feeCoin, avgPrice) {
+  const amount = toFiniteNumber(feeAmount);
+  const coin = normalizeFeeCoin(feeCoin);
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  if (!coin) return null;
+  const baseCoin = String(symbol || "").replace(/USDT$/i, "").toUpperCase();
+  if (coin === "USDT") return amount;
+  if (coin === baseCoin && Number.isFinite(avgPrice) && avgPrice > 0) {
+    return amount * avgPrice;
+  }
+  return null;
+}
+
+function parseOrderFee(raw, symbol, avgPrice = 0) {
+  if (!raw || typeof raw !== "object") {
+    return { feeAmount: null, feeCoin: null, feeUSDT: null };
+  }
+  const inferredFeeCoin = inferFeeCoinFromSide(symbol, raw.side);
+
+  let feeAmount = toFiniteNumber(
+    raw.fillFee ??
+    raw.fee ??
+    raw.fillFeeAmount ??
+    raw.totalFee ??
+    raw.baseFee
+  );
+  let feeCoin = normalizeFeeCoin(
+    raw.fillFeeCoin ||
+    raw.feeCoin ||
+    raw.feeCcy ||
+    raw.feeCurrency ||
+    raw.fillFeeCoinCode ||
+    raw.chargeFeeCoin
+  );
+
+  if ((!Number.isFinite(feeAmount) || !feeCoin) && raw.feeDetail) {
+    let feeDetail = raw.feeDetail;
+    if (typeof feeDetail === "string") {
+      try {
+        feeDetail = JSON.parse(feeDetail);
+      } catch (_) {
+        feeDetail = null;
+      }
+    }
+
+    if (feeDetail && typeof feeDetail === "object") {
+      const directAmount = toFiniteNumber(
+        feeDetail.totalFee ??
+        feeDetail.fee ??
+        feeDetail.fillFee
+      );
+      const directCoin = normalizeFeeCoin(
+        feeDetail.feeCoin ||
+        feeDetail.coin ||
+        feeDetail.currency ||
+        feeDetail.feeCcy
+      );
+
+      if (Number.isFinite(directAmount) && directCoin) {
+        feeAmount = directAmount;
+        feeCoin = directCoin;
+      } else if (feeDetail.newFees && typeof feeDetail.newFees === "object") {
+        const nf = feeDetail.newFees;
+        const parsedAmount = toFiniteNumber(nf.t ?? nf.totalFee ?? nf.r ?? nf.c);
+        if (Number.isFinite(parsedAmount)) {
+          feeAmount = parsedAmount;
+          feeCoin = inferredFeeCoin;
+        }
+      } else {
+        const pools = [
+          feeDetail.fees,
+          feeDetail.data
+        ];
+        for (const pool of pools) {
+          if (!pool || typeof pool !== "object") continue;
+          const entries = Object.entries(pool);
+          if (!entries.length) continue;
+          const [coinKey, amountVal] = entries[0];
+          const parsedAmount = toFiniteNumber(amountVal);
+          const parsedCoin = normalizeFeeCoin(coinKey);
+          if (Number.isFinite(parsedAmount) && parsedCoin) {
+            feeAmount = parsedAmount;
+            feeCoin = parsedCoin;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (Number.isFinite(feeAmount) && !feeCoin) {
+    feeCoin = inferredFeeCoin;
+  }
+
+  if (Number.isFinite(feeAmount)) {
+    feeAmount = Math.abs(feeAmount);
+  }
+
+  const feeUSDT = convertFeeToUsdt(symbol, feeAmount, feeCoin, avgPrice);
+  return {
+    feeAmount: Number.isFinite(feeAmount) ? feeAmount : null,
+    feeCoin: feeCoin || null,
+    feeUSDT: Number.isFinite(feeUSDT) ? feeUSDT : null
+  };
+}
+
 async function getOrder(symbol, { orderId = null, clientOrderId = null } = {}) {
   const params = new URLSearchParams({ symbol });
   if (orderId) params.set("orderId", orderId);
@@ -176,6 +314,9 @@ async function getOrder(symbol, { orderId = null, clientOrderId = null } = {}) {
   const row = Array.isArray(res) ? res[0] : (Array.isArray(res?.list) ? res.list[0] : res);
   if (!row || typeof row !== "object") return null;
 
+  const avgPrice = Number(row.priceAvg || row.avgPrice || row.fillPrice || row.price || 0);
+  const feeMeta = parseOrderFee(row, symbol, avgPrice);
+
   return {
     orderId: row.orderId || row.order_id || orderId || null,
     clientOrderId: row.clientOid || row.clientOrderId || clientOrderId || null,
@@ -183,7 +324,10 @@ async function getOrder(symbol, { orderId = null, clientOrderId = null } = {}) {
     side: String(row.side || "").toLowerCase(),
     requestedSize: Number(row.size || row.quantity || 0),
     filledSize: Number(row.baseVolume || row.filledQty || row.filledQuantity || row.dealSize || 0),
-    avgPrice: Number(row.priceAvg || row.avgPrice || row.fillPrice || row.price || 0),
+    avgPrice,
+    feeAmount: feeMeta.feeAmount,
+    feeCoin: feeMeta.feeCoin,
+    feeUSDT: feeMeta.feeUSDT,
     status: normalizeOrderStatus(row.state || row.status),
     raw: row,
     timestamp: Date.now()
@@ -207,6 +351,9 @@ async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
   const status = normalizeOrderStatus(latest?.status);
   const filledSize = Number(latest?.filledSize || 0);
   const avgPrice = Number(latest?.avgPrice || 0);
+  const feeAmount = toFiniteNumber(latest?.feeAmount);
+  const feeCoin = normalizeFeeCoin(latest?.feeCoin);
+  const feeUSDT = toFiniteNumber(latest?.feeUSDT);
 
   if (status === "REJECTED" || status === "CANCELED") {
     throw new Error(`Order ${status.toLowerCase()}: ${symbol} ${side}`);
@@ -224,6 +371,9 @@ async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
     requestedSize,
     filledSize,
     avgPrice,
+    feeAmount,
+    feeCoin,
+    feeUSDT,
     partialFill: filledSize > 0 && filledSize + 1e-12 < requestedSize,
     reconcileLatencyMs: Date.now() - startedAt
   };
@@ -728,6 +878,7 @@ if (!health.startedAt) {
 }
 // Ensure new fields exist for older state files
 if (state.realizedPnlToday === undefined) state.realizedPnlToday = 0;
+if (state.realizedNetPnlToday === undefined) state.realizedNetPnlToday = 0;
 if (state.lastReportedPnlBySymbol === undefined) state.lastReportedPnlBySymbol = {};
 
 // Globals
@@ -824,6 +975,23 @@ function setupKeyboardShortcuts() {
 }
 
 // ================= HELPERS =================
+function describeTelegramError(err, context = {}) {
+  const parts = [];
+  if (context.status) parts.push(`status=${context.status}`);
+  if (context.statusText) parts.push(`statusText=${context.statusText}`);
+  if (context.description) parts.push(`description=${context.description}`);
+  if (context.errorCode) parts.push(`errorCode=${context.errorCode}`);
+
+  const causeCode = err?.cause?.code || err?.code;
+  const causeMessage = err?.cause?.message;
+  if (causeCode) parts.push(`code=${causeCode}`);
+  if (err?.name) parts.push(`name=${err.name}`);
+  if (err?.message) parts.push(`message=${err.message}`);
+  if (causeMessage && causeMessage !== err?.message) parts.push(`cause=${causeMessage}`);
+
+  return parts.filter(Boolean).join(" | ") || "unknown error";
+}
+
 async function report(msg) {
   logEvent(LOG_FILE, "REPORT", msg);
   const botToken = config.telegram?.botToken;
@@ -835,10 +1003,15 @@ async function report(msg) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
+  let timer = null;
   try {
+    const controller = new AbortController();
+    const timeoutMs = Number(config.telegram?.timeoutMs) > 0 ? Number(config.telegram.timeoutMs) : 15000;
+    timer = setTimeout(() => controller.abort(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         chat_id: chatId,
         text: `<pre>${escapedMsg}</pre>`,
@@ -846,13 +1019,32 @@ async function report(msg) {
         disable_web_page_preview: true
       })
     });
-    const data = await res.json();
-    if (!data.ok) throw new Error(JSON.stringify(data));
+    clearTimeout(timer);
+    timer = null;
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch (parseErr) {
+      throw new Error(`telegram response parse failed: ${parseErr.message}`);
+    }
+    if (!res.ok || !data?.ok) {
+      const error = new Error("telegram api rejected message");
+      error.context = {
+        status: res.status,
+        statusText: res.statusText,
+        description: data?.description,
+        errorCode: data?.error_code
+      };
+      throw error;
+    }
 
     return true;
   } catch (err) {
-    logEvent(LOG_FILE, "ERROR", "Telegram send failed: " + err.message);
+    logEvent(LOG_FILE, "ERROR", `Telegram send failed: ${describeTelegramError(err, err?.context)}`);
     return false;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
@@ -860,10 +1052,12 @@ function shouldReport(intervalMs, lastTime) {
   return Date.now() - lastTime >= intervalMs;
 }
 
-function estimateNetPnlPct(grossPnlFraction) {
+function estimateNetPnlPct(grossPnlFraction, options = {}) {
   const grossPct = Number(grossPnlFraction) * 100;
   const feePct = Number(config.roundTripFeePct || 0) * 100;
-  const slippagePct = Number(config.slippageBufferPct || 0) * 100;
+  const slippagePct = Number.isFinite(options.actualSlippagePct)
+    ? Number(options.actualSlippagePct) * 100
+    : Number(config.slippageBufferPct || 0) * 100;
   if (!Number.isFinite(grossPct)) return null;
   return grossPct - feePct - slippagePct;
 }
@@ -1342,17 +1536,20 @@ async function placeOrder(symbol, side, size, clientOrderId = null) {
 
   if (config.dryRun) {
     logEvent(LOG_FILE, "SIMULATE", `ORDER ${side} ${symbol} size=${sizeStr}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
-    return { 
-      orderId: `SIM_${Date.now()}`, 
-      clientOrderId: clientOrderId || `SIM_${Date.now()}`,
-      symbol, 
-      side, 
-      requestedSize: sizeNum,
-      filledSize: sizeNum,
-      avgPrice: 0,
-      status: "filled",
-      dryRun: true 
-    };
+      return { 
+        orderId: `SIM_${Date.now()}`, 
+        clientOrderId: clientOrderId || `SIM_${Date.now()}`,
+        symbol, 
+        side, 
+        requestedSize: sizeNum,
+        filledSize: sizeNum,
+        avgPrice: 0,
+        feeAmount: null,
+        feeCoin: null,
+        feeUSDT: null,
+        status: "filled",
+        dryRun: true 
+      };
   }
   
   logEvent(LOG_FILE, "INFO", `Submitting ${side.toUpperCase()} ${symbol} size=${sizeStr}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
@@ -1373,19 +1570,24 @@ async function placeOrder(symbol, side, size, clientOrderId = null) {
     }
 
     // Parse fill info (Bitget v2 returns: filledQty, priceAvg, state)
-    const apiLatencyMs = Date.now() - startedAt;
-    const initialStatus = normalizeOrderStatus(res.state || res.status || "UNKNOWN");
-    const initialOrder = {
-      orderId,
-      clientOrderId: res.clientOid || clientOrderId,
-      symbol,
-      side,
-      requestedSize: sizeNum,
-      filledSize: Number(res.filledQty || res.filled || res.baseVolume || 0),
-      avgPrice: Number(res.priceAvg || res.avgPrice || res.price || 0),
-      status: initialStatus,
-      raw: res,
-      timestamp: Date.now(),
+      const apiLatencyMs = Date.now() - startedAt;
+      const initialStatus = normalizeOrderStatus(res.state || res.status || "UNKNOWN");
+      const initialAvgPrice = Number(res.priceAvg || res.avgPrice || res.price || 0);
+      const feeMeta = parseOrderFee(res, symbol, initialAvgPrice);
+      const initialOrder = {
+        orderId,
+        clientOrderId: res.clientOid || clientOrderId,
+        symbol,
+        side,
+        requestedSize: sizeNum,
+        filledSize: Number(res.filledQty || res.filled || res.baseVolume || 0),
+        avgPrice: initialAvgPrice,
+        feeAmount: feeMeta.feeAmount,
+        feeCoin: feeMeta.feeCoin,
+        feeUSDT: feeMeta.feeUSDT,
+        status: initialStatus,
+        raw: res,
+        timestamp: Date.now(),
       apiLatencyMs
     };
     const reconciled = await reconcileOrder(symbol, side, sizeNum, initialOrder);
@@ -1466,6 +1668,7 @@ async function runBot() {
       state.haltReason = null;
       state.startOfDayEquity = currentEquity;
       state.realizedPnlToday = 0;
+      state.realizedNetPnlToday = 0;
       state.lastReportedPnl = null;
       state.lastReportedPnlBySymbol = {};
       saveState(STATE_PATH, state);

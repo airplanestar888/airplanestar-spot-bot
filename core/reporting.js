@@ -211,9 +211,12 @@ function buildBalanceReport(usdtFree, totalEquity, posValue, plannedSize, state,
   const reserveTarget = sanitizeNumber(stats.reserveUSDT ?? 0);
   const startOfDayEquitySafe = sanitizeNumber(startOfDayEquity, totalEquitySafe);
 
-  // Realized PnL (from state, already net after fees)
-  const realizedUSDT = sanitizeNumber(state.realizedPnlToday);
-  const realizedPct = startOfDayEquitySafe > 0 ? (realizedUSDT / startOfDayEquitySafe) * 100 : 0;
+  const realizedGrossUSDT = sanitizeNumber(state.realizedPnlToday);
+  const realizedNetUSDT = sanitizeNumber(
+    state.realizedNetPnlToday,
+    realizedGrossUSDT
+  );
+  const realizedNetPct = startOfDayEquitySafe > 0 ? (realizedNetUSDT / startOfDayEquitySafe) * 100 : 0;
 
   // Unrealized PnL (gross) and Net (after estimated fees)
   let unrealizedUSDT = 0;
@@ -231,7 +234,7 @@ function buildBalanceReport(usdtFree, totalEquity, posValue, plannedSize, state,
     unrealizedNetPct = (unrealizedNetUSDT / positionEntrySizeUSDTSafe) * 100;
   }
 
-  const totalUSDT = realizedUSDT + unrealizedNetUSDT;
+  const totalUSDT = realizedNetUSDT + unrealizedNetUSDT;
   const totalPct = startOfDayEquitySafe > 0 ? (totalUSDT / startOfDayEquitySafe) * 100 : 0;
 
   // Exposure: position value as % of total equity
@@ -249,10 +252,9 @@ Reserve target: ${fmtNum(reserveTarget)} USDT
 Rounds today: ${state.tradesToday}
 Loss streak: ${state.lossStreak}
 Cooldown: ${cooldownStatus}
-Realized PnL (net): ${realizedUSDT >= 0 ? "+" : ""}${fmtNum(realizedUSDT)} USDT (${realizedPct >= 0 ? "+" : ""}${fmtPct(realizedPct, 2)})
-Unrealized PnL (gross): ${unrealizedUSDT >= 0 ? "+" : ""}${fmtNum(unrealizedUSDT)} USDT (${unrealizedPct >= 0 ? "+" : ""}${fmtPct(unrealizedPct, 2)})
-Unrealized PnL (net est.): ${unrealizedNetUSDT >= 0 ? "+" : ""}${fmtNum(unrealizedNetUSDT)} USDT (${unrealizedNetPct >= 0 ? "+" : ""}${fmtPct(unrealizedNetPct, 2)})
-Total PnL today (net): ${totalUSDT >= 0 ? "+" : ""}${fmtNum(totalUSDT)} USDT (${totalPct >= 0 ? "+" : ""}${fmtPct(totalPct, 2)})
+Realized net PnL: ${realizedNetUSDT >= 0 ? "+" : ""}${fmtNum(realizedNetUSDT)} USDT (${realizedNetPct >= 0 ? "+" : ""}${fmtPct(realizedNetPct, 2)})
+Open position net est.: ${unrealizedNetUSDT >= 0 ? "+" : ""}${fmtNum(unrealizedNetUSDT)} USDT (${unrealizedNetPct >= 0 ? "+" : ""}${fmtPct(unrealizedNetPct, 2)})
+Total net PnL today: ${totalUSDT >= 0 ? "+" : ""}${fmtNum(totalUSDT)} USDT (${totalPct >= 0 ? "+" : ""}${fmtPct(totalPct, 2)})
 Halted: ${state.haltedForDay ? state.haltReason : "no"}`,
     new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })
   );
@@ -435,7 +437,7 @@ function buildSellReport(
 Pair: ${symbol}
 Exit: ${fmtPrice(price)}
 Gross PnL: ${isFinite(pnl) ? `${(pnl * 100).toFixed(2)}%` : "N/A"}
-Net PnL est.: ${isFinite(netPnlPct) ? `${netPnlPct.toFixed(2)}%` : "N/A"}
+Net PnL: ${isFinite(netPnlPct) ? `${netPnlPct.toFixed(2)}%` : "N/A"}
 Reason: ${reason}
 Entry: ${fmtPrice(entry)}
 Peak: ${isFinite(peakPnLPct) ? `+${peakPnLPct.toFixed(2)}%` : "N/A"}

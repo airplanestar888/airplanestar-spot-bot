@@ -92,7 +92,6 @@ function computeSignalLiveWeight({
   enableCandleStrengthFilter,
   priceNotExtended,
   enablePriceExtensionFilter,
-  edgeOk,
   rangeRecoveryOk,
   enableRangeRecoveryFilter
 }) {
@@ -114,7 +113,6 @@ function computeSignalLiveWeight({
   if (requireRsiMomentum && rsiMomentumOk) multiplier += 0.04;
   if (enableCandleStrengthFilter && candleStrong) multiplier += 0.03;
   if (enablePriceExtensionFilter && priceNotExtended) multiplier += 0.03;
-  if (edgeOk) multiplier += 0.05;
   return clamp(trendWeight * multiplier, 0.65, 1.7);
 }
 
@@ -155,7 +153,6 @@ async function scanMarket(config, getCandles, logEvent) {
   const requireEma21Rising    = config.requireEma21Rising !== false;
   const requireFastTrend      = config.requireFastTrend !== false;
   const requirePriceAboveEma9 = config.requirePriceAboveEma9 !== false;
-  const requireEdge           = config.requireEdge !== false;
   const requireRsiMomentum    = config.requireRsiMomentum !== false;
   const requireBreakout       = config.requireBreakout !== false;
   const enableRsiBandFilter   = config.enableRsiBandFilter !== false;
@@ -293,7 +290,6 @@ async function scanMarket(config, getCandles, logEvent) {
     const atrOk = !enableAtrFilter || (atrPct3 >= minAtrPct && atrPct3 <= maxAtrPct);
     const candleStrong = bodyRatio >= minCandleStr;
     const priceNotExtended = emaGapPct >= -minEmaGapNeg && emaGapPct <= maxEmaGapPct;
-    const edgeOk = expectedNetPct >= minExpectedNetPct;
     const rangeRecoveryOk = !enableRangeRecoveryFilter || (price >= ema9 * 0.998 && rsiMomentumOk && emaGapPct <= Math.max(maxEmaGapPct * 0.5, 0.004));
     const candleStrengthOk = !enableCandleStrengthFilter || candleStrong;
     const priceExtensionOk = !enablePriceExtensionFilter || priceNotExtended;
@@ -329,7 +325,7 @@ async function scanMarket(config, getCandles, logEvent) {
           (priceExtensionOk ? 1 : 0) +
           (volumeOk ? 1 : 0) +
           (breakoutSignalOk ? 1 : 0);
-    const eligible = baseTrend && entrySignal && (!requireEdge || edgeOk) && confirmation >= minConf;
+    const eligible = baseTrend && entrySignal && confirmation >= minConf;
 
     const signalLiveWeight = computeSignalLiveWeight({
       trendWeight: trendLiveWeight,
@@ -354,7 +350,6 @@ async function scanMarket(config, getCandles, logEvent) {
       enableCandleStrengthFilter,
       priceNotExtended,
       enablePriceExtensionFilter,
-      edgeOk,
       rangeRecoveryOk,
       enableRangeRecoveryFilter
     });
@@ -369,7 +364,6 @@ async function scanMarket(config, getCandles, logEvent) {
     if (!enableAtrFilter || (atrPct3 >= optAtrLow && atrPct3 <= optAtrHigh)) score += 1;
     if (!enableCandleStrengthFilter || candleStrengthOk) score += 1;
     if (!enableVolumeFilter || volumeOk) score += 1;
-    if (!requireEdge || edgeOk) score += 1;
     if (isRangeScalp && (!enableRangeRecoveryFilter || rangeRecoveryOk)) score += 2;
     let failed = [];
     if (!trendOk15) failed.push("15m trend");
@@ -384,8 +378,6 @@ async function scanMarket(config, getCandles, logEvent) {
     if (enableCandleStrengthFilter && !candleStrong) failed.push("candle strength");
     if (enablePriceExtensionFilter && !priceNotExtended) failed.push("price extended");
     if (enableVolumeFilter && !volumeOk) failed.push(`volume ratio (${volumeRatio.toFixed(2)}x)`);
-    if (requireEdge && !edgeOk) failed.push(`net edge (${(expectedNetPct*100).toFixed(2)}%)`);
-
     const rawScore = score * signalLiveWeight;
     let displayScore = rawScore;
     if (!eligible) {

@@ -71,10 +71,16 @@ function summarizeCliMessage(level, message) {
     { pattern: /^COMPUTE EQUITY ASSETS\b/i, label: "COMPUTE EQUITY ASSETS" },
     { pattern: /^COMPUTE EQUITY END\b/i, label: "COMPUTE EQUITY END" },
     { pattern: /^EXIT CHECK\b/i, label: "EXIT CHECK" },
+    { pattern: /^SCANNING BALANCES FOR POSITION RECOVERY\b/i, label: "POSITION RECOVERY SCAN" },
     { pattern: /^Heartbeat check\b/i, label: "Heartbeat check" },
     { pattern: /^Heartbeat send \| start\b/i, label: "Heartbeat send" },
     { pattern: /^Heartbeat send \| sent=/i, label: "Heartbeat send" }
   ];
+
+  const candleMatch = text.match(/^Candle fetch\s+(\S+)\s+\(([^)]+)\)/i);
+  if (candleMatch) {
+    return `Candle fetch ${candleMatch[1]} (${candleMatch[2]})`;
+  }
 
   for (const item of mappings) {
     if (item.pattern.test(text)) {

@@ -26,7 +26,8 @@ function loadState(statePath) {
       startOfDayEquity: null,
       haltedForDay: false,
       haltReason: null,
-      realizedPnlToday: 0
+      realizedPnlToday: 0,
+      realizedNetPnlToday: 0
     };
   }
 }

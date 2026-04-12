@@ -93,7 +93,10 @@ async function refresh() {
     document.getElementById("botTypeValue").textContent = status.botType || "-";
     document.getElementById("modeValue").textContent = status.mode || "-";
     document.getElementById("tradesTodayValue").textContent = String(status.tradesToday ?? 0);
-    document.getElementById("pnlValue").textContent = fmtNum(status.realizedPnlToday, 4);
+    document.getElementById("pnlValue").textContent = fmtNum(
+      status.realizedNetPnlToday ?? status.realizedPnlToday,
+      4
+    );
 
     setRows("statusRows", [
       ["Profile mode", config.marketProfileMode || "auto"],
@@ -112,7 +115,7 @@ async function refresh() {
       ["Opened", fmtDate(lastTrade.openedAt || lastTrade.entryTime)],
       ["Closed", fmtDate(lastTrade.closedAt || lastTrade.exitTime)],
       ["Gross PnL", fmtPct(lastTrade.grossPnlPct || lastTrade.pnlPct)],
-      ["Net est.", fmtPct(lastTrade.netPnlEstPct)],
+      ["Net PnL", fmtPct(lastTrade.netPnlEstPct)],
       ["Exit reason", lastTrade.exitReason || lastTrade.reason || "-"]
     ] : []);
 
