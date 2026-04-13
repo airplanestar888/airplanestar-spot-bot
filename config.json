@@ -2,58 +2,106 @@
   "baseUrl": "https://api.bitget.com",
   "selectedBotType": "custom",
   "selectedMode": "aggressive",
-  "marketProfileMode": "auto",
+  "marketProfileMode": "manual",
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
-    "BTCUSDT": {
-      "enabled": true
-    },
-    "ETHUSDT": {
-      "enabled": true
-    },
-    "SOLUSDT": {
-      "enabled": false
-    },
-    "BGBUSDT": {
-      "enabled": true
-    },
-    "XRPUSDT": {
-      "enabled": true
-    },
     "RIVERUSDT": {
-      "enabled": false
+      "enabled": true
     },
-    "HYPEUSDT": {
-      "enabled": false
+    "AINUSDT": {
+      "enabled": true
     },
-    "DOGEUSDT": {
+    "SWARMSUSDT": {
+      "enabled": true
+    },
+    "ARIAUSDT": {
       "enabled": true
     },
     "ADAUSDT": {
       "enabled": true
     },
-    "TRXUSDT": {
-      "enabled": false
+    "XIONUSDT": {
+      "enabled": true
     },
-    "LINKUSDT": {
-      "enabled": false
+    "ICNTUSDT": {
+      "enabled": true
+    },
+    "PRLUSDT": {
+      "enabled": true
     },
     "WLDUSDT": {
       "enabled": true
     },
+    "MAGMAUSDT": {
+      "enabled": true
+    },
+    "DRIFTUSDT": {
+      "enabled": true
+    },
+    "ETHUSDT": {
+      "enabled": true
+    },
+    "GRASSUSDT": {
+      "enabled": true
+    },
+    "HUMAUSDT": {
+      "enabled": true
+    },
+    "HYPEUSDT": {
+      "enabled": true
+    },
+    "TONUSDT": {
+      "enabled": true
+    },
+    "BSBUSDT": {
+      "enabled": true
+    },
+    "BTCUSDT": {
+      "enabled": true
+    },
+    "DOGEUSDT": {
+      "enabled": true
+    },
+    "LINKUSDT": {
+      "enabled": true
+    },
+    "SOLUSDT": {
+      "enabled": true
+    },
     "BNBUSDT": {
-      "enabled": false
+      "enabled": true
     },
-    "XIONUSDT": {
-      "enabled": false
+    "RTXUSDT": {
+      "enabled": true
     },
-    "SWARMSUSDT": {
+    "APRUSDT": {
+      "enabled": true
+    },
+    "MUSDT": {
+      "enabled": true
+    },
+    "BANKUSDT": {
       "enabled": false
     },
     "REDUSDT": {
       "enabled": false
     },
-    "GRASSUSDT": {
+    "XRPUSDT": {
+      "enabled": false
+    },
+    "BGBUSDT": {
+      "enabled": false
+    },
+    "TRXUSDT": {
+      "enabled": false
+    },
+    "RAVEUSDT": {
+      "enabled": false
+    },
+    "TRADOORUSDT": {
+      "enabled": false
+    },
+    "TAOUSDT": {
       "enabled": false
     }
   },
@@ -94,7 +142,7 @@
   "enableStaleTrade": true,
   "enableCostGuard": true,
   "costGuardArmPct": 0.0055,
-  "costGuardFloorPct": 0.003,
+  "costGuardFloorPct": 0.004,
   "roundTripFeePct": 0.004,
   "slippageBufferPct": 0.001,
   "minExpectedNetPct": 0.003,
@@ -227,12 +275,12 @@
         "trendTimeframe": "15min",
         "minScalpTargetPct": 0.008,
         "maxScalpTargetPct": 0.016,
-        "timeStopMinutes": 12,
+        "timeStopMinutes": 15,
         "maxHoldMinutes": 30,
         "breakEvenMinutes": 6,
-        "minConfirmation": 3,
-        "breakoutPct": 0.9985,
-        "requireEma21Rising": true,
+        "minConfirmation": 2,
+        "breakoutPct": 0.9975,
+        "requireEma21Rising": false,
         "requireFastTrend": false,
         "requirePriceAboveEma9": true,
         "requireEdge": true,
@@ -245,7 +293,7 @@
         "optimalAtrLow": 0.005,
         "optimalAtrHigh": 0.012,
         "requireRsiMomentum": true,
-        "requireBreakout": true,
+        "requireBreakout": false,
         "enableRsiBandFilter": true,
         "enableAtrFilter": true,
         "enableVolumeFilter": true,
@@ -276,7 +324,7 @@
       "entryOverrides": {
         "minExpectedNetPct": 0.002,
         "minVolumeRatio": 1.03,
-        "minTrendRsi": 38,
+        "minTrendRsi": 36,
         "minAtrPct": 0.0024,
         "maxAtrPct": 0.025,
         "maxEmaGapPct": 0.018
@@ -384,8 +432,8 @@
         "reserveUSDT": 1.5,
         "takeProfitPct": 0.013,
         "trailingActivationPct": 0.009,
-        "trailingDrawdownPct": 0.0045,
-        "trailingProtectionPct": 0.0025,
+        "trailingDrawdownPct": 0.0035,
+        "trailingProtectionPct": 0.0035,
         "minMomentumExitPct": 0.0055,
         "enableTimeStop": false,
         "timeStopProfitPct": 0.004,
