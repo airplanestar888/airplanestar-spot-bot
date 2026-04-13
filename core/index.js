@@ -1676,6 +1676,7 @@ async function maybeRotatePairUniverse({ now, state }) {
 
   const signature = picked.join(",");
   const changed = signature !== lastAutoPairRotationSignature;
+  const prevPairs = new Set(lastAutoPairRotationSignature ? lastAutoPairRotationSignature.split(",") : []);
   setRuntimePairs(picked, "auto-rotate");
   lastAutoPairRotationAt = now;
   lastAutoPairRotationSignature = signature;
@@ -1695,6 +1696,27 @@ async function maybeRotatePairUniverse({ now, state }) {
   } else {
     logEvent(LOG_FILE, "DEBUG", `Auto-rotate checked, no pair changes (${config.pairs.length} active)`);
   }
+
+  // Build and send Telegram rotation report
+  const pickedSet = new Set(picked);
+  const newPairs    = picked.filter(s => !prevPairs.has(s));
+  const droppedPairs = [...prevPairs].filter(s => !pickedSet.has(s));
+  const nextRotateAt = new Date(now + rotationCfg.refreshIntervalHours * 60 * 60 * 1000)
+    .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+
+  const lineActive  = picked.map((s, i) => `${i + 1}. ${s}`).join("\n");
+  const lineNew     = newPairs.length     ? `\n➕ Masuk: ${newPairs.join(", ")}`     : "";
+  const lineDropped = droppedPairs.length ? `\n➖ Keluar: ${droppedPairs.join(", ")}` : "";
+  const lineCategories = `\nKategori: ${activeCategories}`;
+  const lineNext    = `\nRotasi berikutnya: ~${nextRotateAt} WIB`;
+  const rotationStatus = changed
+    ? (prevPairs.size > 0 ? "🔄 PAIR DIPERBARUI" : "🚀 PAIR AKTIF PERTAMA KALI")
+    : "✅ PAIR TIDAK BERUBAH";
+
+  const rotateMsg = `${rotationStatus}\n--------------------\nPair aktif (${picked.length}):\n${lineActive}${lineNew}${lineDropped}${lineCategories}${lineNext}`;
+  await report(rotateMsg).catch(err =>
+    logEvent(LOG_FILE, "ERROR", `Auto-rotate report failed: ${err.message}`)
+  );
 }
 
 function calculateTotalEquity(balances, tickers) {
@@ -1826,21 +1848,24 @@ async function placeOrder(symbol, side, size, clientOrderId = null) {
   }
 
   if (config.dryRun) {
-    logEvent(LOG_FILE, "SIMULATE", `ORDER ${side} ${symbol} size=${sizeStr}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
-      return { 
-        orderId: `SIM_${Date.now()}`, 
-        clientOrderId: clientOrderId || `SIM_${Date.now()}`,
-        symbol, 
-        side, 
-        requestedSize: sizeNum,
-        filledSize: sizeNum,
-        avgPrice: 0,
-        feeAmount: null,
-        feeCoin: null,
-        feeUSDT: null,
-        status: "filled",
-        dryRun: true 
-      };
+    // Fix #5: use cached market price as simulated fill price (not 0)
+    const coinKey = symbol.replace(/USDT$/i, "").toLowerCase();
+    const simPrice = cachedPrices?.[coinKey] ?? 0;
+    logEvent(LOG_FILE, "SIMULATE", `ORDER ${side} ${symbol} size=${sizeStr} simPrice=${simPrice}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
+    return {
+      orderId: `SIM_${Date.now()}`,
+      clientOrderId: clientOrderId || `SIM_${Date.now()}`,
+      symbol,
+      side,
+      requestedSize: sizeNum,
+      filledSize: sizeNum,
+      avgPrice: simPrice,
+      feeAmount: null,
+      feeCoin: null,
+      feeUSDT: null,
+      status: "filled",
+      dryRun: true
+    };
   }
   
   logEvent(LOG_FILE, "INFO", `Submitting ${side.toUpperCase()} ${symbol} size=${sizeStr}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
@@ -1984,7 +2009,8 @@ async function runBot() {
       if (!qty || qty <= 0) continue;
 
       const symbol = coin.toUpperCase() + "USDT";
-      const price = cachedPrices?.[coin] || 0;
+      // Fix #3: fall back to portfolio tickers when cachedPrices not yet populated (startup)
+      const price = cachedPrices?.[coin] ?? portfolio.prices?.[coin] ?? portfolio.prices?.[symbol] ?? 0;
       if (!price || price <= 0) continue;
 
       const value = qty * price;
@@ -2113,11 +2139,34 @@ async function runBot() {
           continue;
         }
 
+        // State migration: inject TP/DTP/stop from config if position was created before this fix
+        const migratedTp  = !Number.isFinite(openPosition.takeProfitPct)
+          ? (config._effectiveTakeProfitPct ?? config.takeProfitPct ?? 0.012)
+          : openPosition.takeProfitPct;
+        const migratedDtp = !Number.isFinite(openPosition.profitActivationPct)
+          ? (config._effectiveTrailingActivationPct ?? config.trailingActivationPct ?? 0.008)
+          : openPosition.profitActivationPct;
+        const migratedStop = !Number.isFinite(openPosition.stopPct) || openPosition.stopPct === -0.02
+          ? (config.emergencyStopLossPct ?? config.minStopPct ?? -0.02)
+          : openPosition.stopPct;
+        const migratedFloor = !Number.isFinite(openPosition.profitActivationFloorPct)
+          ? Math.max(config.trailingProtectionPct ?? 0.0025, migratedDtp * 0.35)
+          : openPosition.profitActivationFloorPct;
+        if (migratedTp !== openPosition.takeProfitPct || migratedDtp !== openPosition.profitActivationPct) {
+          positionsChanged = true;
+          logEvent(LOG_FILE, "INFO", `State migration: injecting TP/DTP into ${openPosition.symbol}`);
+        }
+
         nextPositions.push({
           ...openPosition,
           qty: coinBal,
           sizeUSDT: value > 0 ? value : openPosition.sizeUSDT,
-          currentPrice: price > 0 ? price : openPosition.currentPrice
+          currentPrice: price > 0 ? price : openPosition.currentPrice,
+          takeProfitPct: migratedTp,
+          profitActivationPct: migratedDtp,
+          profitActivationFloorPct: migratedFloor,
+          stopPct: migratedStop,
+          useDynamicTakeProfit: openPosition.useDynamicTakeProfit ?? (config.useDynamicTakeProfit === true)
         });
       }
 
@@ -2159,8 +2208,11 @@ async function runBot() {
     const entryBlockedByDailyTradeLimit = state.tradesToday >= config.maxRoundsPerDay;
     const entryBlockedByPositionSlots = openPositionsBeforeEntry.length >= maxOpenPositions;
     const entryBlockedByExposureCap = (exposureCapUsdt - currentExposureUsdt) < config.minBuyUSDT;
+    // Fix #4: haltedForDay must show in gate status so heartbeat/reports are accurate
     let entryGateStatus = "open";
-    if (entryBlockedByLossStreak) {
+    if (state.haltedForDay) {
+      entryGateStatus = `halted: ${state.haltReason || "daily limit reached"}`;
+    } else if (entryBlockedByLossStreak) {
       entryGateStatus = `loss streak halt (${state.lossStreak})`;
     } else if (entryBlockedByDailyTradeLimit) {
       entryGateStatus = `daily round limit reached (${state.tradesToday}/${config.maxRoundsPerDay})`;

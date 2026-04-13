@@ -1,4 +1,4 @@
-﻿const { EMA, RSI, ATR } = require("./indicators");
+const { EMA, RSI, ATR } = require("./indicators");
 
 function average(values) {
   if (!Array.isArray(values) || values.length === 0) return 0;
@@ -516,7 +516,9 @@ async function evaluateExit(position, balances, config, getCandles) {
   const estimatedNetPnl = pnl - roundTripFeePct - slippageBufferPct;
   const ageMin = Math.floor((Date.now() - entryTime) / 60000);
   const priorPeak = Number.isFinite(position.peak) && position.peak > 0 ? position.peak : entry;
-  const effectivePeak = Math.max(priorPeak, price);
+  // Fix #8: use current candle high (not just close) for peak tracking
+  const currentHigh = Number.isFinite(highs[highs.length - 1]) ? highs[highs.length - 1] : price;
+  const effectivePeak = Math.max(priorPeak, price, currentHigh);
   const peakPnl = (effectivePeak - entry) / entry;
   const peakEstimatedNetPnl = peakPnl - roundTripFeePct - slippageBufferPct;
   // Case-insensitive balance lookup
@@ -543,7 +545,10 @@ async function evaluateExit(position, balances, config, getCandles) {
   const rawPositionTakeProfitPct = position.takeProfitPct;
   const rawPositionActivationPct = position.profitActivationPct;
   const resolvedTakeProfitPct = Number.isFinite(rawPositionTakeProfitPct) ? rawPositionTakeProfitPct : configuredTakeProfitPct;
-  const resolvedActivationPct = Number.isFinite(rawPositionActivationPct) ? rawPositionActivationPct : configuredTakeProfitPct;
+  // Fix #2: fallback to trailingActivationPct, NOT takeProfitPct (they are different concepts)
+  const resolvedActivationPct = Number.isFinite(rawPositionActivationPct)
+    ? rawPositionActivationPct
+    : (config._effectiveTrailingActivationPct ?? config.trailingActivationPct ?? 0.008);
   const takeProfitPct = dynamicTakeProfitEnabled
     ? Math.max(resolvedTakeProfitPct, resolvedActivationPct)
     : resolvedTakeProfitPct;
@@ -636,12 +641,13 @@ async function evaluateExit(position, balances, config, getCandles) {
     pnl < staleTradeProfitPct &&
     staleInvalidation;
 
-  if (price > priorPeak) {
-    position.peak = price;
+  // Fix #8: update peak using current candle high (not just close price)
+  if (Math.max(price, currentHigh) > priorPeak) {
+    position.peak = Math.max(price, currentHigh);
   }
-  if (!trailingActive && useTrailing) {
-    position.trailingActive = true;
-  }
+  // Fix #1: Remove redundant trailingActive mutation — exitFlow.js already handles
+  // this explicitly with state save + Telegram report. Keeping it here causes silent
+  // mutations without saveState if evaluateExit throws mid-loop.
 
   const diagnostics = {
     pnlPct: pnl * 100,
