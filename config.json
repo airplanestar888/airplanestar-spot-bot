@@ -6,10 +6,10 @@
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
     "RIVERUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "AINUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "SWARMSUSDT": {
       "enabled": true
