@@ -1862,7 +1862,12 @@ async function runBot() {
           .filter(candidate => candidate.eligible && !heldSymbols.has(candidate.symbol))
           .sort((a, b) => b.score - a.score)[0] || null;
 
-    if (state.position || !getLatestCandleTs(config.signalTimeframe)) {
+    const latestSignalCandleTs = getLatestCandleTs(config.signalTimeframe);
+    if (
+      state.position ||
+      !latestSignalCandleTs ||
+      !isCandleTimestampFresh(latestSignalCandleTs, config.signalTimeframe, now)
+    ) {
       await primeSignalCandlesForAllPairs(config.signalTimeframe, 2);
     }
 
@@ -1968,56 +1973,119 @@ async function runBot() {
       safeToFixed
     }));
 
-    // ===== FORCE EXIT SAFETY: auto-sell unmanaged coins =====
-    const managedSymbols = new Set(getOpenPositions(state).map(pos => pos.symbol));
+    // ===== MULTI-TRADE RECOVERY + FORCE EXIT SAFETY =====
+    const minManagedPositionUSDT = config.minManagedPositionUSDT ?? config.minHoldUSDT;
+    const openPositions = getOpenPositions(state);
+    let managedSymbols = new Set(openPositions.map(pos => pos.symbol));
+    const recoveredSymbols = [];
+
+    // Recover unmanaged balances into state first (supports multi-trade)
     for (const [coin, qty] of Object.entries(balances)) {
-        if (coin === 'usdt') continue;
-        if (qty && qty > 0) {
-          const symbol = coin.toUpperCase() + 'USDT';
-          if (managedSymbols.has(symbol)) continue;
-          const price = cachedPrices?.[coin] || 0;
-          if (price > 0) {
-            const value = qty * price;
-            const minManagedPositionUSDT = config.minManagedPositionUSDT ?? config.minHoldUSDT;
-            if (value >= minManagedPositionUSDT) {
-              // This coin should have been managed; auto-sell as safety
-              const autoSellResult = await safeExecute(async () => {
-                return await placeOrder(symbol, 'sell', qty);
-              });
-              
-              if (autoSellResult.success) {
-                const filledQty = Number(autoSellResult.result?.filledSize || qty || 0);
-                const avgPrice = Number(autoSellResult.result?.avgPrice || price || 0);
-                const exitSizeUSDT = filledQty > 0 && avgPrice > 0 ? filledQty * avgPrice : value;
-                logTrade({
-                  timestamp: new Date().toISOString(),
-                  type: "exit",
-                  source: "auto-sell-unmanaged",
-                  pair: symbol,
-                  symbol,
-                  side: "sell",
-                  price: avgPrice || price,
-                  qty: filledQty || qty,
-                  sizeUSDT: exitSizeUSDT,
-                  reason: "Auto-sell unmanaged asset",
-                  exit_reason: "Auto-sell unmanaged asset",
-                  exit_rsi: null,
-                  PnL: null,
-                  PnL_pct: null,
-                  netPnlEstPct: null,
-                  peakPnlPct: null,
-                  drawdownFromPeak: null
-                });
-                await report(`ðŸš¨ AUTO-SELL UNMANAGED\nPair: ${symbol}\nQty: ${qty}\nValue: ${safeToFixed(value)} USDT\n\nBot detected unmanaged asset and auto-liquidated.`);
-                return; // exit loop to let portfolio refresh
-              } else {
-                logEvent(LOG_FILE, "ERROR", `Auto-sell failed for ${symbol}: ${autoSellResult.error?.message || 'blocked'}`);
-                // Continue to let portfolio refresh anyway
-              }
-            }
-          }
+      if (coin === "usdt") continue;
+      if (!qty || qty <= 0) continue;
+
+      const symbol = coin.toUpperCase() + "USDT";
+      if (managedSymbols.has(symbol)) continue;
+
+      const price = cachedPrices?.[coin] || 0;
+      if (!price || price <= 0) continue;
+
+      const value = qty * price;
+      if (value < minManagedPositionUSDT) continue;
+
+      const recoveredPosition = {
+        symbol,
+        entry: price,
+        currentPrice: price,
+        qty,
+        sizeUSDT: value,
+        peak: price,
+        trailingActive: false,
+        stopPct: -0.02,
+        entryTime: Date.now(),
+        entryReason: {
+          score: null,
+          marketMode: null,
+          rsi: null,
+          atrPct: null,
+          notes: "Recovered from balance before unmanaged auto-sell"
+        },
+        source: "recovery"
+      };
+
+      openPositions.push(recoveredPosition);
+      managedSymbols.add(symbol);
+      recoveredSymbols.push(symbol);
+
+      logTrade({
+        timestamp: new Date().toISOString(),
+        type: "entry",
+        source: "recovery",
+        pair: symbol,
+        symbol,
+        side: "buy",
+        price,
+        qty,
+        sizeUSDT: value,
+        reason: "balance recovery before auto-sell"
+      });
+      logEvent(LOG_FILE, "INFO", `Recovered unmanaged balance into position: ${symbol} (${safeToFixed(value)} USDT)`);
+    }
+
+    if (recoveredSymbols.length) {
+      state.positions = openPositions;
+      state.position = openPositions[0] || null;
+      saveState(STATE_PATH, state);
+      await report(`⚠️ POSITION RECOVERED\nRecovered ${recoveredSymbols.length} symbol(s): ${recoveredSymbols.join(", ")}\n\nMoved unmanaged balances into tracked positions to avoid forced auto-sell.`);
+    }
+
+    // Auto-sell only if symbol is still unmanaged after recovery
+    for (const [coin, qty] of Object.entries(balances)) {
+      if (coin === "usdt") continue;
+      if (!qty || qty <= 0) continue;
+
+      const symbol = coin.toUpperCase() + "USDT";
+      if (managedSymbols.has(symbol)) continue;
+
+      const price = cachedPrices?.[coin] || 0;
+      if (!price || price <= 0) continue;
+
+      const value = qty * price;
+      if (value >= minManagedPositionUSDT) {
+        const autoSellResult = await safeExecute(async () => {
+          return await placeOrder(symbol, "sell", qty);
+        });
+
+        if (autoSellResult.success) {
+          const filledQty = Number(autoSellResult.result?.filledSize || qty || 0);
+          const avgPrice = Number(autoSellResult.result?.avgPrice || price || 0);
+          const exitSizeUSDT = filledQty > 0 && avgPrice > 0 ? filledQty * avgPrice : value;
+          logTrade({
+            timestamp: new Date().toISOString(),
+            type: "exit",
+            source: "auto-sell-unmanaged",
+            pair: symbol,
+            symbol,
+            side: "sell",
+            price: avgPrice || price,
+            qty: filledQty || qty,
+            sizeUSDT: exitSizeUSDT,
+            reason: "Auto-sell unmanaged asset",
+            exit_reason: "Auto-sell unmanaged asset",
+            exit_rsi: null,
+            PnL: null,
+            PnL_pct: null,
+            netPnlEstPct: null,
+            peakPnlPct: null,
+            drawdownFromPeak: null
+          });
+          await report(`ðŸš¨ AUTO-SELL UNMANAGED\nPair: ${symbol}\nQty: ${qty}\nValue: ${safeToFixed(value)} USDT\n\nBot detected unmanaged asset and auto-liquidated.`);
+          return;
         }
+
+        logEvent(LOG_FILE, "ERROR", `Auto-sell failed for ${symbol}: ${autoSellResult.error?.message || "blocked"}`);
       }
+    }
 
     if (state.position) {
       const exitFlowResult = await handleExitFlow({
