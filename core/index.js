@@ -2079,7 +2079,7 @@ async function runBot() {
             peakPnlPct: null,
             drawdownFromPeak: null
           });
-          await report(`ðŸš¨ AUTO-SELL UNMANAGED\nPair: ${symbol}\nQty: ${qty}\nValue: ${safeToFixed(value)} USDT\n\nBot detected unmanaged asset and auto-liquidated.`);
+          await report(`🚨 AUTO-SELL UNMANAGED\nPair: ${symbol}\nQty: ${qty}\nValue: ${safeToFixed(value)} USDT\n\nBot detected unmanaged asset and auto-liquidated.`);
           return;
         }
 
