@@ -5,62 +5,83 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>airplanestar Dashboard</title>
   <style>
-    :root { --bg:#08111f; --panel:#132338; --line:rgba(255,255,255,0.08); --text:#eef4ff; --muted:#9fb3cf; --green:#41d98e; --red:#ff6e6e; --yellow:#ffd24d; --blue:#5cb7ff; }
+    :root{--bg:#08111f;--panel:#132338;--line:rgba(255,255,255,0.08);--text:#eef4ff;--muted:#9fb3cf;--green:#41d98e;--red:#ff6e6e;--yellow:#ffd24d;--blue:#5cb7ff}
     *{box-sizing:border-box}
     body{margin:0;min-height:100vh;font-family:"Segoe UI",Tahoma,sans-serif;color:var(--text);background:radial-gradient(circle at top left,rgba(92,183,255,0.18),transparent 28%),radial-gradient(circle at top right,rgba(255,210,77,0.14),transparent 24%),linear-gradient(180deg,#060d18 0%,var(--bg) 100%)}
-    .wrap{width:min(1180px,calc(100% - 32px));margin:28px auto 40px}
-    .hero,.panel,.card,.table-wrap{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.28)}
-    .hero{padding:24px;margin-bottom:18px}
-    .brand{font-size:12px;letter-spacing:0.32em;text-transform:uppercase;color:var(--yellow);margin-bottom:8px}
-    h1{margin:0;font-size:clamp(28px,4vw,48px);line-height:1}
-    .sub{margin-top:10px;color:var(--muted);max-width:720px;line-height:1.6}
-    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px;align-items:center}
-    .btn{border:0;border-radius:12px;padding:12px 16px;color:#07111e;background:linear-gradient(180deg,#ffd24d,#f4b92a);font-weight:700;cursor:pointer}
+    .wrap{width:min(1180px,calc(100% - 32px));margin:16px auto 40px}
+    /* ─── Hero compact ─── */
+    .hero{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.28);padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .hero-left{flex:1;min-width:0}
+    .brand{font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:var(--yellow);margin-bottom:2px}
+    h1{margin:0;font-size:20px;font-weight:800;line-height:1.2}
+    .hero-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+    .btn{border:0;border-radius:10px;padding:9px 14px;color:#07111e;background:linear-gradient(180deg,#ffd24d,#f4b92a);font-weight:700;cursor:pointer;font-size:13px}
     .btn.secondary{background:linear-gradient(180deg,#7ec7ff,#4ba7ff)}
-    .hint{color:var(--muted);font-size:14px}
+    .hint{color:var(--muted);font-size:13px}
+    /* ─── Panel / Card ─── */
+    .panel,.card,.table-wrap{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.28)}
+    .panel{padding:18px}.panel>h2{margin:0 0 12px;font-size:17px;font-weight:700}
     .note{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:14px}
     .info-box{margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03);color:var(--text);line-height:1.5;min-height:48px;white-space:pre-wrap}
-    .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
-    .filter{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:16px;padding:14px}
-    .filter label{display:block;margin-bottom:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
-    .filter select{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(8,17,31,0.72);color:var(--text);padding:10px 12px;font:inherit}
-    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}
-    .card{padding:18px}
-    .label{font-size:12px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
-    .value{margin-top:10px;font-size:28px;font-weight:800}
-    .value.small{font-size:22px}
-    .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}
-    .two-col{display:grid;grid-template-columns:1.15fr 0.85fr;gap:14px;margin-bottom:18px}
-    .panel{padding:18px}.panel h2{margin:0 0 14px;font-size:18px}.panel h3{margin:18px 0 10px;font-size:14px;color:var(--yellow);letter-spacing:0.04em;text-transform:uppercase}
-    .stat-list{display:grid;gap:10px}.row{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row span:first-child{color:var(--muted)}
-    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .field{display:grid;gap:8px;margin-bottom:12px}.field label{color:var(--muted);font-size:12px;letter-spacing:0.08em;text-transform:uppercase}
-    .field input,.field select{width:100%;border:1px solid var(--line);border-radius:12px;background:rgba(8,17,31,0.72);color:var(--text);padding:10px 12px;font:inherit}
-    .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
-    .check-item{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03)}
-    .pair-grid{display:grid;gap:10px}
-    .pair-item{display:grid;grid-template-columns:auto minmax(0,1fr) 132px;gap:10px;align-items:center;padding:12px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03)}
-    .pair-item input[type="number"]{width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.72);color:var(--text);padding:8px 10px;font:inherit}
-    .pair-main{display:grid;gap:4px}
-    .pair-sub{font-size:12px;color:var(--muted)}
-    .live-box{padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(8,17,31,0.56);text-align:right}
-    .live-box strong{display:block;font-size:16px;color:var(--blue)}
-    .live-box span{display:block;font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase}
-    .config-status{margin-top:12px;margin-bottom:14px;color:var(--muted);font-size:13px}
-    .tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
-    .tab-btn{border:1px solid var(--line);border-radius:999px;padding:10px 14px;background:rgba(255,255,255,0.04);color:var(--text);cursor:pointer;font:inherit;font-weight:600}
+    /* ─── Accordion ─── */
+    .acc{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
+    .acc-hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:rgba(255,255,255,0.03);user-select:none;transition:background .15s}
+    .acc-hd:hover{background:rgba(255,255,255,0.06)}
+    .acc-hd h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow)}
+    .acc-hd .acc-badge{font-size:11px;color:var(--muted);background:rgba(255,255,255,0.07);padding:3px 8px;border-radius:999px}
+    .acc-arrow{font-size:12px;color:var(--muted);transition:transform .2s}
+    .acc.open .acc-arrow{transform:rotate(180deg)}
+    .acc-body{display:none;padding:14px 16px 6px;border-top:1px solid var(--line)}
+    .acc.open .acc-body{display:block}
+    /* ─── Tabs ─── */
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .tab-btn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:rgba(255,255,255,0.04);color:var(--text);cursor:pointer;font:inherit;font-size:13px;font-weight:600}
     .tab-btn.active{background:linear-gradient(180deg,#ffd24d,#f4b92a);color:#07111e;border-color:transparent}
     .tab-panel{display:none}.tab-panel.active{display:block}
-    .bars{display:grid;gap:10px}.bar-line{display:grid;gap:6px}.bar-label{display:flex;justify-content:space-between;color:var(--muted);font-size:14px}
-    .bar{height:10px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden}.bar>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#5cb7ff,#41d98e)}
-    .table-wrap{overflow:hidden}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--line);font-size:14px}th{color:var(--muted);font-weight:600;background:rgba(255,255,255,0.02)}tr:last-child td{border-bottom:0}
-    .pill{display:inline-block;padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;background:rgba(255,255,255,0.08)}
-    .combo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-    .combo-card{padding:16px;border:1px solid var(--line);border-radius:18px;background:rgba(255,255,255,0.03)}
-    .combo-card strong{display:block;font-size:16px}
-    .combo-formula{margin-top:10px;color:var(--yellow);font-weight:700}
-    .combo-desc{margin-top:8px;color:var(--muted);line-height:1.5;font-size:14px}
-    .empty{padding:18px;color:var(--muted)}
+    /* ─── Report filters / grid / charts ─── */
+    .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+    .filter{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:16px;padding:12px}
+    .filter label{display:block;margin-bottom:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .filter select{width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.72);color:var(--text);padding:8px 10px;font:inherit}
+    .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+    .card{padding:16px}
+    .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .value{margin-top:8px;font-size:26px;font-weight:800}
+    .value.small{font-size:20px}
+    .green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}
+    .two-col{display:grid;grid-template-columns:1.15fr 0.85fr;gap:12px;margin-bottom:14px}
+    .stat-list{display:grid;gap:8px}.row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row span:first-child{color:var(--muted)}
+    .bars{display:grid;gap:8px}.bar-line{display:grid;gap:5px}.bar-label{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
+    .bar{height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden}.bar>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#5cb7ff,#41d98e)}
+    /* ─── Form fields ─── */
+    .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .field{display:grid;gap:6px;margin-bottom:10px}.field label{color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.72);color:var(--text);padding:9px 11px;font:inherit}
+    .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+    .check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,0.03)}
+    .config-status{margin-top:10px;margin-bottom:12px;color:var(--muted);font-size:13px}
+    /* ─── Pair list ─── */
+    .pair-grid{display:grid;gap:8px}
+    .pair-item{display:grid;grid-template-columns:auto minmax(0,1fr) 120px;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,0.03)}
+    .pair-main{display:grid;gap:3px}
+    .pair-sub{font-size:11px;color:var(--muted)}
+    .live-box{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.56);text-align:right}
+    .live-box strong{display:block;font-size:14px;color:var(--blue)}
+    .live-box span{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+    /* ─── Table / Pill ─── */
+    .table-wrap{overflow:hidden}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted);font-weight:600;background:rgba(255,255,255,0.02)}tr:last-child td{border-bottom:0}
+    .pill{display:inline-block;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.08)}
+    /* ─── README combos ─── */
+    .combo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .combo-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,0.03)}
+    .combo-card strong{display:block;font-size:15px}
+    .combo-formula{margin-top:8px;color:var(--yellow);font-weight:700}
+    .combo-desc{margin-top:6px;color:var(--muted);line-height:1.5;font-size:13px}
+    .empty{padding:16px;color:var(--muted)}
+    /* ─── Section divider heading ─── */
+    .sec-hd{display:flex;align-items:center;gap:10px;margin:18px 0 10px}
+    .sec-hd h3{margin:0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--yellow)}
+    .sec-hd::after{content:"";flex:1;height:1px;background:var(--line)}
     @media(max-width:980px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr 1fr}}
     @media(max-width:720px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr}.wrap{width:min(100% - 20px,100%)}}
   </style>
@@ -68,20 +89,20 @@
 <body>
 <div class="wrap">
 <section class="hero">
-<div class="brand">airplanestar</div>
-<h1>Trade Journal Dashboard</h1>
-<div class="sub">Dashboard lokal untuk memantau performa bot, kondisi runtime, dan histori trading dalam satu tampilan yang rapi. Semua waktu ditampilkan dalam <strong>Asia/Jakarta (GMT+7)</strong>.</div>
-<div class="actions">
-<button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
-<span class="hint" id="statusText">Memuat data dari localhost gateway...</span>
-</div>
-<div class="hint" style="margin-top:10px;font-size:12px;opacity:.9;text-align:left">Catatan: PnL Today dan Rounds Today memakai <code>trade_journal.json</code>.</div>
+  <div class="hero-left">
+    <div class="brand">airplanestar</div>
+    <h1>Trade Journal Dashboard <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px">Asia/Jakarta (GMT+7)</span></h1>
+  </div>
+  <div class="hero-right">
+    <button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
+    <span class="hint" id="statusText">Memuat...</span>
+  </div>
 </section>
 <section class="tabs">
 <button class="tab-btn active" data-tab="reportTab">Report</button>
-<button class="tab-btn" data-tab="botTab">Global & Entry</button>
+<button class="tab-btn" data-tab="botTab">Global &amp; Entry</button>
 <button class="tab-btn" data-tab="marketTab">Market Setting</button>
-<button class="tab-btn" data-tab="tradeTab">Risk & Exit</button>
+<button class="tab-btn" data-tab="tradeTab">Risk &amp; Exit</button>
 <button class="tab-btn" data-tab="readmeTab">README</button>
 </section>
 
@@ -119,88 +140,128 @@
 <!-- BOT SETTING -->
 <section class="tab-panel" id="botTab">
 <section class="panel">
-<h2>Global & Entry</h2>
-<div class="note">Global setting tetap di sini. Untuk strategi, anggap <strong>Bot Type</strong> sebagai <strong>Entry Style</strong>: dia menentukan timeframe, confirmation, breakout, dan bentuk setup masuk.</div>
-<div class="check-grid">
-<label class="check-item"><input id="dryRunEditor" type="checkbox"><span>Dry Run</span></label>
-<label class="check-item"><input id="enableCostGuardEditor" type="checkbox"><span>Enable Cost Guard</span></label>
-<label class="check-item"><input id="telegramEnabledEditor" type="checkbox"><span>Telegram Enabled</span></label>
-<label class="check-item"><input id="threeLossHaltEditor" type="checkbox"><span>3 Loss Halt</span></label>
-<label class="check-item"><input id="useDynamicTpEditor" type="checkbox"><span>Use Dynamic TP</span></label>
-<label class="check-item"><input id="enableMultiTradeEditor" type="checkbox"><span>Enable Multi Trade</span></label>
-<label class="check-item"><input id="autoPairRotateEnabledEditor" type="checkbox"><span>Auto Rotate Pairs</span></label>
-<label class="check-item"><input id="autoPairDisableSlEditor" type="checkbox"><span>Disable Pair on SL / Emergency SL</span></label>
+<h2>Global &amp; Entry</h2>
+
+<div class="acc open" id="accFlags">
+  <div class="acc-hd" onclick="toggleAcc('accFlags')"><h3>Bot Flags</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="check-grid">
+      <label class="check-item"><input id="dryRunEditor" type="checkbox"><span>Dry Run</span></label>
+      <label class="check-item"><input id="telegramEnabledEditor" type="checkbox"><span>Telegram Enabled</span></label>
+      <label class="check-item"><input id="enableCostGuardEditor" type="checkbox"><span>Enable Cost Guard</span></label>
+      <label class="check-item"><input id="useDynamicTpEditor" type="checkbox"><span>Use Dynamic TP</span></label>
+      <label class="check-item"><input id="enableMultiTradeEditor" type="checkbox"><span>Enable Multi Trade</span></label>
+      <label class="check-item"><input id="threeLossHaltEditor" type="checkbox"><span>3 Loss Halt</span></label>
+      <label class="check-item"><input id="autoPairRotateEnabledEditor" type="checkbox"><span>Auto Rotate Pairs</span></label>
+      <label class="check-item"><input id="autoPairDisableSlEditor" type="checkbox"><span>Disable Pair on SL</span></label>
+    </div>
+  </div>
 </div>
-<div class="field-grid">
-<div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
-<div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
-<div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
-<div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
-<div class="field"><label>Exposure Cap %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
-<div class="field"><label>Auto Rotate Refresh (hours)</label><input id="autoPairRotateHoursEditor" type="number" step="1" min="1"></div>
-<div class="field"><label>Auto Rotate Active Pairs</label><input id="autoPairRotateTopEditor" type="number" step="1" min="1"></div>
-<div class="field"><label>SL Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
-<div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ff8f8f">Recommended: keep exposure cap under 50% of your portfolio.</div></div>
-<div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
-<div class="field"><label>Cost Guard Arm Pct</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Cost Guard Floor Pct</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
-<div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
-<div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
-<div class="field"><label>Daily Profit Target Pct</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
-<div class="field"><label>Daily Loss Limit Pct</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
-<div class="field"><label>Loop Interval (ms)</label><input id="loopIntervalEditor" type="number" step="1000" min="0"></div>
-<div class="field"><label>Heartbeat Interval (ms)</label><input id="heartbeatIntervalEditor" type="number" step="1000" min="0"></div>
-<div class="field"><label>Market Report Interval (ms)</label><input id="marketIntervalEditor" type="number" step="1000" min="0"></div>
-<div class="field"><label>Balance Report Interval (ms)</label><input id="balanceIntervalEditor" type="number" step="1000" min="0"></div>
-<div class="field"><label>Hold Report Interval (ms)</label><input id="holdIntervalEditor" type="number" step="1000" min="0"></div>
-<div class="field"><label>No Signal Interval (ms)</label><input id="noSignalIntervalEditor" type="number" step="1000" min="0"></div>
+
+<div class="acc" id="accSizing">
+  <div class="acc-hd" onclick="toggleAcc('accSizing')"><h3>Sizing &amp; Limits</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>Exposure Cap %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
+      <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
+      <div class="field"><label>Daily Profit Target Pct</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
+      <div class="field"><label>Daily Loss Limit Pct</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
+      <div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
+      <div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
+      <div class="field"><label>Cost Guard Arm Pct</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Cost Guard Floor Pct</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
+    </div>
+  </div>
 </div>
-<h3>Entry Style</h3>
-<div class="note">Entry style menentukan cara bot masuk. Pilih <strong>Custom Bot Type</strong> kalau mau ubah kerangka setup tanpa mengganggu preset bawaan.</div>
-<div class="field"><label>Selected Entry Style</label><select id="selectedBotTypeEditor"></select></div>
-<div class="check-grid">
-<label class="check-item"><input id="btReqEma21" type="checkbox"><span>Require EMA21 Rising</span></label>
-<label class="check-item"><input id="btReqFast" type="checkbox"><span>Require Fast Trend</span></label>
-<label class="check-item"><input id="btReqPriceEma9" type="checkbox"><span>Require Price Above EMA9</span></label>
-<label class="check-item"><input id="tReqEdge" type="checkbox"><span>Require Edge (net &gt; minExpected)</span></label>
+
+<div class="acc" id="accEntry">
+  <div class="acc-hd" onclick="toggleAcc('accEntry')"><h3>Entry Style</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field"><label>Selected Entry Style</label><select id="selectedBotTypeEditor"></select></div>
+    <div class="field"><label>Description</label><div class="info-box" id="activeBotTypeDescription">-</div></div>
+    <div class="check-grid">
+      <label class="check-item"><input id="btReqEma21" type="checkbox"><span>Require EMA21 Rising</span></label>
+      <label class="check-item"><input id="btReqFast" type="checkbox"><span>Require Fast Trend</span></label>
+      <label class="check-item"><input id="btReqPriceEma9" type="checkbox"><span>Price Above EMA9</span></label>
+      <label class="check-item"><input id="tReqEdge" type="checkbox"><span>Require Edge</span></label>
+    </div>
+    <div class="field-grid" style="margin-top:10px">
+      <div class="field"><label>Signal Timeframe</label><select id="btSignalTimeframe"><option value="1min">1min</option><option value="3min">3min</option><option value="5min">5min</option><option value="15min">15min</option><option value="1h">1h</option><option value="4h">4h</option></select></div>
+      <div class="field"><label>Trend Timeframe</label><select id="btTrendTimeframe"><option value="5min">5min</option><option value="15min">15min</option><option value="30min">30min</option><option value="1h">1h</option><option value="4h">4h</option><option value="1day">1day</option></select></div>
+      <div class="field"><label>Min Scalp Target</label><input id="btMinTarget" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Max Scalp Target</label><input id="btMaxTarget" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Time Stop (min)</label><input id="btTimeStopMinutes" type="number" step="1" min="0"></div>
+      <div class="field"><label>Stale After (min)</label><input id="btMaxHold" type="number" step="1" min="0"></div>
+      <div class="field"><label>Break Even (min)</label><input id="btBreakEvenMinutes" type="number" step="1" min="0"></div>
+      <div class="field"><label>Min Confirmation</label><input id="btMinConfirmation" type="number" step="1" min="0"></div>
+      <div class="field"><label>Breakout Pct</label><input id="btBreakoutPct" type="number" step="0.0001" min="0"></div>
+    </div>
+  </div>
 </div>
-<div class="field"><label>Description</label><div class="info-box" id="activeBotTypeDescription">-</div></div>
-<div class="field-grid">
-<div class="field"><label>Signal Timeframe</label><select id="btSignalTimeframe"><option value="1min">1min</option><option value="3min">3min</option><option value="5min">5min</option><option value="15min">15min</option><option value="1h">1h</option><option value="4h">4h</option></select></div>
-<div class="field"><label>Trend Timeframe</label><select id="btTrendTimeframe"><option value="5min">5min</option><option value="15min">15min</option><option value="30min">30min</option><option value="1h">1h</option><option value="4h">4h</option><option value="1day">1day</option></select></div>
-<div class="field"><label>Min Scalp Target Pct</label><input id="btMinTarget" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Max Scalp Target Pct</label><input id="btMaxTarget" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Time Stop Minutes</label><input id="btTimeStopMinutes" type="number" step="1" min="0"></div>
-<div class="field"><label>Stale Check After (min)</label><input id="btMaxHold" type="number" step="1" min="0"></div>
-<div class="field"><label>Break Even Minutes</label><input id="btBreakEvenMinutes" type="number" step="1" min="0"></div>
-<div class="field"><label>Min Confirmation</label><input id="btMinConfirmation" type="number" step="1" min="0"></div>
-<div class="field"><label>Breakout Pct</label><input id="btBreakoutPct" type="number" step="0.0001" min="0"></div>
+
+<div class="acc" id="accFilters">
+  <div class="acc-hd" onclick="toggleAcc('accFilters')"><h3>Entry Filters</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="check-grid">
+      <label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>RSI Momentum</span></label>
+      <label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Breakout Check</span></label>
+      <label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>RSI Band</span></label>
+      <label class="check-item"><input id="btEnableAtr" type="checkbox"><span>ATR Filter</span></label>
+      <label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Volume Filter</span></label>
+      <label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Candle Strength</span></label>
+      <label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Price Extension</span></label>
+      <label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Range Recovery</span></label>
+    </div>
+    <div class="field-grid">
+      <div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
+      <div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
+      <div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
+      <div class="field"><label>EMA Gap Negative</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
+      <div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
+      <div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
+      <div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
+      <div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
+    </div>
+  </div>
 </div>
-<h3>Entry Filters</h3>
-<div class="check-grid">
-<label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>Use RSI Momentum</span></label>
-<label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Use Breakout Check</span></label>
-<label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>Use RSI Band</span></label>
-<label class="check-item"><input id="btEnableAtr" type="checkbox"><span>Use ATR Filter</span></label>
-<label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Use Volume Filter</span></label>
-<label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Use Candle Strength</span></label>
-<label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Use Price Extension</span></label>
-<label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Use Range Recovery</span></label>
+
+<div class="acc" id="accRotate">
+  <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Refresh Interval (hours)</label><input id="autoPairRotateHoursEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>Active Pairs (top N)</label><input id="autoPairRotateTopEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>SL Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
+    </div>
+  </div>
 </div>
-<div class="field-grid">
-<div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
-<div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
-<div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
-<div class="field"><label>EMA Gap Negative</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
-<div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
-<div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
-<div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
-<div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
+
+<div class="acc" id="accIntervals">
+  <div class="acc-hd" onclick="toggleAcc('accIntervals')"><h3>Report Intervals</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Loop (ms)</label><input id="loopIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>Heartbeat (ms)</label><input id="heartbeatIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>Market Report (ms)</label><input id="marketIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>Balance Report (ms)</label><input id="balanceIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>Hold Report (ms)</label><input id="holdIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>No Signal (ms)</label><input id="noSignalIntervalEditor" type="number" step="1000" min="0"></div>
+    </div>
+  </div>
 </div>
-<h3>Pairs</h3>
-<div class="note">Daftar pair aktif. Bot sekarang tidak memakai bobot pair manual. Prioritas pair dibaca dari live market snapshot.</div>
-<div class="config-status" id="pairLiveStatus">Live pair weight belum dimuat.</div>
-<div class="pair-grid" id="pairEditor"></div>
+
+<div class="acc" id="accPairs">
+  <div class="acc-hd" onclick="toggleAcc('accPairs')"><h3>Active Pairs</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="config-status" id="pairLiveStatus">Live pair weight belum dimuat.</div>
+    <div class="pair-grid" id="pairEditor"></div>
+  </div>
+</div>
+
 <div class="config-status" id="configStatus">Config belum dimuat.</div>
 </section></section>
 
@@ -228,30 +289,36 @@
 <!-- TRADE SETTING -->
 <section class="tab-panel" id="tradeTab">
 <section class="panel">
-<h2>Risk & Exit</h2>
-<div class="note">Layer ini mengatur agresivitas, risk, TP, trailing, cost-aware exit, dan proteksi profit. Struktur entry utama tidak diatur di sini. Jika <strong>Use Dynamic TP</strong> aktif, TP mode tetap dipakai sebagai <strong>profit activation</strong>, bukan target utama.</div>
-<h3>Mode</h3>
-<div class="field"><label>Selected Trading Style</label><select id="selectedModeEditor"></select></div>
+<h2>Risk &amp; Exit</h2>
+<div class="note">Mengatur agresivitas, risk, TP, trailing, dan proteksi profit. Jika <strong>Use Dynamic TP</strong> aktif, TP dipakai sebagai <strong>profit activation arm</strong> (bukan target).</div>
+
+<div class="field"><label>Trading Style</label><select id="selectedModeEditor"></select></div>
 <div class="field"><label>Description</label><div class="info-box" id="activeModeDescription">-</div></div>
-<h3>Risk & Sizing</h3>
+
+<div class="sec-hd"><h3>Risk &amp; Sizing</h3></div>
 <div class="field-grid">
 <div class="field"><label>Risk Percent</label><input id="tRisk" type="number" step="0.001" min="0"></div>
 <div class="field"><label>Cooldown (ms)</label><input id="tCooldown" type="number" step="1000" min="0"></div>
 </div>
-<h3>Exit Targets</h3>
+
+<div class="sec-hd"><h3>Exit Targets (TP / DTP)</h3></div>
 <div class="field-grid">
-<div class="field"><label>Take Profit Pct</label><input id="tTP" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Trailing Activation</label><input id="tTrailAct" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Take Profit Pct (target)</label><input id="tTP" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Trailing Activation (arm)</label><input id="tTrailAct" type="number" step="0.0005" min="0"></div>
 <div class="field"><label>Trailing Drawdown</label><input id="tTrailDD" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Trailing Protection</label><input id="tTrailProt" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Trailing Protection Floor</label><input id="tTrailProt" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Exit Candle Timeframe</label><select id="tExitTimeframe"><option value="1min">1min — real-time (default)</option><option value="3min">3min — signal TF</option><option value="5min">5min</option><option value="15min">15min — swing</option></select></div>
 </div>
-<h3>Soft Exits</h3>
+
+<div class="sec-hd"><h3>Soft Exits</h3></div>
 <div class="field-grid">
-<div class="field"><label>Min Momentum Exit Pct</label><input id="tMomentum" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Break Even Armed Pct</label><input id="tBeArmed" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Break Even Floor Pct</label><input id="tBeFloor" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Min Momentum Exit</label><input id="tMomentum" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Break Even Armed</label><input id="tBeArmed" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Break Even Floor</label><input id="tBeFloor" type="number" step="0.0005" min="0"></div>
+<div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
 </div>
-<h3>Time Limits & Stale</h3>
+
+<div class="sec-hd"><h3>Time Limits</h3></div>
 <div class="check-grid">
 <label class="check-item"><input id="tEnableTS" type="checkbox"><span>Enable Time Stop</span></label>
 <label class="check-item"><input id="tEnableStale" type="checkbox"><span>Enable Stale Trade</span></label>
@@ -259,9 +326,8 @@
 <div class="field-grid">
 <div class="field"><label>Time Stop Profit Pct</label><input id="tTsProfit" type="number" step="0.0005"></div>
 <div class="field"><label>Min Hold PnL Pct</label><input id="tMinHoldPnl" type="number" step="0.0005"></div>
-<div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
-<div class="field"><label>Exit Candle Timeframe</label><select id="tExitTimeframe"><option value="1min">1min (default — real-time)</option><option value="3min">3min — signal timeframe</option><option value="5min">5min</option><option value="15min">15min — swing/hold</option></select></div>
-</div></section></section>
+</div>
+</section></section>
 
 <!-- README -->
 <section class="tab-panel" id="readmeTab">
@@ -715,6 +781,7 @@ document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
 ['scopeFilter','pairFilter','botTypeFilter','modeFilter','marketProfileFilter','reasonFilter'].forEach(id=>{
   document.getElementById(id).addEventListener('change',()=>{if(journal.length)render()})
 });
+function toggleAcc(id){const el=document.getElementById(id);if(el)el.classList.toggle('open')}
 loadFolder();
 document.getElementById('selectedBotTypeEditor').addEventListener('change',()=>{
   if(!currentConfig)return;currentConfig.selectedBotType=document.getElementById('selectedBotTypeEditor').value;popCfg()
