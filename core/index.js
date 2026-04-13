@@ -1128,6 +1128,46 @@ function extractTickerPrice(ticker) {
   return 0;
 }
 
+function extractTickerQuoteVolume(ticker) {
+  const candidates = [
+    ticker?.quoteVol,
+    ticker?.quoteVolume,
+    ticker?.usdtVolume,
+    ticker?.turnover,
+    ticker?.amount,
+    ticker?.volumeUsd,
+    ticker?.volCcy24h,
+    ticker?.quoteVolume24h,
+    ticker?.turnover24h,
+    ticker?.quoteTurnover,
+    ticker?.baseVolume
+  ];
+  for (const candidate of candidates) {
+    const value = Number(candidate);
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+  return 0;
+}
+
+function extractTickerChangePct(ticker) {
+  const candidates = [
+    ticker?.changeUtc24h,
+    ticker?.change24h,
+    ticker?.priceChangePercent,
+    ticker?.priceChangePct,
+    ticker?.chgUtc,
+    ticker?.riseFallRate,
+    ticker?.changeRate
+  ];
+  for (const candidate of candidates) {
+    const raw = Number(candidate);
+    if (!Number.isFinite(raw)) continue;
+    if (Math.abs(raw) <= 1) return raw * 100;
+    return raw;
+  }
+  return 0;
+}
+
 async function getCandles(symbol, timeframe = "3min", limit = 50) {
   await waitForSlot();
   try {
@@ -1403,6 +1443,170 @@ async function getTickersCached() {
     logEvent(LOG_FILE, "ERROR", "getTickers failed: " + err.message);
     if (cachedTickers) return cachedTickers;
     throw err;
+  }
+}
+
+let lastAutoPairRotationAt = 0;
+let lastAutoPairRotationSignature = "";
+
+function getAutoPairRotationConfig() {
+  const defaults = {
+    enabled: false,
+    refreshIntervalHours: 6,
+    topPairs: 10,
+    disableOnStopLoss: true,
+    stopLossCooldownHours: 24,
+    minQuoteVolumeUSDT: 500000,
+    maxAbsChangePct: 40,
+    minChangePct: -8
+  };
+  const raw = isPlainObject(config.autoPairRotation) ? config.autoPairRotation : {};
+  return {
+    enabled: raw.enabled === true,
+    refreshIntervalHours: Math.max(1, Number(raw.refreshIntervalHours ?? defaults.refreshIntervalHours)),
+    topPairs: Math.max(1, Number(raw.topPairs ?? defaults.topPairs)),
+    disableOnStopLoss: raw.disableOnStopLoss !== false,
+    stopLossCooldownHours: Math.max(1, Number(raw.stopLossCooldownHours ?? defaults.stopLossCooldownHours)),
+    minQuoteVolumeUSDT: Math.max(0, Number(raw.minQuoteVolumeUSDT ?? defaults.minQuoteVolumeUSDT)),
+    maxAbsChangePct: Math.max(1, Number(raw.maxAbsChangePct ?? defaults.maxAbsChangePct)),
+    minChangePct: Number(raw.minChangePct ?? defaults.minChangePct)
+  };
+}
+
+function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
+  const symbols = new Set();
+  if (!rotationCfg.disableOnStopLoss) return symbols;
+
+  try {
+    if (!fs.existsSync(JOURNAL_PATH)) return symbols;
+    const raw = fs.readFileSync(JOURNAL_PATH, "utf8").trim();
+    if (!raw) return symbols;
+    const journal = JSON.parse(raw);
+    if (!Array.isArray(journal)) return symbols;
+
+    const lookbackMs = rotationCfg.stopLossCooldownHours * 60 * 60 * 1000;
+    const cutoff = now - lookbackMs;
+    for (let i = journal.length - 1; i >= 0; i--) {
+      const row = journal[i];
+      if (!row || row.status !== "closed") continue;
+      const reason = String(row.exit?.reason || row.reason || "").toLowerCase();
+      if (!(reason.includes("emergency sl") || reason.includes("atr stop loss"))) continue;
+      const pair = String(row.pair || "").toUpperCase();
+      if (!pair) continue;
+      const closedAt = new Date(row.closedAt || row.openedAt || 0).getTime();
+      if (!Number.isFinite(closedAt) || closedAt < cutoff) continue;
+      symbols.add(pair);
+    }
+  } catch (err) {
+    logEvent(LOG_FILE, "WARN", `Auto-rotate blacklist read failed: ${err.message}`);
+  }
+  return symbols;
+}
+
+function setRuntimePairs(nextPairs = [], source = "manual") {
+  const unique = [];
+  const seen = new Set();
+  for (const pair of nextPairs) {
+    const symbol = String(pair || "").toUpperCase();
+    if (!symbol || seen.has(symbol)) continue;
+    seen.add(symbol);
+    unique.push(symbol);
+  }
+  if (!unique.length) return false;
+
+  config.pairs = unique;
+  config.baseCoins = unique.map(symbol => symbol.replace(/USDT$/i, "").toUpperCase());
+  config.runtimePairSource = source;
+  return true;
+}
+
+async function maybeRotatePairUniverse({ now, state }) {
+  const rotationCfg = getAutoPairRotationConfig();
+
+  if (!rotationCfg.enabled) {
+    if (config.runtimePairSource === "auto-rotate") {
+      const normalized = normalizePairConfig(config);
+      setRuntimePairs(normalized.pairs || [], "manual");
+      config.lastAutoPairRotation = {
+        at: new Date(now).toISOString(),
+        enabled: false,
+        reason: "disabled"
+      };
+      logEvent(LOG_FILE, "INFO", "Auto-rotate disabled, reverted to config pairSettings");
+    }
+    return;
+  }
+
+  const refreshMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
+  if (lastAutoPairRotationAt > 0 && (now - lastAutoPairRotationAt) < refreshMs) return;
+
+  const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", "/api/v2/spot/market/tickers");
+  const rows = extractTickerRows(data);
+  const stopLossBlacklist = getStopLossBlacklistSymbols(rotationCfg, now);
+  const pinnedSymbols = new Set(getOpenPositions(state).map(pos => String(pos?.symbol || "").toUpperCase()).filter(Boolean));
+  const scored = [];
+
+  for (const row of rows) {
+    const symbol = extractTickerSymbol(row);
+    if (!symbol.endsWith("USDT")) continue;
+    if (symbol.includes("3L") || symbol.includes("3S") || symbol.includes("5L") || symbol.includes("5S")) continue;
+    if (stopLossBlacklist.has(symbol) && !pinnedSymbols.has(symbol)) continue;
+
+    const last = extractTickerPrice(row);
+    const quoteVol = extractTickerQuoteVolume(row);
+    const changePct = extractTickerChangePct(row);
+
+    if (!Number.isFinite(last) || last <= 0) continue;
+    if (quoteVol < rotationCfg.minQuoteVolumeUSDT) continue;
+    if (Math.abs(changePct) > rotationCfg.maxAbsChangePct) continue;
+    if (changePct < rotationCfg.minChangePct) continue;
+
+    const volumeScore = Math.log10(Math.max(quoteVol, 1));
+    const momentumScore = Math.max(-8, Math.min(18, changePct));
+    const score = (volumeScore * 1.2) + (momentumScore * 0.35);
+    scored.push({ symbol, score, quoteVol, changePct });
+  }
+
+  scored.sort((a, b) => b.score - a.score || b.quoteVol - a.quoteVol || a.symbol.localeCompare(b.symbol));
+  const picked = scored.slice(0, rotationCfg.topPairs).map(item => item.symbol);
+
+  for (const symbol of pinnedSymbols) {
+    if (!picked.includes(symbol)) picked.push(symbol);
+  }
+
+  if (!picked.length) {
+    config.lastAutoPairRotation = {
+      at: new Date(now).toISOString(),
+      enabled: true,
+      changed: false,
+      reason: "no-candidates",
+      blacklistCount: stopLossBlacklist.size
+    };
+    logEvent(LOG_FILE, "WARN", "Auto-rotate found no eligible pair candidates");
+    lastAutoPairRotationAt = now;
+    return;
+  }
+
+  const signature = picked.join(",");
+  const changed = signature !== lastAutoPairRotationSignature;
+  setRuntimePairs(picked, "auto-rotate");
+  lastAutoPairRotationAt = now;
+  lastAutoPairRotationSignature = signature;
+  config.lastAutoPairRotation = {
+    at: new Date(now).toISOString(),
+    enabled: true,
+    changed,
+    refreshIntervalHours: rotationCfg.refreshIntervalHours,
+    topPairs: rotationCfg.topPairs,
+    activePairs: config.pairs,
+    blacklistCount: stopLossBlacklist.size,
+    pinnedCount: pinnedSymbols.size
+  };
+
+  if (changed) {
+    logEvent(LOG_FILE, "INFO", `Auto-rotate active pairs (${config.pairs.length}): ${config.pairs.join(",")}`);
+  } else {
+    logEvent(LOG_FILE, "DEBUG", `Auto-rotate checked, no pair changes (${config.pairs.length} active)`);
   }
 }
 
@@ -1699,6 +1903,9 @@ async function runBot() {
       logEvent(LOG_FILE, "INFO", "Halted: " + state.haltReason);
     }
 
+    // ===== AUTO PAIR ROTATION (optional, config-driven) =====
+    await maybeRotatePairUniverse({ now, state });
+
     // ===== POSITION RECOVERY (if state.position missing but balance has coin) =====
     if (!state.position && cachedPrices) {
       const recovered = detectOpenPositionFromBalance({
@@ -1891,6 +2098,9 @@ async function runBot() {
             eligible: bestEligible.eligible
           }
         : null,
+      autoPairRotation: config.lastAutoPairRotation || {
+        enabled: false
+      },
       pairs: marketData.map(md => ({
         symbol: md.symbol,
         price: md.price,

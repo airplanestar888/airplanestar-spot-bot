@@ -112,6 +112,16 @@
   "reserveUSDT": 2,
   "enableMultiTrade": true,
   "maxOpenPositions": 2,
+  "autoPairRotation": {
+    "enabled": true,
+    "refreshIntervalHours": 6,
+    "topPairs": 10,
+    "disableOnStopLoss": true,
+    "stopLossCooldownHours": 24,
+    "minQuoteVolumeUSDT": 500000,
+    "maxAbsChangePct": 40,
+    "minChangePct": -8
+  },
   "exposureCapPct": 0.5,
   "minManagedPositionUSDT": 2.5,
   "minRecoverUSDT": 3,

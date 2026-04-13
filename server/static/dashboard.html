@@ -128,6 +128,8 @@
 <label class="check-item"><input id="threeLossHaltEditor" type="checkbox"><span>3 Loss Halt</span></label>
 <label class="check-item"><input id="useDynamicTpEditor" type="checkbox"><span>Use Dynamic TP</span></label>
 <label class="check-item"><input id="enableMultiTradeEditor" type="checkbox"><span>Enable Multi Trade</span></label>
+<label class="check-item"><input id="autoPairRotateEnabledEditor" type="checkbox"><span>Auto Rotate Pairs</span></label>
+<label class="check-item"><input id="autoPairDisableSlEditor" type="checkbox"><span>Disable Pair on SL / Emergency SL</span></label>
 </div>
 <div class="field-grid">
 <div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
@@ -135,6 +137,9 @@
 <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
 <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
 <div class="field"><label>Exposure Cap %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
+<div class="field"><label>Auto Rotate Refresh (hours)</label><input id="autoPairRotateHoursEditor" type="number" step="1" min="1"></div>
+<div class="field"><label>Auto Rotate Active Pairs</label><input id="autoPairRotateTopEditor" type="number" step="1" min="1"></div>
+<div class="field"><label>SL Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
 <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ff8f8f">Recommended: keep exposure cap under 50% of your portfolio.</div></div>
 <div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
 <div class="field"><label>Cost Guard Arm Pct</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
@@ -286,8 +291,8 @@ let journal=[],currentConfig=null,folderHandle=null,configHandle=null,journalHan
 /* --- Editor maps (STRICT layer separation) --- */
 const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',loopIntervalMs:'loopIntervalEditor'};
 const BOT_BOOL_KEYS=new Set(['dryRun','enableCostGuard','useDynamicTakeProfit','enableMultiTrade','stopAfterThreeConsecutiveLosses']);
-const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor'};
-const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled']);
+const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor','autoPairRotation.enabled':'autoPairRotateEnabledEditor','autoPairRotation.refreshIntervalHours':'autoPairRotateHoursEditor','autoPairRotation.topPairs':'autoPairRotateTopEditor','autoPairRotation.disableOnStopLoss':'autoPairDisableSlEditor','autoPairRotation.stopLossCooldownHours':'autoPairSlCooldownHoursEditor'};
+const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled','autoPairRotation.enabled','autoPairRotation.disableOnStopLoss']);
 const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTimeframe',minScalpTargetPct:'btMinTarget',maxScalpTargetPct:'btMaxTarget',timeStopMinutes:'btTimeStopMinutes',maxHoldMinutes:'btMaxHold',breakEvenMinutes:'btBreakEvenMinutes',minConfirmation:'btMinConfirmation',breakoutPct:'btBreakoutPct',requireEma21Rising:'btReqEma21',requireFastTrend:'btReqFast',requirePriceAboveEma9:'btReqPriceEma9',requireEdge:'tReqEdge',requireRsiMomentum:'btReqRsiMomentum',requireBreakout:'btReqBreakout',enableRsiBandFilter:'btEnableRsiBand',enableAtrFilter:'btEnableAtr',enableVolumeFilter:'btEnableVolume',enableCandleStrengthFilter:'btEnableCandleStrength',enablePriceExtensionFilter:'btEnablePriceExtension',enableRangeRecoveryFilter:'btEnableRangeRecovery',rsiBandLower:'tRsiLo',rsiBandUpper:'tRsiHi',minCandleStrength:'tCandle',minEmaGapNeg:'tEmaNeg',optimalRsiLow:'tOrsiLo',optimalRsiHigh:'tOrsiHi',optimalAtrLow:'tOatrLo',optimalAtrHigh:'tOatrHi'};
 const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge','requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
 const BTYPE_STRING_KEYS=new Set(['signalTimeframe','trendTimeframe']);
@@ -406,19 +411,32 @@ function popPairs(ps={}){
   const c=document.getElementById('pairEditor');
   const snap=snapshotMap();
   const pairStatus=document.getElementById('pairLiveStatus');
-  const e=Object.entries(ps);
+  const e=Object.entries(ps)
+    .map(([sym,se])=>{
+      const en=se===true||(typeof se==='object'&&se?.enabled!==false);
+      const live=snap.get(sym);
+      const lw=Number.isFinite(Number(live?.liveWeight))?Number(live.liveWeight):-1;
+      const sc=Number.isFinite(Number(live?.score))?Number(live.score):-1;
+      return {sym,se,en,live,lw,sc};
+    })
+    .sort((a,b)=>{
+      if(a.en!==b.en) return a.en ? -1 : 1;
+      if(b.lw!==a.lw) return b.lw-a.lw;
+      if(b.sc!==a.sc) return b.sc-a.sc;
+      return a.sym.localeCompare(b.sym);
+    });
   if(pairStatus){
+    const autoRotateMeta=marketSnapshot?.autoPairRotation;
     if(marketSnapshot?.generatedAt){
-      pairStatus.textContent=`Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}`;
+      const autoRotateText=autoRotateMeta
+        ? ` | auto-rotate ${autoRotateMeta.enabled?'on':'off'}${autoRotateMeta.topPairs?` top ${autoRotateMeta.topPairs}`:''}`
+        : '';
+      pairStatus.textContent=`Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}${autoRotateText} | sorted: active first, high weight first`;
     }else{
-      pairStatus.textContent='Live pair weight belum tersedia. Jalankan bot sampai minimal satu kali scan.';
+      pairStatus.textContent='Live pair weight belum tersedia. Pair diurutkan aktif dulu, lalu alfabet.';
     }
   }
-  c.innerHTML=e.length?e.map(([sym,se])=>{
-    const en=se===true||(typeof se==='object'&&se?.enabled!==false);
-    const live=snap.get(sym);
-    const lw=Number.isFinite(Number(live?.liveWeight))?Number(live.liveWeight):null;
-    const sc=Number.isFinite(Number(live?.score))?Number(live.score):null;
+  c.innerHTML=e.length?e.map(({sym,en,live,lw,sc})=>{
     const status=pairSnapshotStatus(live);
     return`<label class="pair-item">
       <input type="checkbox" data-pe="${sym}" ${en?'checked':''}>
@@ -428,7 +446,7 @@ function popPairs(ps={}){
       </span>
       <span class="live-box" title="${live?`Score ${fmt(sc,2)} | ${status}`:'Belum ada live snapshot'}">
         <span>Live Weight</span>
-        <strong>${lw!=null?fmt(lw,2)+'x':'-'}</strong>
+        <strong>${lw>=0?fmt(lw,2)+'x':'-'}</strong>
       </span>
     </label>`;
   }).join(''):'<div class="empty">Pair settings tidak ditemukan.</div>';
@@ -437,6 +455,12 @@ function popPairs(ps={}){
 function popCfg(){
   if(!currentConfig)return;
   if(currentConfig.maxRoundsPerDay==null&&currentConfig.maxTradesPerDay!=null)currentConfig.maxRoundsPerDay=currentConfig.maxTradesPerDay;
+  if(!currentConfig.autoPairRotation||typeof currentConfig.autoPairRotation!=='object')currentConfig.autoPairRotation={};
+  if(currentConfig.autoPairRotation.enabled==null)currentConfig.autoPairRotation.enabled=false;
+  if(currentConfig.autoPairRotation.refreshIntervalHours==null)currentConfig.autoPairRotation.refreshIntervalHours=6;
+  if(currentConfig.autoPairRotation.topPairs==null)currentConfig.autoPairRotation.topPairs=10;
+  if(currentConfig.autoPairRotation.disableOnStopLoss==null)currentConfig.autoPairRotation.disableOnStopLoss=true;
+  if(currentConfig.autoPairRotation.stopLossCooldownHours==null)currentConfig.autoPairRotation.stopLossCooldownHours=24;
   popBotType();popMode();popMktProf();
   for(const[k,id]of Object.entries(BOT_MAP))sEv(id,currentConfig[k]);
   for(const[path,id]of Object.entries(BOT_NESTED_MAP))sEv(id,getByPath(currentConfig,path));
