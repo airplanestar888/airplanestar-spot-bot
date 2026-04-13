@@ -44,6 +44,7 @@ async function handleExitFlow({
   const holdItems = [];
   let shouldSendHoldSummary = false;
   const holdReportDue = shouldReport(config.report.holdReportIntervalMs, lastHoldReportTime);
+  let exitOccurred = false;
 
   for (let idx = 0; idx < positions.length; idx++) {
     const openPosition = positions[idx];
@@ -224,12 +225,15 @@ async function handleExitFlow({
         };
       } else {
         positions.splice(idx, 1);
+        idx--; // Adjust index after removal to maintain correct iteration
       }
 
       state.positions = positions;
       state.position = positions[0] || null;
       saveState(STATE_PATH, state);
-      return { handledExit: true, lastHoldReportTime };
+      exitOccurred = true;
+      // Continue to check remaining positions instead of returning early
+      continue;
     }
 
     if (exitEval?.useTrailing && !openPosition.trailingActive) {
@@ -278,7 +282,8 @@ async function handleExitFlow({
     });
   }
 
-  if (holdItems.length && (holdReportDue || shouldSendHoldSummary)) {
+  // Send hold summary if due, if PnL changed significantly, or if an exit occurred (to show updated state)
+  if (holdItems.length && (holdReportDue || shouldSendHoldSummary || exitOccurred)) {
     const totalExposureUsdt = positions.reduce((sum, pos) => sum + (Number(pos?.sizeUSDT) || 0), 0);
     await report(reporting.buildHoldSummaryReport(
       holdItems,
@@ -299,7 +304,7 @@ async function handleExitFlow({
     saveState(STATE_PATH, state);
   }
 
-  return { handledExit: false, lastHoldReportTime };
+  return { handledExit: exitOccurred, lastHoldReportTime };
 }
 
 module.exports = {

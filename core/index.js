@@ -1,4 +1,4 @@
-﻿const { request } = require("./exchange");
+const { request } = require("./exchange");
 const { EMA } = require("./indicators");
 const { buildEntryPlan, buildPositionMeta } = require("./execution");
 const {
@@ -1168,6 +1168,14 @@ function extractTickerChangePct(ticker) {
   return 0;
 }
 
+// Returns 24h high-low range as percentage of low price
+function extractTickerRange24h(ticker) {
+  const high = Number(ticker?.high24h || ticker?.highPr || ticker?.high || 0);
+  const low  = Number(ticker?.low24h  || ticker?.lowPr  || ticker?.low  || 0);
+  if (!high || !low || low <= 0 || high < low) return 0;
+  return (high - low) / low * 100;
+}
+
 async function getCandles(symbol, timeframe = "3min", limit = 50) {
   await waitForSlot();
   try {
@@ -1452,6 +1460,7 @@ let lastAutoPairRotationSignature = "";
 function getAutoPairRotationConfig() {
   const defaults = {
     enabled: false,
+    requireNoOpenPositions: true,
     refreshIntervalHours: 6,
     topPairs: 10,
     disableOnStopLoss: true,
@@ -1461,15 +1470,25 @@ function getAutoPairRotationConfig() {
     minChangePct: -8
   };
   const raw = isPlainObject(config.autoPairRotation) ? config.autoPairRotation : {};
+  const rawCat = isPlainObject(raw.categories) ? raw.categories : {};
   return {
     enabled: raw.enabled === true,
+    requireNoOpenPositions: raw.requireNoOpenPositions !== false,
     refreshIntervalHours: Math.max(1, Number(raw.refreshIntervalHours ?? defaults.refreshIntervalHours)),
     topPairs: Math.max(1, Number(raw.topPairs ?? defaults.topPairs)),
     disableOnStopLoss: raw.disableOnStopLoss !== false,
     stopLossCooldownHours: Math.max(1, Number(raw.stopLossCooldownHours ?? defaults.stopLossCooldownHours)),
     minQuoteVolumeUSDT: Math.max(0, Number(raw.minQuoteVolumeUSDT ?? defaults.minQuoteVolumeUSDT)),
     maxAbsChangePct: Math.max(1, Number(raw.maxAbsChangePct ?? defaults.maxAbsChangePct)),
-    minChangePct: Number(raw.minChangePct ?? defaults.minChangePct)
+    minChangePct: Number(raw.minChangePct ?? defaults.minChangePct),
+    // Category toggles — each can be enabled/disabled and weighted independently
+    categories: {
+      bestVolume:       { enabled: rawCat.bestVolume?.enabled       !== false, weight: Number(rawCat.bestVolume?.weight       ?? 1.2) },
+      bestMomentum:     { enabled: rawCat.bestMomentum?.enabled     !== false, weight: Number(rawCat.bestMomentum?.weight     ?? 0.8) },
+      bestTrend:        { enabled: rawCat.bestTrend?.enabled        === true,  weight: Number(rawCat.bestTrend?.weight        ?? 1.0) },
+      bestPrice:        { enabled: rawCat.bestPrice?.enabled        === true,  weight: Number(rawCat.bestPrice?.weight        ?? 1.0) },
+      notOverextended:  { enabled: rawCat.notOverextended?.enabled  !== false, weight: Number(rawCat.notOverextended?.weight  ?? 1.5) }
+    }
   };
 }
 
@@ -1537,42 +1556,109 @@ async function maybeRotatePairUniverse({ now, state }) {
     return;
   }
 
+  // Guard: skip if any open position exists
+  if (rotationCfg.requireNoOpenPositions) {
+    const openCount = getOpenPositions(state).length;
+    if (openCount > 0) {
+      logEvent(LOG_FILE, "INFO", `Auto-rotate skipped: ${openCount} open position(s) active`);
+      config.lastAutoPairRotation = {
+        ...(config.lastAutoPairRotation || {}),
+        skippedAt: new Date(now).toISOString(),
+        skippedReason: `${openCount} open position(s)`
+      };
+      return;
+    }
+  }
+
   const refreshMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
   if (lastAutoPairRotationAt > 0 && (now - lastAutoPairRotationAt) < refreshMs) return;
+
+  const { categories } = rotationCfg;
+  const activeCategories = Object.entries(categories)
+    .filter(([, v]) => v.enabled)
+    .map(([k, v]) => `${k}(×${v.weight})`)
+    .join(", ") || "none";
+  logEvent(LOG_FILE, "INFO", `Auto-rotate running | categories: ${activeCategories}`);
 
   const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", "/api/v2/spot/market/tickers");
   const rows = extractTickerRows(data);
   const stopLossBlacklist = getStopLossBlacklistSymbols(rotationCfg, now);
-  const pinnedSymbols = new Set(getOpenPositions(state).map(pos => String(pos?.symbol || "").toUpperCase()).filter(Boolean));
   const scored = [];
 
   for (const row of rows) {
     const symbol = extractTickerSymbol(row);
     if (!symbol.endsWith("USDT")) continue;
     if (symbol.includes("3L") || symbol.includes("3S") || symbol.includes("5L") || symbol.includes("5S")) continue;
-    if (stopLossBlacklist.has(symbol) && !pinnedSymbols.has(symbol)) continue;
+    if (stopLossBlacklist.has(symbol)) continue;
 
     const last = extractTickerPrice(row);
     const quoteVol = extractTickerQuoteVolume(row);
     const changePct = extractTickerChangePct(row);
+    const rangePct = extractTickerRange24h(row);  // 24h high-low swing %
 
     if (!Number.isFinite(last) || last <= 0) continue;
     if (quoteVol < rotationCfg.minQuoteVolumeUSDT) continue;
     if (Math.abs(changePct) > rotationCfg.maxAbsChangePct) continue;
     if (changePct < rotationCfg.minChangePct) continue;
+    // Hard filter: skip pairs that are already heavily overextended (range > 25%)
+    if (rangePct > 25) continue;
 
-    const volumeScore = Math.log10(Math.max(quoteVol, 1));
-    const momentumScore = Math.max(-8, Math.min(18, changePct));
-    const score = (volumeScore * 1.2) + (momentumScore * 0.35);
-    scored.push({ symbol, score, quoteVol, changePct });
+    // Multi-category scoring
+    let score = 0;
+
+    // bestVolume: reward most liquid pairs (log scale)
+    if (categories.bestVolume.enabled) {
+      score += Math.log10(Math.max(quoteVol, 1)) * categories.bestVolume.weight;
+    }
+
+    // bestMomentum: reward strong upward movement — moderate range (not wild pump)
+    if (categories.bestMomentum.enabled) {
+      // Sweet spot: +1% to +8% = max reward, >15% tapers
+      const mom = changePct >= 0
+        ? changePct <= 8 ? changePct : Math.max(0, 8 - (changePct - 8) * 0.5)
+        : Math.max(-4, changePct * 0.3); // soft penalize small pullbacks
+      score += mom * categories.bestMomentum.weight;
+    }
+
+    // bestTrend: steady green — reward +1%~+8%, heavy penalize >15% or negative
+    if (categories.bestTrend.enabled) {
+      const trendScore = changePct >= 1 && changePct <= 8
+        ? changePct                            // sweet spot, full reward
+        : changePct > 8 && changePct <= 15
+          ? Math.max(0, 8 - (changePct - 8))  // taper above 8%
+          : changePct > 15
+            ? 0                                // pump, no reward
+            : Math.max(-2, changePct * 0.2);   // negative = small penalty
+      score += trendScore * categories.bestTrend.weight;
+    }
+
+    // bestPrice: reward coins going up — only positive changePct, scale to sweet spot
+    if (categories.bestPrice.enabled) {
+      // Reward: +0.5% to +12% naik, cap. Tidak ada negative reward.
+      const priceScore = changePct >= 0.5
+        ? Math.min(12, changePct)  // can go up to 12pt reward
+        : 0;                       // flat or negative = no reward
+      score += priceScore * categories.bestPrice.weight;
+    }
+
+    // notOverextended: reward low-range pairs, penalize overextended
+    // Range < 8% = very tight/good, 8–15% = ok, 15–25% = penalize, skip >25% already filtered
+    if (categories.notOverextended.enabled) {
+      const rangeScore = rangePct <= 8
+        ? 3.0                                  // tight range, bonus
+        : rangePct <= 15
+          ? 3.0 - ((rangePct - 8) / 7) * 2.0  // linear taper 3.0 → 1.0
+          : rangePct <= 25
+            ? 1.0 - ((rangePct - 15) / 10) * 1.5  // 1.0 → -0.5
+            : -2.0;                                 // (shouldn't reach, hard filtered above)
+      score += rangeScore * categories.notOverextended.weight;
+    }
+
+    scored.push({ symbol, score, quoteVol, changePct, rangePct, last });
   }
 
   scored.sort((a, b) => b.score - a.score || b.quoteVol - a.quoteVol || a.symbol.localeCompare(b.symbol));
   const picked = scored.slice(0, rotationCfg.topPairs).map(item => item.symbol);
-
-  for (const symbol of pinnedSymbols) {
-    if (!picked.includes(symbol)) picked.push(symbol);
-  }
 
   if (!picked.length) {
     config.lastAutoPairRotation = {
@@ -1580,6 +1666,7 @@ async function maybeRotatePairUniverse({ now, state }) {
       enabled: true,
       changed: false,
       reason: "no-candidates",
+      activeCategories,
       blacklistCount: stopLossBlacklist.size
     };
     logEvent(LOG_FILE, "WARN", "Auto-rotate found no eligible pair candidates");
@@ -1599,8 +1686,8 @@ async function maybeRotatePairUniverse({ now, state }) {
     refreshIntervalHours: rotationCfg.refreshIntervalHours,
     topPairs: rotationCfg.topPairs,
     activePairs: config.pairs,
-    blacklistCount: stopLossBlacklist.size,
-    pinnedCount: pinnedSymbols.size
+    activeCategories,
+    blacklistCount: stopLossBlacklist.size
   };
 
   if (changed) {
@@ -1825,6 +1912,8 @@ async function placeOrder(symbol, side, size, clientOrderId = null) {
 
 // ================= CORE LOOP =================
 async function runBot() {
+
+  // ===== STEP 1: LOOP GUARD =====
   if (shutdownRequested) return;
   if (executionKillSwitch) {
     await reportCritical("kill-switch", "🚨 EXECUTION KILL SWITCH ACTIVE\nBot stopped opening new trades due to repeated execution failures.");
@@ -1840,30 +1929,14 @@ async function runBot() {
     const now = Date.now();
     const today = jakartaDateKey(now);
 
-    // Track data freshness for heartbeat
-    let lastDataUpdate = 0;
-    let last3mCandleTs = 0;
-    let last15mCandleTs = 0;
-    let dataFresh = false;
-
-    // Portfolio valuation (total all assets)
+    // ===== STEP 2: PORTFOLIO VALUATION =====
     let portfolio = await getPortfolioValue();
     let usdtFree = portfolio.usdtFree;
-    let balances = portfolio.balances; // for getCoinBalance etc.
+    let balances = portfolio.balances;
     let currentEquity = portfolio.totalEquity;
     let currentPositionPrice = 0;
-    if (state.position) {
-      // Get current price for the position coin using portfolio prices or fallback to candles
-      currentPositionPrice = getPriceFromBreakdown(state.position.symbol, balances, portfolio.breakdown);
-      if (!currentPositionPrice || currentPositionPrice <= 0) {
-        const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
-        if (pCandles?.length) {
-          currentPositionPrice = extractLastClosedPrice(pCandles);
-        }
-      }
-    }
 
-    // Daily reset
+    // ===== STEP 3: DAILY RESET =====
     if (state.date !== today) {
       state.date = today;
       state.tradesToday = 0;
@@ -1885,85 +1958,113 @@ async function runBot() {
       state.tradesToday = journalRoundsToday;
       saveState(STATE_PATH, state);
     }
-
-    // Realized daily PnL (only from closed trades)
     const realizedPnlPct = state.startOfDayEquity > 0 ? state.realizedPnlToday / state.startOfDayEquity : 0;
-
-    // Daily halt checks â€“ based on realized PnL only
     if (realizedPnlPct >= config.dailyProfitTargetPct) {
       state.haltedForDay = true;
-      state.haltReason = `Daily profit target reached (+${safeToFixed(realizedPnlPct*100)}%)`;
+      state.haltReason = `Daily profit target reached (+${safeToFixed(realizedPnlPct * 100)}%)`;
       saveState(STATE_PATH, state);
       logEvent(LOG_FILE, "INFO", "Halted: " + state.haltReason);
     }
     if (realizedPnlPct <= config.dailyLossLimitPct) {
       state.haltedForDay = true;
-      state.haltReason = `Daily loss limit hit (${safeToFixed(realizedPnlPct*100)}%)`;
+      state.haltReason = `Daily loss limit hit (${safeToFixed(realizedPnlPct * 100)}%)`;
       saveState(STATE_PATH, state);
       logEvent(LOG_FILE, "INFO", "Halted: " + state.haltReason);
     }
 
-    // ===== AUTO PAIR ROTATION (optional, config-driven) =====
-    await maybeRotatePairUniverse({ now, state });
+    // ===== STEP 4: POSITION RECOVERY =====
+    // Scan all non-USDT balances in portfolio:
+    //   < minManagedPositionUSDT (dust threshold): unmanage if currently tracked, skip silently
+    //   >= minManagedPositionUSDT and not yet tracked: recover into state.positions
+    const DUST_THRESHOLD_USDT = config.minManagedPositionUSDT ?? 3;
+    const managedSymbolsSet = new Set(getOpenPositions(state).map(pos => pos.symbol));
 
-    // ===== POSITION RECOVERY (if state.position missing but balance has coin) =====
-    if (!state.position && cachedPrices) {
-      const recovered = detectOpenPositionFromBalance({
-        balances,
-        priceMap: cachedPrices,
-        config,
-        now,
-        logger: message => logEvent(LOG_FILE, "DEBUG", message)
-      });
-      if (recovered) {
-        logEvent(LOG_FILE, "INFO", `Position recovered | ${recovered.symbol} est=${safeToFixed(recovered.sizeUSDT)} USDT`);
-        state.positions = [recovered];
-        state.position = recovered;
-        // Update global position variable too (used in current loop)
-        position = recovered;
-        // Recompute currentPositionPrice from fresh data
-        currentPositionPrice = getPriceFromBreakdown(recovered.symbol, balances, portfolio.breakdown);
-        if (!currentPositionPrice || currentPositionPrice <= 0) {
-          const pCandles = await getCandles(recovered.symbol, config.signalTimeframe);
-          if (pCandles?.length) {
-            currentPositionPrice = extractLastClosedPrice(pCandles);
-          }
+    for (const [coin, qty] of Object.entries(balances)) {
+      if (coin === "usdt") continue;
+      if (!qty || qty <= 0) continue;
+
+      const symbol = coin.toUpperCase() + "USDT";
+      const price = cachedPrices?.[coin] || 0;
+      if (!price || price <= 0) continue;
+
+      const value = qty * price;
+
+      if (value < DUST_THRESHOLD_USDT) {
+        // Dust: unmanage if previously tracked, then skip
+        if (managedSymbolsSet.has(symbol)) {
+          logEvent(LOG_FILE, "INFO", `Position ${symbol} dropped below dust threshold ($${DUST_THRESHOLD_USDT}), unmanaging`);
+          state.positions = (state.positions || []).filter(p => p.symbol !== symbol);
+          state.position = state.positions[0] || null;
+          position = state.position;
+          delete state.lastReportedPnlBySymbol[symbol];
+          managedSymbolsSet.delete(symbol);
+          saveState(STATE_PATH, state);
         }
-        // Attach currentPrice to recovered position for reporting
-        recovered.currentPrice = currentPositionPrice;
-        state.positions = [recovered];
-        state.position = recovered;
-        position = recovered;
+        continue; // skip dust regardless
+      }
+
+      // value >= DUST_THRESHOLD_USDT and not yet managed: recover into state
+      if (!managedSymbolsSet.has(symbol)) {
+        logEvent(LOG_FILE, "INFO", `Position recovered | ${symbol} est=${safeToFixed(value)} USDT`);
+
+        // Inherit TP/DTP/stop from config — same values as a normal entry would get
+        const recoveryTakeProfitPct = config._effectiveTakeProfitPct ?? config.takeProfitPct ?? 0.012;
+        const recoveryActivationPct = config._effectiveTrailingActivationPct ?? config.trailingActivationPct ?? 0.008;
+        const recoveryStopPct = config.emergencyStopLossPct ?? config.minStopPct ?? -0.02;
+        const recoveryUseDynamicTP = config.useDynamicTakeProfit === true;
+
+        const recoveredPosition = {
+          symbol,
+          entry: price,
+          currentPrice: price,
+          qty,
+          sizeUSDT: value,
+          peak: price,
+          trailingActive: false,
+          stopPct: recoveryStopPct,
+          takeProfitPct: recoveryTakeProfitPct,
+          profitActivationPct: recoveryActivationPct,
+          profitActivationFloorPct: Math.max(config.trailingProtectionPct ?? 0.0025, recoveryActivationPct * 0.35),
+          useDynamicTakeProfit: recoveryUseDynamicTP,
+          entryTime: Date.now(),
+          entryReason: {
+            score: null,
+            marketMode: null,
+            rsi: null,
+            atrPct: null,
+            notes: "Recovered from balance — entry price estimated"
+          },
+          source: "recovery"
+        };
+
+        if (!Array.isArray(state.positions)) state.positions = [];
+        state.positions.push(recoveredPosition);
+        state.position = state.positions[0] || null;
+        position = state.position;
+        managedSymbolsSet.add(symbol);
         saveState(STATE_PATH, state);
-        
-        // Log recovery entry
+
         logTrade({
-          type: 'entry',
-          source: 'recovery',
+          type: "entry",
+          source: "recovery",
           botType: config.activeBotType || config.selectedBotType || "",
           mode: config.activeMode || config.selectedMode || "",
-          marketProfile: scanConfig.activeMarketProfile || config.selectedMarketProfile || "",
+          marketProfile: config.selectedMarketProfile || "auto",
           marketProfileMode: config.marketProfileMode || "",
-          pair: recovered.symbol,
-          side: 'buy',
-          price: recovered.entry,
-          qty: recovered.qty,
-          sizeUSDT: recovered.sizeUSDT,
-          reason: 'balance detection'
-          // entry_rsi etc not available, left blank
+          pair: symbol,
+          side: "buy",
+          price,
+          qty,
+          sizeUSDT: value,
+          reason: "balance detection"
         });
-        
-        // Throttle recovery Telegram messages (max every 5 min or different symbol)
-        const now = Date.now();
+
         const lastRecoveryTime = state.lastRecoveryTime || 0;
         const lastRecoverySymbol = state.lastRecoverySymbol;
-        const shouldReportRecovery = !lastRecoverySymbol || 
-                                    lastRecoverySymbol !== recovered.symbol ||
-                                    now - lastRecoveryTime > 5 * 60 * 1000; // 5 minutes
-        if (shouldReportRecovery) {
-          await report(`âš ï¸ POSITION RECOVERED\nPair: ${recovered.symbol}\nEstimated Entry: ${safeToFixed(recovered.entry)}\nValue: ${safeToFixed(recovered.sizeUSDT)} USDT\n\nBot detected an existing position from balance.`);
-          state.lastRecoveryTime = now;
-          state.lastRecoverySymbol = recovered.symbol;
+        if (!lastRecoverySymbol || lastRecoverySymbol !== symbol || Date.now() - lastRecoveryTime > 5 * 60 * 1000) {
+          await report(`⚠️ POSITION RECOVERED\nPair: ${symbol}\nEstimated Entry: ${safeToFixed(price)}\nValue: ${safeToFixed(value)} USDT\n\nBot detected an existing position from balance.`);
+          state.lastRecoveryTime = Date.now();
+          state.lastRecoverySymbol = symbol;
           saveState(STATE_PATH, state);
         } else {
           logEvent(LOG_FILE, "DEBUG", `Recovery message suppressed | last=${lastRecoverySymbol}`);
@@ -1971,13 +2072,11 @@ async function runBot() {
       }
     }
 
-
-
-    // Validate positions (dust/zero) per symbol, not as a single global position.
+    // ===== STEP 5: POSITION VALIDATION =====
+    // Validate all currently tracked positions: update qty/price, drop vanished or dust positions
     const trackedPositions = getOpenPositions(state);
     if (trackedPositions.length) {
       const portfolioNow = await getPortfolioValue();
-      const minManagedPositionUSDT = config.minManagedPositionUSDT ?? config.minHoldUSDT;
       const tickersForValidation = await getTickersCached();
       let positionsChanged = false;
       const nextPositions = [];
@@ -2007,8 +2106,8 @@ async function runBot() {
         }
 
         const value = coinBal * price;
-        if (value < minManagedPositionUSDT) {
-          logEvent(LOG_FILE, "INFO", `Position ${symbol} value < ${minManagedPositionUSDT}, removing from managed positions`);
+        if (value < DUST_THRESHOLD_USDT) {
+          logEvent(LOG_FILE, "INFO", `Position ${symbol} value below dust threshold ($${DUST_THRESHOLD_USDT}), removing from managed positions`);
           positionsChanged = true;
           delete state.lastReportedPnlBySymbol[symbol];
           continue;
@@ -2017,7 +2116,8 @@ async function runBot() {
         nextPositions.push({
           ...openPosition,
           qty: coinBal,
-          sizeUSDT: value > 0 ? value : openPosition.sizeUSDT
+          sizeUSDT: value > 0 ? value : openPosition.sizeUSDT,
+          currentPrice: price > 0 ? price : openPosition.currentPrice
         });
       }
 
@@ -2027,9 +2127,25 @@ async function runBot() {
         position = state.position;
         saveState(STATE_PATH, state);
       }
+
+      // Update currentPositionPrice from validated state
+      if (state.position) {
+        currentPositionPrice = getPriceFromBreakdown(state.position.symbol, portfolioNow.balances, portfolioNow.breakdown);
+        if (!currentPositionPrice || currentPositionPrice <= 0) {
+          const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
+          if (pCandles?.length) currentPositionPrice = extractLastClosedPrice(pCandles);
+        }
+      }
+    } else if (state.position) {
+      // No tracked positions but state.position still set — resolve price for exit/reports
+      currentPositionPrice = getPriceFromBreakdown(state.position.symbol, balances, portfolio.breakdown);
+      if (!currentPositionPrice || currentPositionPrice <= 0) {
+        const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
+        if (pCandles?.length) currentPositionPrice = extractLastClosedPrice(pCandles);
+      }
     }
 
-    // Entry throttles should not suppress monitoring/reporting.
+    // ===== STEP 6: ENTRY GATE CHECKS =====
     const openPositionsBeforeEntry = getOpenPositions(state);
     const maxOpenPositions = config.enableMultiTrade === true ? config.maxOpenPositions : 1;
     const currentExposureUsdt = getOpenExposureUsdt(state);
@@ -2056,7 +2172,7 @@ async function runBot() {
       entryGateStatus = `exposure cap reached (${safeToFixed(currentExposureUsdt, 2)}/${safeToFixed(exposureCapUsdt, 2)} USDT)`;
     }
 
-    // ===== SCANNING =====
+    // ===== STEP 7: MARKET SCANNING =====
     const baseScan = await scanMarket(config, getCandles, botLog);
     const marketProfileKey = resolveMarketProfileKey(baseScan.marketMode);
     const scanConfig = applyMarketProfile(config, marketProfileKey);
@@ -2068,15 +2184,6 @@ async function runBot() {
       : (entryCandidates || [])
           .filter(candidate => candidate.eligible && !heldSymbols.has(candidate.symbol))
           .sort((a, b) => b.score - a.score)[0] || null;
-
-    const latestSignalCandleTs = getLatestCandleTs(config.signalTimeframe);
-    if (
-      state.position ||
-      !latestSignalCandleTs ||
-      !isCandleTimestampFresh(latestSignalCandleTs, config.signalTimeframe, now)
-    ) {
-      await primeSignalCandlesForAllPairs(config.signalTimeframe, 2);
-    }
 
     saveJsonFile(MARKET_SNAPSHOT_PATH, {
       generatedAt: new Date().toISOString(),
@@ -2098,9 +2205,7 @@ async function runBot() {
             eligible: bestEligible.eligible
           }
         : null,
-      autoPairRotation: config.lastAutoPairRotation || {
-        enabled: false
-      },
+      autoPairRotation: config.lastAutoPairRotation || { enabled: false },
       pairs: marketData.map(md => ({
         symbol: md.symbol,
         price: md.price,
@@ -2114,11 +2219,18 @@ async function runBot() {
       }))
     });
 
-    // Update data freshness timestamps after scanning (uses getCandles)
-    lastDataUpdate = Date.now();
-    last3mCandleTs = getLatestCandleTs(config.signalTimeframe);
-    last15mCandleTs = getLatestCandleTs(config.trendTimeframe);
-    dataFresh =
+    // ===== STEP 8: DATA FRESHNESS =====
+    const latestSignalCandleTs = getLatestCandleTs(config.signalTimeframe);
+    if (
+      state.position ||
+      !latestSignalCandleTs ||
+      !isCandleTimestampFresh(latestSignalCandleTs, config.signalTimeframe, now)
+    ) {
+      await primeSignalCandlesForAllPairs(config.signalTimeframe, 2);
+    }
+    const last3mCandleTs = getLatestCandleTs(config.signalTimeframe);
+    const last15mCandleTs = getLatestCandleTs(config.trendTimeframe);
+    const dataFresh =
       isCandleTimestampFresh(last3mCandleTs, config.signalTimeframe, now) &&
       isCandleTimestampFresh(last15mCandleTs, config.trendTimeframe, now);
     health = saveHealth(HEALTH_PATH, health, {
@@ -2136,13 +2248,20 @@ async function runBot() {
       executionKillSwitch
     });
     if (!dataFresh) {
+      const sigTs = last3mCandleTs
+        ? new Date(last3mCandleTs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })
+        : "n/a";
+      const trendTs = last15mCandleTs
+        ? new Date(last15mCandleTs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })
+        : "n/a";
       await reportCritical(
         "stale-data",
-        `⚠️ DATA STALE\nSignal ${config.signalTimeframe || "3min"}: ${last3mCandleTs ? new Date(last3mCandleTs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "n/a"}\nTrend ${config.trendTimeframe || "15min"}: ${last15mCandleTs ? new Date(last15mCandleTs).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" }) : "n/a"}\nMarket mode: ${marketMode || "unknown"}`,
+        `⚠️ DATA STALE\nSignal ${config.signalTimeframe || "3min"}: ${sigTs}\nTrend ${config.trendTimeframe || "15min"}: ${trendTs}\nMarket mode: ${marketMode || "unknown"}`,
         20 * 60 * 1000
       );
     }
 
+    // ===== STEP 9: REPORTS =====
     ({
       health,
       lastHeartbeatTime,
@@ -2183,120 +2302,7 @@ async function runBot() {
       safeToFixed
     }));
 
-    // ===== MULTI-TRADE RECOVERY + FORCE EXIT SAFETY =====
-    const minManagedPositionUSDT = config.minManagedPositionUSDT ?? config.minHoldUSDT;
-    const openPositions = getOpenPositions(state);
-    let managedSymbols = new Set(openPositions.map(pos => pos.symbol));
-    const recoveredSymbols = [];
-
-    // Recover unmanaged balances into state first (supports multi-trade)
-    for (const [coin, qty] of Object.entries(balances)) {
-      if (coin === "usdt") continue;
-      if (!qty || qty <= 0) continue;
-
-      const symbol = coin.toUpperCase() + "USDT";
-      if (managedSymbols.has(symbol)) continue;
-
-      const price = cachedPrices?.[coin] || 0;
-      if (!price || price <= 0) continue;
-
-      const value = qty * price;
-      if (value < minManagedPositionUSDT) continue;
-
-      const recoveredPosition = {
-        symbol,
-        entry: price,
-        currentPrice: price,
-        qty,
-        sizeUSDT: value,
-        peak: price,
-        trailingActive: false,
-        stopPct: -0.02,
-        entryTime: Date.now(),
-        entryReason: {
-          score: null,
-          marketMode: null,
-          rsi: null,
-          atrPct: null,
-          notes: "Recovered from balance before unmanaged auto-sell"
-        },
-        source: "recovery"
-      };
-
-      openPositions.push(recoveredPosition);
-      managedSymbols.add(symbol);
-      recoveredSymbols.push(symbol);
-
-      logTrade({
-        timestamp: new Date().toISOString(),
-        type: "entry",
-        source: "recovery",
-        pair: symbol,
-        symbol,
-        side: "buy",
-        price,
-        qty,
-        sizeUSDT: value,
-        reason: "balance recovery before auto-sell"
-      });
-      logEvent(LOG_FILE, "INFO", `Recovered unmanaged balance into position: ${symbol} (${safeToFixed(value)} USDT)`);
-    }
-
-    if (recoveredSymbols.length) {
-      state.positions = openPositions;
-      state.position = openPositions[0] || null;
-      saveState(STATE_PATH, state);
-      await report(`⚠️ POSITION RECOVERED\nRecovered ${recoveredSymbols.length} symbol(s): ${recoveredSymbols.join(", ")}\n\nMoved unmanaged balances into tracked positions to avoid forced auto-sell.`);
-    }
-
-    // Auto-sell only if symbol is still unmanaged after recovery
-    for (const [coin, qty] of Object.entries(balances)) {
-      if (coin === "usdt") continue;
-      if (!qty || qty <= 0) continue;
-
-      const symbol = coin.toUpperCase() + "USDT";
-      if (managedSymbols.has(symbol)) continue;
-
-      const price = cachedPrices?.[coin] || 0;
-      if (!price || price <= 0) continue;
-
-      const value = qty * price;
-      if (value >= minManagedPositionUSDT) {
-        const autoSellResult = await safeExecute(async () => {
-          return await placeOrder(symbol, "sell", qty);
-        });
-
-        if (autoSellResult.success) {
-          const filledQty = Number(autoSellResult.result?.filledSize || qty || 0);
-          const avgPrice = Number(autoSellResult.result?.avgPrice || price || 0);
-          const exitSizeUSDT = filledQty > 0 && avgPrice > 0 ? filledQty * avgPrice : value;
-          logTrade({
-            timestamp: new Date().toISOString(),
-            type: "exit",
-            source: "auto-sell-unmanaged",
-            pair: symbol,
-            symbol,
-            side: "sell",
-            price: avgPrice || price,
-            qty: filledQty || qty,
-            sizeUSDT: exitSizeUSDT,
-            reason: "Auto-sell unmanaged asset",
-            exit_reason: "Auto-sell unmanaged asset",
-            exit_rsi: null,
-            PnL: null,
-            PnL_pct: null,
-            netPnlEstPct: null,
-            peakPnlPct: null,
-            drawdownFromPeak: null
-          });
-          await report(`🚨 AUTO-SELL UNMANAGED\nPair: ${symbol}\nQty: ${qty}\nValue: ${safeToFixed(value)} USDT\n\nBot detected unmanaged asset and auto-liquidated.`);
-          return;
-        }
-
-        logEvent(LOG_FILE, "ERROR", `Auto-sell failed for ${symbol}: ${autoSellResult.error?.message || "blocked"}`);
-      }
-    }
-
+    // ===== STEP 10: EXIT FLOW =====
     if (state.position) {
       const exitFlowResult = await handleExitFlow({
         config,
@@ -2332,7 +2338,7 @@ async function runBot() {
       }
     }
 
-    // ===== ENTRY SCAN =====
+    // ===== STEP 11: ENTRY FLOW =====
     if (entryBlockedByLossStreak || entryBlockedByCooldown || entryBlockedByDailyTradeLimit || entryBlockedByPositionSlots || entryBlockedByExposureCap) {
       return;
     }
@@ -2543,6 +2549,28 @@ async function startBot() {
   await animateValidationStage(0.8, 1, "checking ranges, intervals, and config conflicts", 1000);
   printValidationPassed();
   await initScales();
+
+  // ===== AUTO PAIR ROTATION SCHEDULER =====
+  // Runs independently every 6 hours — decoupled from the main bot loop.
+  // The rotation interval is read from config.autoPairRotation.refreshIntervalHours (default 6).
+  const rotationCfg = getAutoPairRotationConfig();
+  if (rotationCfg.enabled) {
+    const rotationIntervalMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
+    // Run once on startup so the first rotation happens immediately if enabled
+    maybeRotatePairUniverse({ now: Date.now(), state }).catch(err =>
+      logEvent(LOG_FILE, "ERROR", `Auto-rotate startup run failed: ${err.message}`)
+    );
+    setInterval(() => {
+      if (shutdownRequested) return;
+      maybeRotatePairUniverse({ now: Date.now(), state }).catch(err =>
+        logEvent(LOG_FILE, "ERROR", `Auto-rotate scheduled run failed: ${err.message}`)
+      );
+    }, rotationIntervalMs);
+    logEvent(LOG_FILE, "INFO", `Auto pair rotation scheduler started | interval=${rotationCfg.refreshIntervalHours}h`);
+  } else {
+    logEvent(LOG_FILE, "INFO", "Auto pair rotation disabled — running on fixed pairSettings");
+  }
+
   await runBot();
   loopTimer = setInterval(runBot, config.loopIntervalMs);
 }
