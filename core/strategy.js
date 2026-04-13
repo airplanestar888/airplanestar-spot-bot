@@ -502,7 +502,10 @@ async function evaluateExit(position, balances, config, getCandles) {
   if (!Number.isFinite(entry) || entry <= 0) {
     return { exit: false, reason: "Invalid entry reference" };
   }
-  const candles = await getCandles(symbol, config.signalTimeframe, 50);
+  // Exit check uses exitTimeframe (default 1min) for real-time responsiveness.
+  // Entry signals use signalTimeframe (3min) + trendTimeframe (15min) — intentionally different.
+  const exitTimeframe = config.exitTimeframe || "1min";
+  const candles = await getCandles(symbol, exitTimeframe, 60);
   if (!candles || candles.length < 2) return null;
   const closes = candles.map(c => parseFloat(c[4]));
   const highs = candles.map(c => parseFloat(c[2]));

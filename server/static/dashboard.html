@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -260,6 +260,7 @@
 <div class="field"><label>Time Stop Profit Pct</label><input id="tTsProfit" type="number" step="0.0005"></div>
 <div class="field"><label>Min Hold PnL Pct</label><input id="tMinHoldPnl" type="number" step="0.0005"></div>
 <div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
+<div class="field"><label>Exit Candle Timeframe</label><select id="tExitTimeframe"><option value="1min">1min (default — real-time)</option><option value="3min">3min — signal timeframe</option><option value="5min">5min</option><option value="15min">15min — swing/hold</option></select></div>
 </div></section></section>
 
 <!-- README -->
@@ -297,7 +298,7 @@ const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTime
 const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge','requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
 const BTYPE_STRING_KEYS=new Set(['signalTimeframe','trendTimeframe']);
 const MKT_MAP={minExpectedNetPct:'mMinExpNet',minVolumeRatio:'mMinVol',minTrendRsi:'mMinRsi',minAtrPct:'mMinAtr',maxAtrPct:'mMaxAtr',maxEmaGapPct:'mMaxEma'};
-const TRD_MAP={riskPercent:'tRisk',cooldownMs:'tCooldown',takeProfitPct:'tTP',trailingActivationPct:'tTrailAct',trailingDrawdownPct:'tTrailDD',trailingProtectionPct:'tTrailProt',minMomentumExitPct:'tMomentum',enableTimeStop:'tEnableTS',enableStaleTrade:'tEnableStale',timeStopProfitPct:'tTsProfit',minHoldPnlPct:'tMinHoldPnl',breakEvenArmedPct:'tBeArmed',breakEvenFloorPct:'tBeFloor',exitRSIThreshold:'tExitRsi'};
+const TRD_MAP={riskPercent:'tRisk',cooldownMs:'tCooldown',takeProfitPct:'tTP',trailingActivationPct:'tTrailAct',trailingDrawdownPct:'tTrailDD',trailingProtectionPct:'tTrailProt',minMomentumExitPct:'tMomentum',enableTimeStop:'tEnableTS',enableStaleTrade:'tEnableStale',timeStopProfitPct:'tTsProfit',minHoldPnlPct:'tMinHoldPnl',breakEvenArmedPct:'tBeArmed',breakEvenFloorPct:'tBeFloor',exitRSIThreshold:'tExitRsi',exitTimeframe:'tExitTimeframe'};
 
 function fmt(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d):'N/A'}
 function fmtP(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d)+'%':'N/A'}
@@ -460,7 +461,8 @@ function popCfg(){
   if(currentConfig.autoPairRotation.refreshIntervalHours==null)currentConfig.autoPairRotation.refreshIntervalHours=6;
   if(currentConfig.autoPairRotation.topPairs==null)currentConfig.autoPairRotation.topPairs=10;
   if(currentConfig.autoPairRotation.disableOnStopLoss==null)currentConfig.autoPairRotation.disableOnStopLoss=true;
-  if(currentConfig.autoPairRotation.stopLossCooldownHours==null)currentConfig.autoPairRotation.stopLossCooldownHours=24;
+  if(!currentConfig.autoPairRotation.stopLossCooldownHours)currentConfig.autoPairRotation.stopLossCooldownHours=24;
+  if(!currentConfig.exitTimeframe)currentConfig.exitTimeframe='1min';
   popBotType();popMode();popMktProf();
   for(const[k,id]of Object.entries(BOT_MAP))sEv(id,currentConfig[k]);
   for(const[path,id]of Object.entries(BOT_NESTED_MAP))sEv(id,getByPath(currentConfig,path));
@@ -489,7 +491,11 @@ function applyCfg(){
   if(nc.botTypeProfiles?.[nc.selectedBotType])nc.botTypeProfiles[nc.selectedBotType].overrides=bo;
   if(Number.isFinite(Number(bo.maxHoldMinutes))) nc.maxHoldMinutes=Number(bo.maxHoldMinutes);
   const mo=nc.modeProfiles?.[nc.selectedMode]?.overrides||{};
-  for(const[k,id]of Object.entries(TRD_MAP)){const e=document.getElementById(id);mo[k]=e?.type==='checkbox'?gEv(id):Number(gEv(id))}
+  for(const[k,id]of Object.entries(TRD_MAP)){
+    if(k==='exitTimeframe'){nc[k]=gEv(id);continue;} // root config, not mode override
+    const e=document.getElementById(id);if(!e)continue;
+    if(e.tagName==='SELECT'){mo[k]=gEv(id)}else{mo[k]=e?.type==='checkbox'?gEv(id):Number(gEv(id))}
+  }
   if(nc.modeProfiles?.[nc.selectedMode])nc.modeProfiles[nc.selectedMode].overrides=mo;
   const mp=nc.marketProfiles?.[nc.selectedMarketProfile]||{};
   mp.allowEntries=document.getElementById('marketAllowEntriesEditor').checked;
