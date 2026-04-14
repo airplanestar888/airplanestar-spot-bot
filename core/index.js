@@ -1266,7 +1266,7 @@ function extractTickerRange24h(ticker) {
   return (high - low) / low * 100;
 }
 
-async function getCandles(symbol, timeframe = "3min", limit = 50) {
+async function getCandles(symbol, timeframe = "3min", limit = 50, silent = false) {
   await waitForSlot();
   try {
     // Throttle: delay between requests to avoid rate limits
@@ -1291,9 +1291,9 @@ async function getCandles(symbol, timeframe = "3min", limit = 50) {
     };
 
     const fetchCandles = async (path, source) => {
-      const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", path);
+      const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", path, null, 3, silent);
       const rows = normalizeCandleRows(Array.isArray(data) ? data : [], timeframe);
-      logEvent(LOG_FILE, "DEBUG", `Candle fetch ${symbol} (${timeframe}) ${describeRows(rows, source)}`);
+      if (!silent) logEvent(LOG_FILE, "DEBUG", `Candle fetch ${symbol} (${timeframe}) ${describeRows(rows, source)}`);
       return rows;
     };
 
@@ -1342,7 +1342,7 @@ async function getCandles(symbol, timeframe = "3min", limit = 50) {
     }
     return candles;
   } catch (err) {
-    logEvent(LOG_FILE, "ERROR", `getCandles failed for ${symbol} (${timeframe}): ${err.message}`);
+    if (!silent) logEvent(LOG_FILE, "ERROR", `getCandles failed for ${symbol} (${timeframe}): ${err.message}`);
     throw err; // re-throw so caller knows
   } finally {
     releaseSlot();
@@ -1358,8 +1358,21 @@ async function getBalances() {
       data.map(item => [String(item.coin || "").toUpperCase(), Number(item.available || 0)])
     );
     const balances = { usdt: byCoin.USDT || 0 };
-    for (const coin of config.baseCoins || []) {
+    // Include all coins from baseCoins AND any coins currently held in state
+    const coinsToTrack = new Set(config.baseCoins || []);
+    for (const pos of getOpenPositions(state)) {
+      if (pos && pos.symbol) {
+        coinsToTrack.add(pos.symbol.replace(/USDT$/i, "").toUpperCase());
+      }
+    }
+    for (const coin of coinsToTrack) {
       balances[coin.toLowerCase()] = byCoin[coin] || 0;
+    }
+    // Also blindly include anything that has > 0 balance from API
+    for (const [coin, available] of Object.entries(byCoin)) {
+      if (available > 0 && coin !== "USDT") {
+        balances[coin.toLowerCase()] = available;
+      }
     }
     return balances;
   } finally {
@@ -1398,7 +1411,7 @@ async function getPortfolioValue() {
     for (const coin of missingCoins) {
       const symbol = coin.toUpperCase() + 'USDT';
       try {
-        const candles = await getCandles(symbol, config.signalTimeframe, 1);
+        const candles = await getCandles(symbol, config.signalTimeframe, 1, true);
         if (candles && candles.length > 0) {
           const close = extractLastClosedPrice(candles);
           if (close > 0) {
@@ -1444,11 +1457,14 @@ function computeEquityLegacy(balances, priceMap) {
       continue;
     }
     const value = qty * price;
+
+    // Always add to total equity, even if it's dust
+    total += value;
+
     if (qty < qtyDustThreshold || value < dustThreshold) {
       continue;
     }
     breakdown[lowerCoin] = value;
-    total += value;
     summary.push(`${lowerCoin}: qty=${qty}, price=${price}, value=${safeToFixed(value)}`);
   }
   if (summary.length > 0) {
@@ -1470,7 +1486,13 @@ async function getTickers() {
   for (const t of tickers) {
     const sym = extractTickerSymbol(t);
     const price = extractTickerPrice(t);
-    if (config.pairs.includes(sym) && price > 0) {
+    const coinLower = sym.replace(/USDT$/i, "").toLowerCase();
+    
+    // Include if it's in active pairs OR if we currently have a balance for it
+    const isInPairs = config.pairs.includes(sym);
+    const hasBalance = cachedBalances && cachedBalances[coinLower] && cachedBalances[coinLower] > 0;
+    
+    if ((isInPairs || hasBalance) && price > 0) {
       result.push({ symbol: sym, last: price });
     }
   }
@@ -2217,8 +2239,12 @@ async function runBot() {
         }
         if (!price || price <= 0) {
           logEvent(LOG_FILE, "WARN", `No price for ${coin} (balance=${coinBal}), fetching candles`);
-          const pCandles = await getCandles(symbol, config.signalTimeframe);
-          if (pCandles?.length) price = extractLastClosedPrice(pCandles);
+          try {
+            const pCandles = await getCandles(symbol, config.signalTimeframe);
+            if (pCandles?.length) price = extractLastClosedPrice(pCandles);
+          } catch (e) {
+            logEvent(LOG_FILE, "WARN", `Gagal menarik harga fallback untuk ${symbol}: ${e.message}`);
+          }
         }
 
         const value = coinBal * price;
@@ -2271,16 +2297,22 @@ async function runBot() {
       if (state.position) {
         currentPositionPrice = getPriceFromBreakdown(state.position.symbol, portfolioNow.balances, portfolioNow.breakdown);
         if (!currentPositionPrice || currentPositionPrice <= 0) {
-          const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
-          if (pCandles?.length) currentPositionPrice = extractLastClosedPrice(pCandles);
+          try {
+            const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
+            if (pCandles?.length) currentPositionPrice = extractLastClosedPrice(pCandles);
+          } catch (e) {
+            // Abaikan jika error (misal token delisted)
+          }
         }
       }
     } else if (state.position) {
       // No tracked positions but state.position still set — resolve price for exit/reports
       currentPositionPrice = getPriceFromBreakdown(state.position.symbol, balances, portfolio.breakdown);
       if (!currentPositionPrice || currentPositionPrice <= 0) {
-        const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
-        if (pCandles?.length) currentPositionPrice = extractLastClosedPrice(pCandles);
+        try {
+          const pCandles = await getCandles(state.position.symbol, config.signalTimeframe);
+          if (pCandles?.length) currentPositionPrice = extractLastClosedPrice(pCandles);
+        } catch (e) {}
       }
     }
 
@@ -2445,7 +2477,7 @@ async function runBot() {
     }));
 
     // ===== STEP 10: EXIT FLOW =====
-    if (state.position) {
+    if (getOpenPositions(state).length > 0 || state.position) {
       const exitFlowResult = await handleExitFlow({
         config,
         state,

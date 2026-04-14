@@ -26,12 +26,15 @@ function computeEquity({
     }
 
     const value = qty * price;
+
+    // Always add to total equity, even if it's dust
+    total += value;
+
     if (qty < qtyDustThreshold || value < dustThreshold) {
       continue;
     }
 
     breakdown[lowerCoin] = value;
-    total += value;
     summary.push(`${lowerCoin}: qty=${qty}, price=${price}, value=${formatNumber(value)}`);
   }
 

@@ -20,7 +20,7 @@ function sanitizeErrorMessage(err) {
   return String(raw).replace(/\s+/g, " ").trim().slice(0, 220);
 }
 
-async function request(baseUrl, apiKey, secretKey, passphrase, method, path, body = null, retries = 3) {
+async function request(baseUrl, apiKey, secretKey, passphrase, method, path, body = null, retries = 3, silent = false) {
   const upperMethod = method.toUpperCase();
   const bodyStr = body ? JSON.stringify(body) : "";
 
@@ -83,17 +83,21 @@ async function request(baseUrl, apiKey, secretKey, passphrase, method, path, bod
         continue;
       }
 
-      // HTTP error – do not retry 4xx (except 429)
+      // HTTP error - do not retry 4xx (except 429)
       if (res.status < 200 || res.status >= 300) {
-        if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-          throw new Error(`Client error HTTP ${res.status}: ${json.msg || String(rawText).slice(0, 200)}`);
-        }
-        throw new Error(`Server error HTTP ${res.status}: ${json.msg || String(rawText).slice(0, 200)}`);
+        const msg = (res.status >= 400 && res.status < 500 && res.status !== 429)
+          ? `Client error HTTP ${res.status}: ${json.msg || String(rawText).slice(0, 200)}`
+          : `Server error HTTP ${res.status}: ${json.msg || String(rawText).slice(0, 200)}`;
+        const err = new Error(msg);
+        err.status = res.status;
+        throw err;
       }
 
       // API error code
       if (json.code && json.code !== "00000") {
-        throw new Error(`API error ${json.code}: ${json.msg || "Unknown error"}`);
+        const err = new Error(`API error ${json.code}: ${json.msg || "Unknown error"}`);
+        err.isApiError = true;
+        throw err;
       }
 
       return json.data;
@@ -105,13 +109,20 @@ async function request(baseUrl, apiKey, secretKey, passphrase, method, path, bod
         err.message = `Request timeout after 60000ms: ${upperMethod} ${path}`;
       }
 
-      const status = err?.response?.status ?? "n/a";
+      const status = err?.response?.status ?? err?.status ?? "n/a";
       const code = err?.code || "n/a";
       const safeMessage = sanitizeErrorMessage(err);
-      logEvent(null, "ERROR", `[REQUEST ERROR] ${upperMethod} ${path} attempt=${attempt}/${retries} status=${status} code=${code} message=${safeMessage}`);
+      
+      // Only log ERROR for actual errors, use DEBUG or warn for retries, but let's keep it consistent
+      // Actually, if it's not retrying, log as ERROR, else WARN
+      const isClientError = status !== "n/a" && status >= 400 && status < 500 && status !== 429;
+      const isApiError = err?.isApiError === true;
+      const shouldRetry = !isClientError && !isApiError;
 
-      // Decide retry: network errors, 5xx, 429, timeout
-      const shouldRetry = !err.response || err.response.status >= 500 || err.response.status === 429;
+      if (!silent || shouldRetry) {
+        logEvent(null, shouldRetry ? "WARN" : "ERROR", `[REQUEST ERROR] ${upperMethod} ${path} attempt=${attempt}/${retries} status=${status} code=${code} message=${safeMessage}`);
+      }
+
       if (!shouldRetry) {
         err.requestContext = { method: upperMethod, path, attempt };
         throw err;
