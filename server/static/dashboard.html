@@ -5,28 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>airplanestar Dashboard</title>
   <style>
-    :root{--bg:#08111f;--panel:#132338;--line:rgba(255,255,255,0.08);--text:#eef4ff;--muted:#9fb3cf;--green:#41d98e;--red:#ff6e6e;--yellow:#ffd24d;--blue:#5cb7ff}
+    :root{--bg:#08111f;--panel:#132338;--line:rgba(255,255,255,0.08);--text:#eef4ff;--muted:#9fb3cf;--green:#41d98e;--red:#ff6e6e;--yellow:#ffd24d;--blue:#5cb7ff;--heroA:rgba(26,45,69,0.95);--heroB:rgba(19,35,56,0.94);--gradA:rgba(92,183,255,0.18);--gradB:rgba(255,210,77,0.14);--baseTop:#060d18;--soft:rgba(255,255,255,0.03);--softHover:rgba(255,255,255,0.06);--softStrong:rgba(255,255,255,0.04);--inputBg:rgba(8,17,31,0.72);--pillBg:rgba(255,255,255,0.08)}
+    body[data-theme="day"]{--bg:#eef3f9;--panel:#ffffff;--line:rgba(15,23,42,0.10);--text:#142033;--muted:#61728a;--green:#1a9b5f;--red:#d94b4b;--yellow:#bf8600;--blue:#2a78e3;--heroA:rgba(255,255,255,0.98);--heroB:rgba(247,250,255,0.96);--gradA:rgba(42,120,227,0.10);--gradB:rgba(191,134,0,0.08);--baseTop:#f7fafe;--soft:rgba(15,23,42,0.03);--softHover:rgba(15,23,42,0.06);--softStrong:rgba(15,23,42,0.04);--inputBg:#f8fbff;--pillBg:rgba(15,23,42,0.08)}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;font-family:"Segoe UI",Tahoma,sans-serif;color:var(--text);background:radial-gradient(circle at top left,rgba(92,183,255,0.18),transparent 28%),radial-gradient(circle at top right,rgba(255,210,77,0.14),transparent 24%),linear-gradient(180deg,#060d18 0%,var(--bg) 100%)}
+    body{margin:0;min-height:100vh;font-family:"Segoe UI",Tahoma,sans-serif;color:var(--text);background:radial-gradient(circle at top left,var(--gradA),transparent 28%),radial-gradient(circle at top right,var(--gradB),transparent 24%),linear-gradient(180deg,var(--baseTop) 0%,var(--bg) 100%);transition:background .2s,color .2s}
     .wrap{width:min(1180px,calc(100% - 32px));margin:16px auto 40px}
     /* ─── Hero compact ─── */
-    .hero{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.28);padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .hero{background:linear-gradient(180deg,var(--heroA),var(--heroB));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.18);padding:14px 20px;margin-bottom:14px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
     .hero-left{flex:1;min-width:0}
     .brand{font-size:11px;letter-spacing:0.3em;text-transform:uppercase;color:var(--yellow);margin-bottom:2px}
     h1{margin:0;font-size:20px;font-weight:800;line-height:1.2}
     .hero-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
     .btn{border:0;border-radius:10px;padding:9px 14px;color:#07111e;background:linear-gradient(180deg,#ffd24d,#f4b92a);font-weight:700;cursor:pointer;font-size:13px}
     .btn.secondary{background:linear-gradient(180deg,#7ec7ff,#4ba7ff)}
+    .btn.theme{background:var(--softStrong);color:var(--text);border:1px solid var(--line)}
     .hint{color:var(--muted);font-size:13px}
     /* ─── Panel / Card ─── */
-    .panel,.card,.table-wrap{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.28)}
+    .panel,.card,.table-wrap{background:linear-gradient(180deg,var(--heroA),var(--heroB));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.18)}
     .panel{padding:18px}.panel>h2{margin:0 0 12px;font-size:17px;font-weight:700}
     .note{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:14px}
-    .info-box{margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,0.03);color:var(--text);line-height:1.5;min-height:48px;white-space:pre-wrap}
+    .info-box{margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--soft);color:var(--text);line-height:1.5;min-height:48px;white-space:pre-wrap}
     /* ─── Accordion ─── */
     .acc{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
-    .acc-hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:rgba(255,255,255,0.03);user-select:none;transition:background .15s}
-    .acc-hd:hover{background:rgba(255,255,255,0.06)}
+    .acc-hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:var(--soft);user-select:none;transition:background .15s}
+    .acc-hd:hover{background:var(--softHover)}
     .acc-hd h3{margin:0;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--yellow)}
     .acc-hd .acc-badge{font-size:11px;color:var(--muted);background:rgba(255,255,255,0.07);padding:3px 8px;border-radius:999px}
     .acc-arrow{font-size:12px;color:var(--muted);transition:transform .2s}
@@ -35,14 +37,14 @@
     .acc.open .acc-body{display:block}
     /* ─── Tabs ─── */
     .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
-    .tab-btn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:rgba(255,255,255,0.04);color:var(--text);cursor:pointer;font:inherit;font-size:13px;font-weight:600}
+    .tab-btn{border:1px solid var(--line);border-radius:999px;padding:8px 14px;background:var(--softStrong);color:var(--text);cursor:pointer;font:inherit;font-size:13px;font-weight:600}
     .tab-btn.active{background:linear-gradient(180deg,#ffd24d,#f4b92a);color:#07111e;border-color:transparent}
     .tab-panel{display:none}.tab-panel.active{display:block}
     /* ─── Report filters / grid / charts ─── */
     .filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
-    .filter{background:linear-gradient(180deg,rgba(26,45,69,0.95),rgba(19,35,56,0.94));border:1px solid var(--line);border-radius:16px;padding:12px}
+    .filter{background:linear-gradient(180deg,var(--heroA),var(--heroB));border:1px solid var(--line);border-radius:16px;padding:12px}
     .filter label{display:block;margin-bottom:6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-    .filter select{width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.72);color:var(--text);padding:8px 10px;font:inherit}
+    .filter select{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--inputBg);color:var(--text);padding:8px 10px;font:inherit}
     .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
     .card{padding:16px}
     .label{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
@@ -52,28 +54,28 @@
     .two-col{display:grid;grid-template-columns:1.15fr 0.85fr;gap:12px;margin-bottom:14px}
     .stat-list{display:grid;gap:8px}.row{display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--line)}.row:last-child{border-bottom:0}.row span:first-child{color:var(--muted)}
     .bars{display:grid;gap:8px}.bar-line{display:grid;gap:5px}.bar-label{display:flex;justify-content:space-between;color:var(--muted);font-size:13px}
-    .bar{height:8px;border-radius:999px;background:rgba(255,255,255,0.08);overflow:hidden}.bar>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#5cb7ff,#41d98e)}
+    .bar{height:8px;border-radius:999px;background:var(--pillBg);overflow:hidden}.bar>div{height:100%;border-radius:inherit;background:linear-gradient(90deg,#5cb7ff,#41d98e)}
     /* ─── Form fields ─── */
     .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .field{display:grid;gap:6px;margin-bottom:10px}.field label{color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
-    .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.72);color:var(--text);padding:9px 11px;font:inherit}
+    .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--inputBg);color:var(--text);padding:9px 11px;font:inherit}
     .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-    .check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,0.03)}
+    .check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
     .config-status{margin-top:10px;margin-bottom:12px;color:var(--muted);font-size:13px}
     /* ─── Pair list ─── */
     .pair-grid{display:grid;gap:8px}
-    .pair-item{display:grid;grid-template-columns:auto minmax(0,1fr) 120px;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,0.03)}
+    .pair-item{display:grid;grid-template-columns:auto minmax(0,1fr) 120px;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
     .pair-main{display:grid;gap:3px}
     .pair-sub{font-size:11px;color:var(--muted)}
-    .live-box{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:rgba(8,17,31,0.56);text-align:right}
+    .live-box{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--inputBg);text-align:right}
     .live-box strong{display:block;font-size:14px;color:var(--blue)}
     .live-box span{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
     /* ─── Table / Pill ─── */
-    .table-wrap{overflow:hidden}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted);font-weight:600;background:rgba(255,255,255,0.02)}tr:last-child td{border-bottom:0}
-    .pill{display:inline-block;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.08)}
+    .table-wrap{overflow:hidden}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted);font-weight:600;background:var(--soft)}tr:last-child td{border-bottom:0}
+    .pill{display:inline-block;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:700;background:var(--pillBg)}
     /* ─── README combos ─── */
     .combo-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .combo-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:rgba(255,255,255,0.03)}
+    .combo-card{padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--soft)}
     .combo-card strong{display:block;font-size:15px}
     .combo-formula{margin-top:8px;color:var(--yellow);font-weight:700}
     .combo-desc{margin-top:6px;color:var(--muted);line-height:1.5;font-size:13px}
@@ -94,6 +96,7 @@
     <h1>Trade Journal Dashboard <span style="font-size:13px;font-weight:400;color:var(--muted);margin-left:8px">Asia/Jakarta (GMT+7)</span></h1>
   </div>
   <div class="hero-right">
+    <button class="btn theme" id="themeToggleBtn" type="button">Night</button>
     <button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
     <span class="hint" id="statusText">Memuat...</span>
   </div>
@@ -109,7 +112,7 @@
 <!-- REPORT -->
 <section class="tab-panel active" id="reportTab">
 <section class="filters">
-<div class="filter"><label>Scope</label><select id="scopeFilter"><option value="all">All Time</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This Week</option><option value="month">This Month</option></select></div>
+<div class="filter"><label>Scope</label><select id="scopeFilter"><option value="default">Default</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This Week</option><option value="month">This Month</option><option value="all">All Time</option></select></div>
 <div class="filter"><label>Pair</label><select id="pairFilter"><option value="all">All Pairs</option></select></div>
 <div class="filter"><label>Entry Style</label><select id="botTypeFilter"><option value="all">All Entry Styles</option></select></div>
 <div class="filter"><label>Mode</label><select id="modeFilter"><option value="all">All Modes</option></select></div>
@@ -165,12 +168,15 @@
       <div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Managed Position Min USDT</label><input id="minManagedPositionUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Recovery Min USDT</label><input id="minRecoverUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
       <div class="field"><label>Exposure Cap %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
       <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
       <div class="field"><label>Daily Profit Target Pct</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
       <div class="field"><label>Daily Loss Limit Pct</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
       <div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
+      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ffb6a3">Assets below managed threshold stay out of trade management. Recovery only starts from the recovery threshold.</div></div>
       <div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
       <div class="field"><label>Cost Guard Arm Pct</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
       <div class="field"><label>Cost Guard Floor Pct</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
@@ -356,7 +362,7 @@
 let journal=[],currentConfig=null,folderHandle=null,configHandle=null,journalHandle=null,readmeHandle=null,marketSnapshotHandle=null,readmeText='',marketSnapshot=null;
 
 /* --- Editor maps (STRICT layer separation) --- */
-const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',loopIntervalMs:'loopIntervalEditor'};
+const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',minManagedPositionUSDT:'minManagedPositionUsdtEditor',minRecoverUSDT:'minRecoverUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',loopIntervalMs:'loopIntervalEditor'};
 const BOT_BOOL_KEYS=new Set(['dryRun','enableCostGuard','useDynamicTakeProfit','enableMultiTrade','stopAfterThreeConsecutiveLosses']);
 const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor','autoPairRotation.enabled':'autoPairRotateEnabledEditor','autoPairRotation.refreshIntervalHours':'autoPairRotateHoursEditor','autoPairRotation.topPairs':'autoPairRotateTopEditor','autoPairRotation.disableOnStopLoss':'autoPairDisableSlEditor','autoPairRotation.stopLossCooldownHours':'autoPairSlCooldownHoursEditor'};
 const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled','autoPairRotation.enabled','autoPairRotation.disableOnStopLoss']);
@@ -617,7 +623,7 @@ function applyFilters(trades){
   return trades.filter(t=>{
     const dk=tradeKey(t);const botType=t.botType||'-';const mode=t.mode||'-';const profile=t.marketProfile||'-';const reason=t.exit?.reason||'Open';
     const sf=document.getElementById('scopeFilter').value;
-    if(sf==='today'&&dk!==tk)return false;
+    if((sf==='default'||sf==='today')&&dk!==tk)return false;
     if(sf==='yesterday'&&dk!==yk)return false;
     if(sf==='week'&&!inCurrentJakartaWeek(t.closedAt||t.openedAt))return false;
     if(sf==='month'&&!inCurrentJakartaMonth(t.closedAt||t.openedAt))return false;
@@ -765,7 +771,25 @@ async function loadFolder(){
   }
 }
 
+function applyTheme(theme){
+  const nextTheme=theme==='day'?'day':'night';
+  document.body.setAttribute('data-theme',nextTheme);
+  const btn=document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent=nextTheme==='day'?'Day':'Night';
+  try{localStorage.setItem('dashboardTheme',nextTheme)}catch(_){}
+}
+
+function initTheme(){
+  let saved='night';
+  try{saved=localStorage.getItem('dashboardTheme')||'night'}catch(_){}
+  applyTheme(saved);
+}
+
 /* --- Event listeners --- */
+document.getElementById('themeToggleBtn').addEventListener('click',()=>{
+  const current=document.body.getAttribute('data-theme')==='day'?'day':'night';
+  applyTheme(current==='day'?'night':'day');
+});
 document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
   if(!currentConfig){document.getElementById('configStatus').textContent='Config belum dimuat.';return}
   try{
@@ -782,6 +806,7 @@ document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
   document.getElementById(id).addEventListener('change',()=>{if(journal.length)render()})
 });
 function toggleAcc(id){const el=document.getElementById(id);if(el)el.classList.toggle('open')}
+initTheme();
 loadFolder();
 document.getElementById('selectedBotTypeEditor').addEventListener('change',()=>{
   if(!currentConfig)return;currentConfig.selectedBotType=document.getElementById('selectedBotTypeEditor').value;popCfg()

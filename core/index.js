@@ -1444,7 +1444,7 @@ async function getPortfolioValue() {
   return computeEquity({
     balances,
     priceMap,
-    dustThreshold: config.logDustThreshold ?? 0.01,
+    dustThreshold: config.minManagedPositionUSDT ?? config.logDustThreshold ?? 0.01,
     qtyDustThreshold: config.logQtyDustThreshold ?? 1e-8,
     logger: message => logEvent(LOG_FILE, "DEBUG", message)
   });
@@ -1691,6 +1691,41 @@ async function maybeRotatePairUniverse({ now, state }) {
       };
       return;
     }
+  }
+
+  const balances = await getBalancesCached();
+  const portfolio = await getPortfolioValue();
+  const managedSymbolsSet = new Set(getOpenPositions(state).map(pos => pos.symbol));
+  const dustThresholdUsdt = config.minManagedPositionUSDT ?? 3;
+  const recoveryThresholdUsdt = Math.max(config.minRecoverUSDT ?? dustThresholdUsdt, dustThresholdUsdt);
+  let recoverableSymbol = null;
+
+  for (const [coin, qty] of Object.entries(balances || {})) {
+    if (coin === "usdt") continue;
+    if (!qty || qty <= 0) continue;
+
+    const symbol = coin.toUpperCase() + "USDT";
+    const pairEnabled = Array.isArray(config.pairs) && config.pairs.includes(symbol);
+    if (!managedSymbolsSet.has(symbol) && !pairEnabled) continue;
+
+    const price = cachedPrices?.[coin] ?? portfolio.prices?.[coin] ?? portfolio.prices?.[symbol] ?? 0;
+    if (!price || price <= 0) continue;
+
+    const value = qty * price;
+    if (value >= recoveryThresholdUsdt && !managedSymbolsSet.has(symbol)) {
+      recoverableSymbol = symbol;
+      break;
+    }
+  }
+
+  if (recoverableSymbol) {
+    logEvent(LOG_FILE, "INFO", `Auto-rotate skipped: recoverable balance exists (${recoverableSymbol})`);
+    config.lastAutoPairRotation = {
+      ...(config.lastAutoPairRotation || {}),
+      skippedAt: new Date(now).toISOString(),
+      skippedReason: `recoverable balance ${recoverableSymbol}`
+    };
+    return;
   }
 
   const refreshMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
@@ -2143,6 +2178,7 @@ async function runBot() {
     //   < minManagedPositionUSDT (dust threshold): unmanage if currently tracked, skip silently
     //   >= minManagedPositionUSDT and not yet tracked: recover into state.positions
     const DUST_THRESHOLD_USDT = config.minManagedPositionUSDT ?? 3;
+    const RECOVERY_THRESHOLD_USDT = Math.max(config.minRecoverUSDT ?? DUST_THRESHOLD_USDT, DUST_THRESHOLD_USDT);
     const managedSymbolsSet = new Set(getOpenPositions(state).map(pos => pos.symbol));
 
     for (const [coin, qty] of Object.entries(balances)) {
@@ -2170,7 +2206,17 @@ async function runBot() {
         continue; // skip dust regardless
       }
 
-      // value >= DUST_THRESHOLD_USDT and not yet managed: recover into state
+      // Only managed or enabled pairs should be considered for recovery
+      const pairEnabled = Array.isArray(config.pairs) && config.pairs.includes(symbol);
+      if (!managedSymbolsSet.has(symbol) && !pairEnabled) {
+        continue;
+      }
+
+      if (value < RECOVERY_THRESHOLD_USDT) {
+        continue;
+      }
+
+      // value >= recovery threshold and not yet managed: recover into state
       if (!managedSymbolsSet.has(symbol)) {
         logEvent(LOG_FILE, "INFO", `Position recovered | ${symbol} est=${safeToFixed(value)} USDT`);
 
@@ -2246,6 +2292,7 @@ async function runBot() {
       const portfolioNow = await getPortfolioValue();
       const tickersForValidation = await getTickersCached();
       let positionsChanged = false;
+      let positionsRefreshed = false;
       const nextPositions = [];
 
       for (const openPosition of trackedPositions) {
@@ -2302,11 +2349,21 @@ async function runBot() {
           logEvent(LOG_FILE, "INFO", `State migration: injecting TP/DTP into ${openPosition.symbol}`);
         }
 
+        const nextCurrentPrice = price > 0 ? price : openPosition.currentPrice;
+        const nextSizeUSDT = value > 0 ? value : openPosition.sizeUSDT;
+        if (
+          Math.abs((Number(openPosition.qty) || 0) - coinBal) > 1e-12 ||
+          Math.abs((Number(openPosition.sizeUSDT) || 0) - (Number(nextSizeUSDT) || 0)) > 1e-8 ||
+          Math.abs((Number(openPosition.currentPrice) || 0) - (Number(nextCurrentPrice) || 0)) > 1e-12
+        ) {
+          positionsRefreshed = true;
+        }
+
         nextPositions.push({
           ...openPosition,
           qty: coinBal,
-          sizeUSDT: value > 0 ? value : openPosition.sizeUSDT,
-          currentPrice: price > 0 ? price : openPosition.currentPrice,
+          sizeUSDT: nextSizeUSDT,
+          currentPrice: nextCurrentPrice,
           takeProfitPct: migratedTp,
           profitActivationPct: migratedDtp,
           profitActivationFloorPct: migratedFloor,
@@ -2315,7 +2372,7 @@ async function runBot() {
         });
       }
 
-      if (positionsChanged) {
+      if (positionsChanged || positionsRefreshed || nextPositions.length !== trackedPositions.length) {
         state.positions = nextPositions;
         state.position = nextPositions[0] || null;
         position = state.position;
@@ -2753,13 +2810,15 @@ async function startBot() {
   printValidationPassed();
   await initScales();
 
+  await runBot();
+
   // ===== AUTO PAIR ROTATION SCHEDULER =====
   // Runs independently every 6 hours — decoupled from the main bot loop.
   // The rotation interval is read from config.autoPairRotation.refreshIntervalHours (default 6).
   const rotationCfg = getAutoPairRotationConfig();
   if (rotationCfg.enabled) {
     const rotationIntervalMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
-    // Run once on startup so the first rotation happens immediately if enabled
+    // First startup rotation only after one full bot cycle so recovery/validation gets priority
     maybeRotatePairUniverse({ now: Date.now(), state }).catch(err =>
       logEvent(LOG_FILE, "ERROR", `Auto-rotate startup run failed: ${err.message}`)
     );
@@ -2774,7 +2833,6 @@ async function startBot() {
     logEvent(LOG_FILE, "INFO", "Auto pair rotation disabled — running on fixed pairSettings");
   }
 
-  await runBot();
   loopTimer = setInterval(runBot, config.loopIntervalMs);
 }
 
