@@ -1828,7 +1828,7 @@ async function maybeRotatePairUniverse({ now, state }) {
     .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 
   const pickedDisplay = picked.map(s => s.replace('USDT', '')).join(', ');
-  const lineActive  = '🔹 Active Pairs (' + picked.length + '): ' + pickedDisplay;
+  const lineActive  = '🔹 Active Pairs (' + picked.length + '):\n\n' + pickedDisplay + '\n';
   
   let lineChanges = '';
   if (prevPairs.size > 0) {
@@ -1836,16 +1836,25 @@ async function maybeRotatePairUniverse({ now, state }) {
     const droppedDisplay = droppedPairs.map(s => s.replace('USDT', '')).join(', ');
     const lineNew = newPairs.length ? '\n➕ In: ' + newDisplay : '';
     const lineDropped = droppedPairs.length ? '\n➖ Out: ' + droppedDisplay : '';
-    lineChanges = '\n' + lineNew + lineDropped;
+    lineChanges = lineNew + lineDropped + '\n';
   }
 
-  const lineCategories = '\nCategories: ' + activeCategories;
-  const lineNext    = '\nNext rotation: ~' + nextRotateAt + ' WIB';
+  const activeCategoriesDisplay = Object.entries(rotationCfg.categories)
+      .filter(([, v]) => v.enabled)
+      .map(([k, v]) => '- ' + k + '(×' + v.weight + ')')
+      .join(',\n');
+      
+  const lineCategories = '\nCategories:\n' + activeCategoriesDisplay + '\n--------------------';
+  
+  const currentTime = new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+  const lineTime = '\nTime: ' + currentTime;
+  const lineNext = '\nNext rotation: ~' + nextRotateAt + ' WIB';
+  
   const rotationStatus = changed
     ? (prevPairs.size > 0 ? '💎 AUTO ROTATE SUCCESS (UPDATED)' : '💎 AUTO ROTATE SUCCESS (INITIAL)')
     : '📌 AUTO ROTATE SUCCESS (NO CHANGES)';
 
-  const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineNext;
+  const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineTime + lineNext;
   await report(rotateMsg).catch(err =>
     logEvent(LOG_FILE, "ERROR", `Auto-rotate report failed: ${err.message}`)
   );
