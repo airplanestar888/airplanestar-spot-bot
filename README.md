@@ -142,7 +142,7 @@ Untuk setting umum yang berlaku lintas strategi:
 - `dryRun`
 - `minBuyUSDT`, `maxBuyUSDT`, `reserveUSDT`
 - `enableMultiTrade`, `maxOpenPositions`, `exposureCapPct`
-- `roundTripFeePct`, `slippageBufferPct`
+- `minManagedPositionUSDT`, `minRecoverUSDT`
 - `useDynamicTakeProfit`
 - `dynamicTakeProfitAtrMultiplier`
 - `enableCostGuard`, `costGuardArmPct`, `costGuardFloorPct`
@@ -150,6 +150,7 @@ Untuk setting umum yang berlaku lintas strategi:
 - `dailyProfitTargetPct`, `dailyLossLimitPct`
 - `loopIntervalMs`
 - `report.*`
+- `autoPairRotation.*`
 - `pairSettings`
 
 `pairSettings` hanya menentukan pair aktif:
@@ -192,7 +193,7 @@ Preset bawaan:
 - `choppy`
 - `custom`
 
-Layer ini hanya mengatur filter entry sesuai kondisi market, seperti:
+Layer ini mengatur filter entry sesuai kondisi market, seperti:
 - `allowEntries`
 - `minExpectedNetPct`
 - `minVolumeRatio`
@@ -240,8 +241,11 @@ Komponen utama:
 - volume ratio
 - breakout atau recovery sesuai entry style
 - ATR dan RSI quality
-- expected net edge
 - `live weight` pair dari market snapshot
+
+Catatan:
+- keputusan entry sekarang fokus ke kualitas setup market
+- cost trade dipakai untuk accounting/report setelah order fill, bukan untuk memblok entry utama
 
 Istilah penting:
 - `eligible` = pair lolos syarat entry
@@ -253,6 +257,7 @@ Istilah penting:
 Core exit saat ini:
 - `Take Profit`
 - `Dynamic TP`
+- `DTP Fallback`
 - `Emergency SL`
 - `ATR Stop Loss`
 - `Cost Guard`
@@ -273,7 +278,30 @@ dynamic TP = clamp(ATR signal * dynamicTakeProfitAtrMultiplier, minScalpTargetPc
 Saat Dynamic TP aktif:
 - level yang lebih tinggi antara `dynamic TP` dan `takeProfitPct` menjadi target utama
 - level yang lebih rendah ditampilkan sebagai `DTP`
-- jika profit tidak sanggup lanjut ke target utama, bot bisa keluar lewat jalur `DTP` / proteksi
+- jika profit sempat melewati `DTP` lalu gagal lanjut ke `TP`, bot bisa keluar lewat `DTP Fallback`
+
+## Runtime Flow
+
+Urutan runtime sederhananya:
+1. bot ambil balance, ticker, dan equity
+2. bot cek recovery balance yang layak dikelola
+3. bot validasi semua posisi managed dan refresh qty/price/value terbaru
+4. bot cek entry gate
+5. bot scan market
+6. bot kirim report terjadwal
+7. bot evaluasi exit
+8. jika aman dan ada setup, bot bisa entry
+
+Aturan recovery:
+1. asset di bawah `minManagedPositionUSDT` dianggap terlalu kecil untuk dikelola
+2. recovery hanya boleh mulai dari `minRecoverUSDT`
+3. recovery hanya berlaku untuk pair aktif atau pair yang memang sudah managed
+
+Aturan auto rotate:
+1. auto rotate hanya jalan jika `autoPairRotation.enabled=true`
+2. auto rotate hanya boleh jalan saat tidak ada open position
+3. jika ada balance recoverable `>= minRecoverUSDT`, auto rotate akan di-skip
+4. saat startup, bot menjalankan satu siklus `runBot()` dulu sebelum auto rotate pertama
 
 ## File Runtime
 
@@ -297,9 +325,9 @@ File runtime penting:
 - `Rounds` berarti satu siklus trade yang sudah closed, bukan jumlah aksi buy/sell mentah.
 - `Entry gate` di heartbeat dan market report menjelaskan kenapa bot tidak entry walau ada pair `eligible`.
 - `HOLD SUMMARY` menampilkan snapshot posisi teks ringan, bukan chart PNG.
-- `Enable Multi Trade=true` mengizinkan beberapa posisi terbuka sekaligus, tetap dibatasi oleh:
-  - `maxOpenPositions`
-  - `exposureCapPct`
+- `Enable Multi Trade=true` mengizinkan beberapa posisi terbuka sekaligus, tetap dibatasi oleh `maxOpenPositions` dan `exposureCapPct`.
+- `Managed Position Min USDT` dan `Recovery Min USDT` bisa diatur dari dashboard untuk menentukan kapan asset kecil diabaikan dan kapan balance boleh direcover jadi posisi bot.
+- accounting trade sekarang memakai actual fill price untuk gross PnL, dan memakai actual fee/slippage bila data exchange tersedia.
 
 ## Command Berguna
 
