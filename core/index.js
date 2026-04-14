@@ -983,6 +983,7 @@ let loopInProgress = false;
 let shutdownRequested = false;
 let shutdownInProgress = false;
 const alertTimestamps = {};
+const unlistedCoinsCache = new Set();
 
 async function reportCritical(key, message, cooldownMs = 15 * 60 * 1000) {
   const now = Date.now();
@@ -1402,6 +1403,12 @@ async function getPortfolioValue() {
   for (const [coin, bal] of Object.entries(balances)) {
     if (coin === 'usdt') continue;
     const lower = coin.toLowerCase();
+    
+    // Skip checking coins that we already know are unlisted or dead
+    if (unlistedCoinsCache.has(lower)) {
+      continue;
+    }
+
     if (bal > 0 && (!priceMap[lower] || priceMap[lower] <= 0)) {
       missingCoins.push(lower);
     }
@@ -1420,7 +1427,11 @@ async function getPortfolioValue() {
           }
         }
       } catch (e) {
-        // ignore, will remain 0
+        // If it throws an API error like "Parameter does not exist" (400), we cache it
+        if (e.isApiError || (e.status && e.status === 400)) {
+          unlistedCoinsCache.add(coin);
+          logEvent(LOG_FILE, 'DEBUG', `Marking ${symbol} as unlisted/dead to skip future checks.`);
+        }
       }
     }
   }
