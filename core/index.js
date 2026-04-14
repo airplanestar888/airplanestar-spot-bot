@@ -1827,16 +1827,25 @@ async function maybeRotatePairUniverse({ now, state }) {
   const nextRotateAt = new Date(now + rotationCfg.refreshIntervalHours * 60 * 60 * 1000)
     .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 
-  const lineActive  = picked.map((s, i) => `${i + 1}. ${s}`).join("\n");
-  const lineNew     = newPairs.length     ? `\n➕ Masuk: ${newPairs.join(", ")}`     : "";
-  const lineDropped = droppedPairs.length ? `\n➖ Keluar: ${droppedPairs.join(", ")}` : "";
-  const lineCategories = `\nKategori: ${activeCategories}`;
-  const lineNext    = `\nRotasi berikutnya: ~${nextRotateAt} WIB`;
-  const rotationStatus = changed
-    ? (prevPairs.size > 0 ? "🔄 PAIR DIPERBARUI" : "🚀 PAIR AKTIF PERTAMA KALI")
-    : "✅ PAIR TIDAK BERUBAH";
+  const pickedDisplay = picked.map(s => s.replace('USDT', '')).join(', ');
+  const lineActive  = '🔹 Pair Aktif (' + picked.length + '): ' + pickedDisplay;
+  
+  let lineChanges = '';
+  if (prevPairs.size > 0) {
+    const newDisplay = newPairs.map(s => s.replace('USDT', '')).join(', ');
+    const droppedDisplay = droppedPairs.map(s => s.replace('USDT', '')).join(', ');
+    const lineNew = newPairs.length ? '\n➕ Masuk: ' + newDisplay : '';
+    const lineDropped = droppedPairs.length ? '\n➖ Keluar: ' + droppedDisplay : '';
+    lineChanges = '\n' + lineNew + lineDropped;
+  }
 
-  const rotateMsg = `${rotationStatus}\n--------------------\nPair aktif (${picked.length}):\n${lineActive}${lineNew}${lineDropped}${lineCategories}${lineNext}`;
+  const lineCategories = '\nKategori: ' + activeCategories;
+  const lineNext    = '\nRotasi berikutnya: ~' + nextRotateAt + ' WIB';
+  const rotationStatus = changed
+    ? (prevPairs.size > 0 ? '🔄 PAIR DIPERBARUI' : '🚀 PAIR AKTIF PERTAMA KALI')
+    : '📌 PAIR TIDAK BERUBAH';
+
+  const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineNext;
   await report(rotateMsg).catch(err =>
     logEvent(LOG_FILE, "ERROR", `Auto-rotate report failed: ${err.message}`)
   );
