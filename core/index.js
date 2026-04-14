@@ -1828,22 +1828,22 @@ async function maybeRotatePairUniverse({ now, state }) {
     .toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 
   const pickedDisplay = picked.map(s => s.replace('USDT', '')).join(', ');
-  const lineActive  = '🔹 Pair Aktif (' + picked.length + '): ' + pickedDisplay;
+  const lineActive  = '🔹 Active Pairs (' + picked.length + '): ' + pickedDisplay;
   
   let lineChanges = '';
   if (prevPairs.size > 0) {
     const newDisplay = newPairs.map(s => s.replace('USDT', '')).join(', ');
     const droppedDisplay = droppedPairs.map(s => s.replace('USDT', '')).join(', ');
-    const lineNew = newPairs.length ? '\n➕ Masuk: ' + newDisplay : '';
-    const lineDropped = droppedPairs.length ? '\n➖ Keluar: ' + droppedDisplay : '';
+    const lineNew = newPairs.length ? '\n➕ In: ' + newDisplay : '';
+    const lineDropped = droppedPairs.length ? '\n➖ Out: ' + droppedDisplay : '';
     lineChanges = '\n' + lineNew + lineDropped;
   }
 
-  const lineCategories = '\nKategori: ' + activeCategories;
-  const lineNext    = '\nRotasi berikutnya: ~' + nextRotateAt + ' WIB';
+  const lineCategories = '\nCategories: ' + activeCategories;
+  const lineNext    = '\nNext rotation: ~' + nextRotateAt + ' WIB';
   const rotationStatus = changed
-    ? (prevPairs.size > 0 ? '🔄 PAIR DIPERBARUI' : '🚀 PAIR AKTIF PERTAMA KALI')
-    : '📌 PAIR TIDAK BERUBAH';
+    ? (prevPairs.size > 0 ? '💎 AUTO ROTATE SUCCESS (UPDATED)' : '💎 AUTO ROTATE SUCCESS (INITIAL)')
+    : '📌 AUTO ROTATE SUCCESS (NO CHANGES)';
 
   const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineNext;
   await report(rotateMsg).catch(err =>
