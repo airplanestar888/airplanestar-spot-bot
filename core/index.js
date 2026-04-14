@@ -334,13 +334,79 @@ async function getOrder(symbol, { orderId = null, clientOrderId = null } = {}) {
   };
 }
 
+/**
+ * Fetch individual fill records for an order from Bitget v2.
+ * Returns VWAP avgPrice and aggregated fee computed from all fills.
+ * Used as fallback when orderInfo returns avgPrice=0 for a FILLED order.
+ */
+async function getOrderFills(symbol, orderId) {
+  const params = new URLSearchParams({ symbol, orderId });
+  let res;
+  try {
+    res = await request(
+      config.baseUrl,
+      config.apiKey,
+      config.secretKey,
+      config.passphrase,
+      "GET",
+      `/api/v2/spot/trade/fills?${params.toString()}`,
+      null,
+      1
+    );
+  } catch (err) {
+    logEvent(LOG_FILE, "WARN", `getOrderFills failed for ${symbol}/${orderId}: ${err.message}`);
+    return { avgPrice: null, feeAmount: null, feeCoin: null, feeUSDT: null };
+  }
+
+  // Bitget v2 wraps fills in fillList or returns array directly
+  const list = Array.isArray(res)
+    ? res
+    : (Array.isArray(res?.fillList) ? res.fillList
+      : (Array.isArray(res?.data) ? res.data : []));
+
+  if (!list.length) {
+    return { avgPrice: null, feeAmount: null, feeCoin: null, feeUSDT: null };
+  }
+
+  // Compute VWAP from individual fill legs
+  let totalQty = 0;
+  let totalVal = 0;
+  let totalFeeAmount = 0;
+  let fillFeeCoin = null;
+  for (const f of list) {
+    const fPrice = Number(f.price || f.fillPrice || 0);
+    const fQty   = Number(f.size  || f.fillSize  || f.qty || 0);
+    const fFee   = Math.abs(Number(f.fee || f.fillFee || 0));
+    if (fPrice > 0 && fQty > 0) {
+      totalQty += fQty;
+      totalVal += fPrice * fQty;
+      totalFeeAmount += fFee;
+      if (!fillFeeCoin) fillFeeCoin = normalizeFeeCoin(f.feeCoin || f.fillFeeCoin);
+    }
+  }
+
+  if (totalQty <= 0) {
+    return { avgPrice: null, feeAmount: null, feeCoin: null, feeUSDT: null };
+  }
+
+  const avgPrice  = totalVal / totalQty;
+  const feeAmount = totalFeeAmount > 0 ? totalFeeAmount : null;
+  const feeCoin   = fillFeeCoin || null;
+  const feeUSDT   = convertFeeToUsdt(symbol, feeAmount, feeCoin, avgPrice);
+  return { avgPrice, feeAmount, feeCoin, feeUSDT };
+}
+
 async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
   const startedAt = Date.now();
   let latest = orderMeta;
-  for (let attempt = 0; attempt < 4; attempt++) {
+
+  // Poll strategy: first attempt immediately (market orders fill in <500ms on Bitget),
+  // then backoff. Total max wait: ~2.7s vs old 3.6s, and usually resolves at attempt 0.
+  const delays = [0, 400, 800, 1500];
+  for (let attempt = 0; attempt < delays.length; attempt++) {
     const status = normalizeOrderStatus(latest?.status);
     if (isTerminalOrderStatus(status)) break;
-    await sleep(1200);
+    if (delays[attempt] > 0) await sleep(delays[attempt]);
     const fetched = await getOrder(symbol, {
       orderId: latest?.orderId,
       clientOrderId: latest?.clientOrderId
@@ -348,12 +414,30 @@ async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
     if (fetched) latest = { ...latest, ...fetched };
   }
 
-  const status = normalizeOrderStatus(latest?.status);
+  const status    = normalizeOrderStatus(latest?.status);
   const filledSize = Number(latest?.filledSize || 0);
-  const avgPrice = Number(latest?.avgPrice || 0);
-  const feeAmount = toFiniteNumber(latest?.feeAmount);
-  const feeCoin = normalizeFeeCoin(latest?.feeCoin);
-  const feeUSDT = toFiniteNumber(latest?.feeUSDT);
+  let avgPrice    = Number(latest?.avgPrice || 0);
+  let feeAmount   = toFiniteNumber(latest?.feeAmount);
+  let feeCoin     = normalizeFeeCoin(latest?.feeCoin);
+  let feeUSDT     = toFiniteNumber(latest?.feeUSDT);
+  let fillsUsed   = false;
+
+  // Fallback: orderInfo sometimes returns avgPrice=0 even on FILLED orders.
+  // Query /fills endpoint for VWAP-accurate price and fee from individual legs.
+  if (status === "FILLED" && (!Number.isFinite(avgPrice) || avgPrice <= 0) && latest?.orderId) {
+    const fills = await getOrderFills(symbol, latest.orderId);
+    if (Number.isFinite(fills.avgPrice) && fills.avgPrice > 0) {
+      avgPrice  = fills.avgPrice;
+      fillsUsed = true;
+      logEvent(LOG_FILE, "INFO", `reconcile ${symbol}: avgPrice from /fills VWAP=${safeToFixed(avgPrice, 6)} (orderInfo returned 0)`);
+      // Prefer fills fee data if orderInfo fee is also missing
+      if (!Number.isFinite(feeAmount) || feeAmount <= 0) {
+        feeAmount = fills.feeAmount;
+        feeCoin   = fills.feeCoin;
+        feeUSDT   = fills.feeUSDT;
+      }
+    }
+  }
 
   if (status === "REJECTED" || status === "CANCELED") {
     throw new Error(`Order ${status.toLowerCase()}: ${symbol} ${side}`);
@@ -365,6 +449,11 @@ async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
     throw new Error(`Order returned no filled size: ${symbol} ${side} status=${status}`);
   }
 
+  const reconcileLatencyMs = Date.now() - startedAt;
+  logEvent(LOG_FILE, "DEBUG",
+    `reconcile ${symbol} done: status=${status} avgPrice=${safeToFixed(avgPrice,6)} ` +
+    `fee=${safeToFixed(feeUSDT,6)}USDT latency=${reconcileLatencyMs}ms fills=${fillsUsed}`);
+
   return {
     ...latest,
     status,
@@ -374,8 +463,9 @@ async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
     feeAmount,
     feeCoin,
     feeUSDT,
+    fillsUsed,
     partialFill: filledSize > 0 && filledSize + 1e-12 < requestedSize,
-    reconcileLatencyMs: Date.now() - startedAt
+    reconcileLatencyMs
   };
 }
 

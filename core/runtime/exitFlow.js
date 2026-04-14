@@ -167,7 +167,9 @@ async function handleExitFlow({
         exit_rsi: exitRsi,
         netPnlEstPct: netPnlPct,
         peakPnlPct,
-        drawdownFromPeak: Number.isFinite(exitEval.drawdownFromPeak) ? exitEval.drawdownFromPeak * 100 : null
+        drawdownFromPeak: Number.isFinite(exitEval.drawdownFromPeak) ? exitEval.drawdownFromPeak * 100 : null,
+        fillsUsed: orderResult.fillsUsed === true,
+        reconcileLatencyMs: orderResult.reconcileLatencyMs ?? null
       });
 
       const tpMainPct = Number.isFinite(openPosition?.takeProfitPct) ? openPosition.takeProfitPct * 100 : null;

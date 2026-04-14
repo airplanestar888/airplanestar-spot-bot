@@ -277,7 +277,9 @@ async function handleEntryFlow({
     entry_atrPct: bestEligible.atrPct,
     entry_score: bestEligible.score,
     entry_marketMode: marketMode,
-    entry_volatility: volatilityState
+    entry_volatility: volatilityState,
+    fillsUsed: orderResult.fillsUsed === true,
+    reconcileLatencyMs: orderResult.reconcileLatencyMs ?? null
   });
 
   return {

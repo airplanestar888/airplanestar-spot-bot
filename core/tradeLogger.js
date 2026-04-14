@@ -100,7 +100,9 @@ function createEntryRecord(trade) {
       atrPct: safeNumber(trade.entry_atrPct),
       score: safeNumber(trade.entry_score),
       marketMode: trade.entry_marketMode || "",
-      volatility: trade.entry_volatility || ""
+      volatility: trade.entry_volatility || "",
+      fillsUsed: trade.fillsUsed === true ? true : undefined,
+      reconcileMs: safeNumber(trade.reconcileLatencyMs)
     },
     exit: null,
     metrics: {
@@ -151,7 +153,9 @@ function closeEntryRecord(record, trade) {
     qty: safeNumber(trade.qty),
     sizeUSDT: safeNumber(trade.sizeUSDT),
     reason: trade.exit_reason || trade.reason || "",
-    rsi: safeNumber(trade.exit_rsi)
+    rsi: safeNumber(trade.exit_rsi),
+    fillsUsed: trade.fillsUsed === true ? true : undefined,
+    reconcileMs: safeNumber(trade.reconcileLatencyMs)
   };
 
   record.metrics.grossPnlUSDT = safeNumber(trade.PnL);
@@ -200,7 +204,9 @@ function upsertEntryRecord(entries, trade) {
       atrPct: safeNumber(trade.entry_atrPct),
       score: safeNumber(trade.entry_score),
       marketMode: trade.entry_marketMode || existing.entry.marketMode || "",
-      volatility: trade.entry_volatility || existing.entry.volatility || ""
+      volatility: trade.entry_volatility || existing.entry.volatility || "",
+      fillsUsed: trade.fillsUsed === true ? true : existing.entry.fillsUsed,
+      reconcileMs: safeNumber(trade.reconcileLatencyMs) ?? existing.entry.reconcileMs
     };
     return existing;
   }
