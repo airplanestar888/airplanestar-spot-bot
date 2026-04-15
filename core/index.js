@@ -2864,7 +2864,22 @@ async function startBot() {
     logEvent(LOG_FILE, "INFO", "Auto pair rotation disabled — running on fixed pairSettings");
   }
 
-  loopTimer = setInterval(runBot, config.loopIntervalMs);
+  async function scheduleNextRun() {
+    try {
+      await runBot();
+    } catch (err) {
+      logEvent(LOG_FILE, "ERROR", `Error in runBot loop: ${err.message}`);
+    } finally {
+      if (!isShuttingDown) {
+        const hasOpenPos = getOpenPositions(state).length > 0;
+        const delayMs = hasOpenPos ? 30000 : (config.loopIntervalMs || 60000);
+        loopTimer = setTimeout(scheduleNextRun, delayMs);
+      }
+    }
+  }
+
+  // Start the first loop
+  scheduleNextRun();
 }
 
 startBot().catch(err => {
