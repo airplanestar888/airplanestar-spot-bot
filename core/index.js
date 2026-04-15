@@ -2870,7 +2870,7 @@ async function startBot() {
     } catch (err) {
       logEvent(LOG_FILE, "ERROR", `Error in runBot loop: ${err.message}`);
     } finally {
-      if (!isShuttingDown) {
+      if (!shutdownRequested) {
         const hasOpenPos = getOpenPositions(state).length > 0;
         const delayMs = hasOpenPos ? 30000 : (config.loopIntervalMs || 60000);
         loopTimer = setTimeout(scheduleNextRun, delayMs);
