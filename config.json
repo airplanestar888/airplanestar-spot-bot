@@ -2,85 +2,91 @@
   "baseUrl": "https://api.bitget.com",
   "selectedBotType": "custom",
   "selectedMode": "aggressive",
-  "marketProfileMode": "auto",
+  "marketProfileMode": "manual",
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
-    "ETHUSDT": {
-      "enabled": true
-    },
-    "TONUSDT": {
-      "enabled": true
-    },
-    "RTXUSDT": {
-      "enabled": true
-    },
-    "MAGMAUSDT": {
-      "enabled": true
-    },
-    "SWARMSUSDT": {
-      "enabled": true
-    },
-    "WLDUSDT": {
-      "enabled": true
-    },
-    "BSBUSDT": {
-      "enabled": true
-    },
-    "BNBUSDT": {
-      "enabled": true
-    },
-    "DRIFTUSDT": {
-      "enabled": true
-    },
-    "LINKUSDT": {
-      "enabled": true
-    },
-    "ADAUSDT": {
-      "enabled": true
-    },
-    "ICNTUSDT": {
-      "enabled": true
-    },
-    "SOLUSDT": {
-      "enabled": true
-    },
-    "BTCUSDT": {
-      "enabled": true
-    },
-    "DOGEUSDT": {
+    "TAOUSDT": {
       "enabled": true
     },
     "HYPEUSDT": {
       "enabled": true
     },
-    "HUMAUSDT": {
+    "USDCUSDT": {
       "enabled": true
     },
-    "MUSDT": {
+    "RENDERUSDT": {
       "enabled": true
     },
-    "XIONUSDT": {
+    "BTCUSDT": {
       "enabled": true
     },
-    "PRLUSDT": {
+    "ETHUSDT": {
       "enabled": true
     },
-    "GRASSUSDT": {
+    "XAUTUSDT": {
+      "enabled": false
+    },
+    "PENGUUSDT": {
       "enabled": true
     },
-    "APRUSDT": {
+    "TURBOUSDT": {
       "enabled": true
     },
-    "ARIAUSDT": {
-      "enabled": true
+    "BGBUSDT": {
+      "enabled": false
+    },
+    "ADAUSDT": {
+      "enabled": false
     },
     "AINUSDT": {
+      "enabled": false
+    },
+    "APRUSDT": {
+      "enabled": false
+    },
+    "ARIAUSDT": {
       "enabled": false
     },
     "BANKUSDT": {
       "enabled": false
     },
-    "BGBUSDT": {
+    "BNBUSDT": {
+      "enabled": false
+    },
+    "BSBUSDT": {
+      "enabled": false
+    },
+    "DOGEUSDT": {
+      "enabled": false
+    },
+    "DRIFTUSDT": {
+      "enabled": false
+    },
+    "ENAUSDT": {
+      "enabled": false
+    },
+    "GRASSUSDT": {
+      "enabled": false
+    },
+    "HUMAUSDT": {
+      "enabled": false
+    },
+    "ICNTUSDT": {
+      "enabled": false
+    },
+    "LINKUSDT": {
+      "enabled": false
+    },
+    "MAGMAUSDT": {
+      "enabled": false
+    },
+    "MUSDT": {
+      "enabled": false
+    },
+    "PEPEUSDT": {
+      "enabled": false
+    },
+    "PRLUSDT": {
       "enabled": false
     },
     "RAVEUSDT": {
@@ -92,7 +98,16 @@
     "RIVERUSDT": {
       "enabled": false
     },
-    "TAOUSDT": {
+    "RTXUSDT": {
+      "enabled": false
+    },
+    "SOLUSDT": {
+      "enabled": false
+    },
+    "SWARMSUSDT": {
+      "enabled": false
+    },
+    "TONUSDT": {
       "enabled": false
     },
     "TRADOORUSDT": {
@@ -101,15 +116,27 @@
     "TRXUSDT": {
       "enabled": false
     },
+    "WLDUSDT": {
+      "enabled": false
+    },
+    "XIONUSDT": {
+      "enabled": false
+    },
     "XRPUSDT": {
       "enabled": false
+    },
+    "NIGHTUSDT": {
+      "enabled": true
+    },
+    "ARBUSDT": {
+      "enabled": true
     }
   },
   "riskPercent": 0.15,
   "dryRun": false,
   "minBuyUSDT": 5,
   "maxBuyUSDT": 10,
-  "reserveUSDT": 2,
+  "reserveUSDT": 1.5,
   "enableMultiTrade": true,
   "maxOpenPositions": 2,
   "autoPairRotation": {
@@ -141,7 +168,7 @@
   "requirePriceAboveEma9": true,
   "requireEdge": true,
   "requireRsiMomentum": true,
-  "requireBreakout": true,
+  "requireBreakout": false,
   "enableRsiBandFilter": true,
   "enableAtrFilter": true,
   "enableVolumeFilter": true,
@@ -151,8 +178,8 @@
   "enableTimeStop": false,
   "enableStaleTrade": true,
   "enableCostGuard": true,
-  "costGuardArmPct": 0.0055,
-  "costGuardFloorPct": 0.004,
+  "costGuardArmPct": 0.004,
+  "costGuardFloorPct": 0.0015,
   "roundTripFeePct": 0.004,
   "slippageBufferPct": 0.001,
   "minExpectedNetPct": 0.002,
@@ -190,7 +217,7 @@
   "minEmaGapNeg": 0.0015,
   "report": {
     "heartbeatIntervalMs": 300000,
-    "marketReportIntervalMs": 3600000,
+    "marketReportIntervalMs": 1800000,
     "balanceReportIntervalMs": 3600000,
     "holdReportIntervalMs": 600000,
     "noSignalReportIntervalMs": 3600000
@@ -303,7 +330,7 @@
         "optimalAtrLow": 0.005,
         "optimalAtrHigh": 0.012,
         "requireRsiMomentum": true,
-        "requireBreakout": true,
+        "requireBreakout": false,
         "enableRsiBandFilter": true,
         "enableAtrFilter": true,
         "enableVolumeFilter": true,
@@ -492,7 +519,7 @@
         "timeStopProfitPct": 0.004,
         "enableStaleTrade": true,
         "minHoldPnlPct": 0.0055,
-        "breakEvenArmedPct": 0.005,
+        "breakEvenArmedPct": 0.006,
         "breakEvenFloorPct": 0.002,
         "cooldownMs": 300000,
         "maxRoundsPerDay": 12,
@@ -547,5 +574,22 @@
     }
   },
   "maxTradesPerDay": 100,
-  "exitTimeframe": "1min"
+  "exitTimeframe": "1min",
+  "activeBotType": "custom",
+  "activeBotTypeLabel": "Custom Bot Type",
+  "activeBotTypeDescription": "Profile bot type buatan user. Gunakan ini kalau mau mengatur struktur setup sendiri tanpa mengubah profile bot type bawaan.",
+  "activeMode": "aggressive",
+  "activeModeLabel": "Aggressive Light",
+  "activeModeDescription": "Lebih sering cari entry, tapi masih pakai guard fee dan time stop.",
+  "_effectiveRisk": 0.15,
+  "_effectiveCooldown": 600000,
+  "_effectiveSlippageBufferPct": 0.001,
+  "_effectiveRoundTripFeePct": 0.004,
+  "_effectiveMinExpectedNetPct": 0.002,
+  "_effectiveTakeProfitPct": 0.012,
+  "_effectiveTrailingActivationPct": 0.008,
+  "_effectiveBreakEvenArmedPct": 0.006,
+  "_effectiveCostPct": 0.005,
+  "_effectiveMaxTrades": 100,
+  "_effectiveAllowEntries": true
 }
