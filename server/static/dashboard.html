@@ -111,13 +111,13 @@
 
 <!-- REPORT -->
 <section class="tab-panel active" id="reportTab">
-<div class="card" style="margin-bottom: 14px; overflow: hidden;">
+<div class="acc" id="accReportFilters" style="margin-bottom: 14px;">
   <div class="acc-hd" onclick="toggleAcc('accReportFilters')">
     <h3>Report Filters</h3>
     <span class="acc-arrow">&#9660;</span>
   </div>
-  <div class="acc-bd" id="accReportFilters" style="display: none; padding: 16px;">
-    <section class="filters" style="margin-bottom: 0;">
+  <div class="acc-body">
+    <section class="filters" style="padding: 12px 16px; margin-bottom: 0;">
       <div class="filter"><label>Scope</label><select id="scopeFilter"><option value="default">Default</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This Week</option><option value="month">This Month</option><option value="all">All Time</option></select></div>
       <div class="filter"><label>Pair</label><select id="pairFilter"><option value="all">All Pairs</option></select></div>
       <div class="filter"><label>Entry Style</label><select id="botTypeFilter"><option value="all">All Entry Styles</option></select></div>
