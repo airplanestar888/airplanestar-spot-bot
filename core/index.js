@@ -134,6 +134,25 @@ if (config.telegram?.enabled && (!config.telegram.botToken || !config.telegram.c
   process.exit(1);
 }
 
+function buildPersistedConfigSnapshot(currentConfig) {
+  const snapshot = JSON.parse(JSON.stringify(currentConfig || {}));
+  delete snapshot.apiKey;
+  delete snapshot.secretKey;
+  delete snapshot.passphrase;
+  delete snapshot.pairs;
+  delete snapshot.baseCoins;
+  delete snapshot.runtimePairSource;
+  if (snapshot.telegram) {
+    delete snapshot.telegram.botToken;
+    delete snapshot.telegram.chatId;
+  }
+  return snapshot;
+}
+
+function persistConfigSnapshot() {
+  saveJsonFile(CONFIG_PATH, buildPersistedConfigSnapshot(config));
+}
+
 // ================= EXECUTION SAFETY LOCKS =================
 let executing = false;
 let globalExecutionFailures = 0;
@@ -1656,9 +1675,21 @@ function setRuntimePairs(nextPairs = [], source = "manual") {
   }
   if (!unique.length) return false;
 
+  const nextPairSettings = {};
+  const existingPairSettings = isPlainObject(config.pairSettings) ? config.pairSettings : {};
+  const allSymbols = new Set([
+    ...Object.keys(existingPairSettings).map(symbol => String(symbol || "").toUpperCase()),
+    ...unique
+  ]);
+  for (const symbol of allSymbols) {
+    nextPairSettings[symbol] = { enabled: unique.includes(symbol) };
+  }
+
+  config.pairSettings = nextPairSettings;
   config.pairs = unique;
   config.baseCoins = unique.map(symbol => symbol.replace(/USDT$/i, "").toUpperCase());
   config.runtimePairSource = source;
+  persistConfigSnapshot();
   return true;
 }
 

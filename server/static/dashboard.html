@@ -263,7 +263,7 @@
 </div>
 
 <div class="acc" id="accPairs">
-  <div class="acc-hd" onclick="toggleAcc('accPairs')"><h3>Active Pairs</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-hd" onclick="toggleAcc('accPairs')"><h3>Pair Universe</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="config-status" id="pairLiveStatus">Live pair weight belum dimuat.</div>
     <div class="pair-grid" id="pairEditor"></div>
@@ -486,9 +486,6 @@ function popPairs(ps={}){
   const c=document.getElementById('pairEditor');
   const snap=snapshotMap();
   const pairStatus=document.getElementById('pairLiveStatus');
-  const runtimeActivePairs = new Set(Array.isArray(marketSnapshot?.autoPairRotation?.activePairs)
-    ? marketSnapshot.autoPairRotation.activePairs.map(symbol => String(symbol || '').toUpperCase())
-    : []);
   const configuredEnabledCount = Object.entries(ps)
     .filter(([, value]) => value === true || (typeof value === 'object' && value?.enabled !== false))
     .length;
@@ -498,11 +495,9 @@ function popPairs(ps={}){
       const live=snap.get(sym);
       const lw=Number.isFinite(Number(live?.liveWeight))?Number(live.liveWeight):-1;
       const sc=Number.isFinite(Number(live?.score))?Number(live.score):-1;
-      const runtimeActive=runtimeActivePairs.has(sym.toUpperCase());
-      return {sym,se,en,live,lw,sc,runtimeActive};
+      return {sym,se,en,live,lw,sc};
     })
     .sort((a,b)=>{
-      if(a.runtimeActive!==b.runtimeActive) return a.runtimeActive ? -1 : 1;
       if(a.en!==b.en) return a.en ? -1 : 1;
       if(b.lw!==a.lw) return b.lw-a.lw;
       if(b.sc!==a.sc) return b.sc-a.sc;
@@ -514,22 +509,18 @@ function popPairs(ps={}){
       const autoRotateText=autoRotateMeta
         ? ` | auto-rotate ${autoRotateMeta.enabled?'on':'off'}${autoRotateMeta.topPairs?` top ${autoRotateMeta.topPairs}`:''}`
         : '';
-      const runtimeText=autoRotateMeta?.enabled
-        ? ` | runtime active ${runtimeActivePairs.size}/${autoRotateMeta.topPairs||runtimeActivePairs.size}`
-        : '';
-      pairStatus.textContent=`Configured pairs: ${configuredEnabledCount} | Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}${autoRotateText}${runtimeText} | hold positions stay protected before rotate`;
+      pairStatus.textContent=`Active pairs in config: ${configuredEnabledCount} | Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}${autoRotateText} | hold positions stay protected before rotate`;
     }else{
-      pairStatus.textContent=`Configured pairs: ${configuredEnabledCount} | Live pair weight belum tersedia. Checkbox = configured pairs, runtime active pairs mengikuti auto-rotate saat data snapshot tersedia.`;
+      pairStatus.textContent=`Active pairs in config: ${configuredEnabledCount} | Checkbox di bawah langsung mencerminkan pair aktif yang sedang disimpan di config.json.`;
     }
   }
-  c.innerHTML=e.length?e.map(({sym,en,live,lw,sc,runtimeActive})=>{
+  c.innerHTML=e.length?e.map(({sym,en,live,lw,sc})=>{
     const status=pairSnapshotStatus(live);
-    const runtimeLabel=runtimeActive ? 'runtime active' : 'runtime standby';
     return`<label class="pair-item">
       <input type="checkbox" data-pe="${sym}" ${en?'checked':''}>
       <span class="pair-main">
         <strong>${sym}</strong>
-        <span class="pair-sub">Configured ${en?'on':'off'} | ${runtimeLabel} | Score ${live?fmt(sc,2):'-'} | ${status}</span>
+        <span class="pair-sub">Active ${en?'on':'off'} | Score ${live?fmt(sc,2):'-'} | ${status}</span>
       </span>
       <span class="live-box" title="${live?`Score ${fmt(sc,2)} | ${status}`:'Belum ada live snapshot'}">
         <span>Live Weight</span>
