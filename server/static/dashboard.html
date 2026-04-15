@@ -103,9 +103,9 @@
 </section>
 <section class="tabs">
 <button class="tab-btn active" data-tab="reportTab">Report</button>
-<button class="tab-btn" data-tab="botTab">Global &amp; Entry</button>
-<button class="tab-btn" data-tab="marketTab">Market Setting</button>
-<button class="tab-btn" data-tab="tradeTab">Risk &amp; Exit</button>
+<button class="tab-btn" data-tab="botTab">Bot Settings</button>
+<button class="tab-btn" data-tab="marketTab">Market Profile</button>
+<button class="tab-btn" data-tab="tradeTab">Trade Style</button>
 <button class="tab-btn" data-tab="readmeTab">README</button>
 </section>
 
@@ -143,7 +143,8 @@
 <!-- BOT SETTING -->
 <section class="tab-panel" id="botTab">
 <section class="panel">
-<h2>Global &amp; Entry</h2>
+<h2>Bot Settings</h2>
+<div class="note">Semua pengaturan global bot tetap ada di sini: bot flags, auto pair rotation, report interval, active pairs, exposure, recovery, dan runtime limits.</div>
 
 <div class="acc open" id="accFlags">
   <div class="acc-hd" onclick="toggleAcc('accFlags')"><h3>Bot Flags</h3><span class="acc-arrow">&#9660;</span></div>
@@ -185,10 +186,11 @@
 </div>
 
 <div class="acc" id="accEntry">
-  <div class="acc-hd" onclick="toggleAcc('accEntry')"><h3>Entry Style</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-hd" onclick="toggleAcc('accEntry')"><h3>Bot Type</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
-    <div class="field"><label>Selected Entry Style</label><select id="selectedBotTypeEditor"></select></div>
+    <div class="field"><label>Selected Bot Type</label><select id="selectedBotTypeEditor"></select></div>
     <div class="field"><label>Description</label><div class="info-box" id="activeBotTypeDescription">-</div></div>
+    <div class="note">Bagian ini mengatur cara bot berjalan: timeframe, tempo entry, hold time, dan struktur confirmation. Nilai yang Anda save akan ikut disinkronkan ke root config.</div>
     <div class="check-grid">
       <label class="check-item"><input id="btReqEma21" type="checkbox"><span>Require EMA21 Rising</span></label>
       <label class="check-item"><input id="btReqFast" type="checkbox"><span>Require Fast Trend</span></label>
@@ -210,7 +212,7 @@
 </div>
 
 <div class="acc" id="accFilters">
-  <div class="acc-hd" onclick="toggleAcc('accFilters')"><h3>Entry Filters</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-hd" onclick="toggleAcc('accFilters')"><h3>Bot Type Filters</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="check-grid">
       <label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>RSI Momentum</span></label>
@@ -274,8 +276,8 @@
 <!-- MARKET SETTING -->
 <section class="tab-panel" id="marketTab">
 <section class="panel">
-<h2>Market Setting</h2>
-<div class="note">Market profile <strong>hanya</strong> filter entry. Risk, sizing, exit mengikuti trading style.</div>
+<h2>Market Profile</h2>
+<div class="note">Market profile khusus untuk kualitas market: volume ratio, ATR band, RSI trend, EMA gap, dan toggle filter market. Nilai yang Anda save akan ikut disinkronkan ke root config untuk profile yang sedang dipilih.</div>
 <div class="field-grid">
 <div class="field"><label>Market Profile Mode</label><select id="marketProfileModeEditor"><option value="auto">Auto</option><option value="manual">Manual</option></select></div>
 <div class="field"><label>Selected Market Profile</label><select id="selectedMarketProfileEditor"></select></div>
@@ -295,10 +297,10 @@
 <!-- TRADE SETTING -->
 <section class="tab-panel" id="tradeTab">
 <section class="panel">
-<h2>Risk &amp; Exit</h2>
-<div class="note">Mengatur agresivitas, risk, TP, trailing, dan proteksi profit. Jika <strong>Use Dynamic TP</strong> aktif, TP dipakai sebagai <strong>profit activation arm</strong> (bukan target).</div>
+<h2>Trade Style</h2>
+<div class="note">Trade style mengatur TP, DTP, stale, stop, trailing, break-even, dan ritme proteksi profit. Nilai yang Anda save akan ikut disinkronkan ke root config untuk style yang sedang dipilih.</div>
 
-<div class="field"><label>Trading Style</label><select id="selectedModeEditor"></select></div>
+<div class="field"><label>Selected Trade Style</label><select id="selectedModeEditor"></select></div>
 <div class="field"><label>Description</label><div class="info-box" id="activeModeDescription">-</div></div>
 
 <div class="sec-hd"><h3>Risk &amp; Sizing</h3></div>
@@ -418,8 +420,8 @@ function pairSnapshotStatus(live){
   return Array.isArray(live.failed) && live.failed.length ? 'failed filters' : 'watch only';
 }
 
-function botTypeVal(cfg,k){const t=cfg.selectedBotType;const o=cfg.botTypeProfiles?.[t]?.overrides?.[k];return o!==undefined?o:cfg[k]}
-function effVal(cfg,k){const m=cfg.selectedMode;const o=cfg.modeProfiles?.[m]?.overrides?.[k];return o!==undefined?o:botTypeVal(cfg,k)}
+function botTypeVal(cfg,k){return cfg[k]}
+function effVal(cfg,k){return cfg[k]}
 
 function popBotType(){
   if(!currentConfig)return;
@@ -484,15 +486,23 @@ function popPairs(ps={}){
   const c=document.getElementById('pairEditor');
   const snap=snapshotMap();
   const pairStatus=document.getElementById('pairLiveStatus');
+  const runtimeActivePairs = new Set(Array.isArray(marketSnapshot?.autoPairRotation?.activePairs)
+    ? marketSnapshot.autoPairRotation.activePairs.map(symbol => String(symbol || '').toUpperCase())
+    : []);
+  const configuredEnabledCount = Object.entries(ps)
+    .filter(([, value]) => value === true || (typeof value === 'object' && value?.enabled !== false))
+    .length;
   const e=Object.entries(ps)
     .map(([sym,se])=>{
       const en=se===true||(typeof se==='object'&&se?.enabled!==false);
       const live=snap.get(sym);
       const lw=Number.isFinite(Number(live?.liveWeight))?Number(live.liveWeight):-1;
       const sc=Number.isFinite(Number(live?.score))?Number(live.score):-1;
-      return {sym,se,en,live,lw,sc};
+      const runtimeActive=runtimeActivePairs.has(sym.toUpperCase());
+      return {sym,se,en,live,lw,sc,runtimeActive};
     })
     .sort((a,b)=>{
+      if(a.runtimeActive!==b.runtimeActive) return a.runtimeActive ? -1 : 1;
       if(a.en!==b.en) return a.en ? -1 : 1;
       if(b.lw!==a.lw) return b.lw-a.lw;
       if(b.sc!==a.sc) return b.sc-a.sc;
@@ -504,18 +514,22 @@ function popPairs(ps={}){
       const autoRotateText=autoRotateMeta
         ? ` | auto-rotate ${autoRotateMeta.enabled?'on':'off'}${autoRotateMeta.topPairs?` top ${autoRotateMeta.topPairs}`:''}`
         : '';
-      pairStatus.textContent=`Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}${autoRotateText} | sorted: active first, high weight first`;
+      const runtimeText=autoRotateMeta?.enabled
+        ? ` | runtime active ${runtimeActivePairs.size}/${autoRotateMeta.topPairs||runtimeActivePairs.size}`
+        : '';
+      pairStatus.textContent=`Configured pairs: ${configuredEnabledCount} | Live weight snapshot: ${fmtD(marketSnapshot.generatedAt)} | market ${marketSnapshot.marketMode||'-'} | profile ${marketSnapshot.marketProfileLabel||marketSnapshot.marketProfile||'-'}${autoRotateText}${runtimeText} | hold positions stay protected before rotate`;
     }else{
-      pairStatus.textContent='Live pair weight belum tersedia. Pair diurutkan aktif dulu, lalu alfabet.';
+      pairStatus.textContent=`Configured pairs: ${configuredEnabledCount} | Live pair weight belum tersedia. Checkbox = configured pairs, runtime active pairs mengikuti auto-rotate saat data snapshot tersedia.`;
     }
   }
-  c.innerHTML=e.length?e.map(({sym,en,live,lw,sc})=>{
+  c.innerHTML=e.length?e.map(({sym,en,live,lw,sc,runtimeActive})=>{
     const status=pairSnapshotStatus(live);
+    const runtimeLabel=runtimeActive ? 'runtime active' : 'runtime standby';
     return`<label class="pair-item">
       <input type="checkbox" data-pe="${sym}" ${en?'checked':''}>
       <span class="pair-main">
         <strong>${sym}</strong>
-        <span class="pair-sub">Score ${live?fmt(sc,2):'-'} | ${status}</span>
+        <span class="pair-sub">Configured ${en?'on':'off'} | ${runtimeLabel} | Score ${live?fmt(sc,2):'-'} | ${status}</span>
       </span>
       <span class="live-box" title="${live?`Score ${fmt(sc,2)} | ${status}`:'Belum ada live snapshot'}">
         <span>Live Weight</span>
@@ -541,7 +555,7 @@ function popCfg(){
   for(const[k,id]of Object.entries(BTYPE_MAP))sEv(id,botTypeVal(currentConfig,k));
   for(const[k,id]of Object.entries(TRD_MAP))sEv(id,effVal(currentConfig,k));
   popPairs(currentConfig.pairSettings||{});
-  document.getElementById('configStatus').textContent=`Config â€” bot type: ${currentConfig.selectedBotType||'-'}, mode: ${currentConfig.selectedMode||'-'}, profile: ${currentConfig.selectedMarketProfile||'-'} (${currentConfig.marketProfileMode||'auto'})`;
+  document.getElementById('configStatus').textContent=`Config aktif — bot type: ${currentConfig.selectedBotType||'-'}, trade style: ${currentConfig.selectedMode||'-'}, market profile: ${currentConfig.selectedMarketProfile||'-'} (${currentConfig.marketProfileMode||'auto'})`;
   renderReadmeTab();
 }
 
@@ -558,21 +572,28 @@ function applyCfg(){
   const bo=nc.botTypeProfiles?.[nc.selectedBotType]?.overrides||{};
   for(const[k,id]of Object.entries(BTYPE_MAP)){
     const raw=gEv(id);
-    bo[k]=BTYPE_BOOL_KEYS.has(k)?Boolean(raw):(BTYPE_STRING_KEYS.has(k)?raw:Number(raw));
+    const nextVal=BTYPE_BOOL_KEYS.has(k)?Boolean(raw):(BTYPE_STRING_KEYS.has(k)?raw:Number(raw));
+    bo[k]=nextVal;
+    nc[k]=nextVal;
   }
   if(nc.botTypeProfiles?.[nc.selectedBotType])nc.botTypeProfiles[nc.selectedBotType].overrides=bo;
-  if(Number.isFinite(Number(bo.maxHoldMinutes))) nc.maxHoldMinutes=Number(bo.maxHoldMinutes);
   const mo=nc.modeProfiles?.[nc.selectedMode]?.overrides||{};
   for(const[k,id]of Object.entries(TRD_MAP)){
-    if(k==='exitTimeframe'){nc[k]=gEv(id);continue;} // root config, not mode override
+    if(k==='exitTimeframe'){nc[k]=gEv(id);continue;}
     const e=document.getElementById(id);if(!e)continue;
-    if(e.tagName==='SELECT'){mo[k]=gEv(id)}else{mo[k]=e?.type==='checkbox'?gEv(id):Number(gEv(id))}
+    const nextVal=e.tagName==='SELECT'?gEv(id):(e?.type==='checkbox'?gEv(id):Number(gEv(id)));
+    mo[k]=nextVal;
+    nc[k]=nextVal;
   }
   if(nc.modeProfiles?.[nc.selectedMode])nc.modeProfiles[nc.selectedMode].overrides=mo;
   const mp=nc.marketProfiles?.[nc.selectedMarketProfile]||{};
   mp.allowEntries=document.getElementById('marketAllowEntriesEditor').checked;
   const mpo=mp.entryOverrides||{};
-  for(const[k,id]of Object.entries(MKT_MAP))mpo[k]=Number(gEv(id));
+  for(const[k,id]of Object.entries(MKT_MAP)){
+    const nextVal=Number(gEv(id));
+    mpo[k]=nextVal;
+    nc[k]=nextVal;
+  }
   mp.entryOverrides=mpo;
   if(nc.marketProfiles?.[nc.selectedMarketProfile])nc.marketProfiles[nc.selectedMarketProfile]=mp;
   const ps={};

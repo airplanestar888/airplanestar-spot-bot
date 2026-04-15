@@ -238,6 +238,12 @@ async function handleExitFlow({
       continue;
     }
 
+    const holdPrice = Number.isFinite(exitEval?.currentPrice) && exitEval.currentPrice > 0
+      ? exitEval.currentPrice
+      : resolvedCurrentPrice;
+    const pnlPct = Number.isFinite(exitEval?.diagnostics?.pnlPct)
+      ? exitEval.diagnostics.pnlPct
+      : ((holdPrice - openPosition.entry) / openPosition.entry * 100);
     if (exitEval?.useTrailing && !openPosition.trailingActive) {
       openPosition.trailingActive = true;
       state.positions = positions;
@@ -246,18 +252,11 @@ async function handleExitFlow({
       await report(reporting.buildTrailingActivatedReport(
         openPosition.symbol,
         openPosition.entry,
-        resolvedCurrentPrice,
-        ((resolvedCurrentPrice - openPosition.entry) / openPosition.entry * 100),
+        holdPrice,
+        pnlPct,
         config.trailingActivationPct
       ));
     }
-
-    const holdPrice = Number.isFinite(exitEval?.currentPrice) && exitEval.currentPrice > 0
-      ? exitEval.currentPrice
-      : resolvedCurrentPrice;
-    const pnlPct = Number.isFinite(exitEval?.diagnostics?.pnlPct)
-      ? exitEval.diagnostics.pnlPct
-      : ((holdPrice - openPosition.entry) / openPosition.entry * 100);
     const lastReported = state.lastReportedPnlBySymbol[openPosition.symbol] ?? null;
     const pnlChanged = lastReported === null || Math.abs(pnlPct - lastReported) > 0.3;
     if (pnlChanged) {

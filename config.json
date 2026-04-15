@@ -2,58 +2,46 @@
   "baseUrl": "https://api.bitget.com",
   "selectedBotType": "custom",
   "selectedMode": "aggressive",
-  "marketProfileMode": "manual",
+  "marketProfileMode": "auto",
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
-    "RIVERUSDT": {
-      "enabled": false
-    },
-    "AINUSDT": {
-      "enabled": false
-    },
-    "SWARMSUSDT": {
-      "enabled": true
-    },
-    "ARIAUSDT": {
-      "enabled": true
-    },
-    "ADAUSDT": {
-      "enabled": true
-    },
-    "XIONUSDT": {
-      "enabled": true
-    },
-    "ICNTUSDT": {
-      "enabled": true
-    },
-    "PRLUSDT": {
-      "enabled": true
-    },
-    "WLDUSDT": {
-      "enabled": true
-    },
-    "MAGMAUSDT": {
-      "enabled": true
-    },
-    "DRIFTUSDT": {
-      "enabled": true
-    },
     "ETHUSDT": {
-      "enabled": true
-    },
-    "GRASSUSDT": {
-      "enabled": true
-    },
-    "HUMAUSDT": {
-      "enabled": true
-    },
-    "HYPEUSDT": {
       "enabled": true
     },
     "TONUSDT": {
       "enabled": true
     },
+    "RTXUSDT": {
+      "enabled": true
+    },
+    "MAGMAUSDT": {
+      "enabled": true
+    },
+    "SWARMSUSDT": {
+      "enabled": true
+    },
+    "WLDUSDT": {
+      "enabled": true
+    },
     "BSBUSDT": {
+      "enabled": true
+    },
+    "BNBUSDT": {
+      "enabled": true
+    },
+    "DRIFTUSDT": {
+      "enabled": true
+    },
+    "LINKUSDT": {
+      "enabled": true
+    },
+    "ADAUSDT": {
+      "enabled": true
+    },
+    "ICNTUSDT": {
+      "enabled": true
+    },
+    "SOLUSDT": {
       "enabled": true
     },
     "BTCUSDT": {
@@ -62,46 +50,58 @@
     "DOGEUSDT": {
       "enabled": true
     },
-    "LINKUSDT": {
+    "HYPEUSDT": {
       "enabled": true
     },
-    "SOLUSDT": {
-      "enabled": true
-    },
-    "BNBUSDT": {
-      "enabled": true
-    },
-    "RTXUSDT": {
-      "enabled": true
-    },
-    "APRUSDT": {
+    "HUMAUSDT": {
       "enabled": true
     },
     "MUSDT": {
       "enabled": true
     },
+    "XIONUSDT": {
+      "enabled": true
+    },
+    "PRLUSDT": {
+      "enabled": true
+    },
+    "GRASSUSDT": {
+      "enabled": true
+    },
+    "APRUSDT": {
+      "enabled": true
+    },
+    "ARIAUSDT": {
+      "enabled": true
+    },
+    "AINUSDT": {
+      "enabled": false
+    },
     "BANKUSDT": {
-      "enabled": false
-    },
-    "REDUSDT": {
-      "enabled": false
-    },
-    "XRPUSDT": {
       "enabled": false
     },
     "BGBUSDT": {
       "enabled": false
     },
-    "TRXUSDT": {
+    "RAVEUSDT": {
       "enabled": false
     },
-    "RAVEUSDT": {
+    "REDUSDT": {
+      "enabled": false
+    },
+    "RIVERUSDT": {
+      "enabled": false
+    },
+    "TAOUSDT": {
       "enabled": false
     },
     "TRADOORUSDT": {
       "enabled": false
     },
-    "TAOUSDT": {
+    "TRXUSDT": {
+      "enabled": false
+    },
+    "XRPUSDT": {
       "enabled": false
     }
   },
@@ -114,7 +114,7 @@
   "maxOpenPositions": 2,
   "autoPairRotation": {
     "enabled": true,
-    "refreshIntervalHours": 6,
+    "refreshIntervalHours": 3,
     "topPairs": 10,
     "disableOnStopLoss": true,
     "stopLossCooldownHours": 24,
@@ -155,14 +155,14 @@
   "costGuardFloorPct": 0.004,
   "roundTripFeePct": 0.004,
   "slippageBufferPct": 0.001,
-  "minExpectedNetPct": 0.003,
+  "minExpectedNetPct": 0.002,
   "minScalpTargetPct": 0.008,
   "maxScalpTargetPct": 0.012,
-  "minTrendRsi": 42,
-  "minAtrPct": 0.0035,
-  "maxAtrPct": 0.018,
-  "minVolumeRatio": 1.15,
-  "maxEmaGapPct": 0.008,
+  "minTrendRsi": 36,
+  "minAtrPct": 0.0024,
+  "maxAtrPct": 0.025,
+  "minVolumeRatio": 1.03,
+  "maxEmaGapPct": 0.018,
   "minMomentumExitPct": 0.004,
   "timeStopMinutes": 18,
   "timeStopProfitPct": 0.003,
@@ -284,14 +284,14 @@
         "signalTimeframe": "3min",
         "trendTimeframe": "15min",
         "minScalpTargetPct": 0.008,
-        "maxScalpTargetPct": 0.016,
-        "timeStopMinutes": 15,
+        "maxScalpTargetPct": 0.012,
+        "timeStopMinutes": 18,
         "maxHoldMinutes": 30,
-        "breakEvenMinutes": 6,
-        "minConfirmation": 2,
-        "breakoutPct": 0.9975,
-        "requireEma21Rising": false,
-        "requireFastTrend": false,
+        "breakEvenMinutes": 9,
+        "minConfirmation": 3,
+        "breakoutPct": 0.9985,
+        "requireEma21Rising": true,
+        "requireFastTrend": true,
         "requirePriceAboveEma9": true,
         "requireEdge": true,
         "rsiBandLower": 46,
@@ -303,13 +303,13 @@
         "optimalAtrLow": 0.005,
         "optimalAtrHigh": 0.012,
         "requireRsiMomentum": true,
-        "requireBreakout": false,
+        "requireBreakout": true,
         "enableRsiBandFilter": true,
         "enableAtrFilter": true,
         "enableVolumeFilter": true,
         "enableCandleStrengthFilter": true,
         "enablePriceExtensionFilter": true,
-        "enableRangeRecoveryFilter": false
+        "enableRangeRecoveryFilter": true
       }
     }
   },
@@ -438,19 +438,19 @@
       "label": "Aggressive Light",
       "description": "Lebih sering cari entry, tapi masih pakai guard fee dan time stop.",
       "overrides": {
-        "riskPercent": 0.18,
+        "riskPercent": 0.15,
         "reserveUSDT": 1.5,
-        "takeProfitPct": 0.013,
-        "trailingActivationPct": 0.009,
-        "trailingDrawdownPct": 0.0035,
-        "trailingProtectionPct": 0.0035,
-        "minMomentumExitPct": 0.0055,
+        "takeProfitPct": 0.012,
+        "trailingActivationPct": 0.008,
+        "trailingDrawdownPct": 0.004,
+        "trailingProtectionPct": 0.0025,
+        "minMomentumExitPct": 0.004,
         "enableTimeStop": false,
-        "timeStopProfitPct": 0.004,
+        "timeStopProfitPct": 0.003,
         "enableStaleTrade": true,
-        "minHoldPnlPct": 0.0045,
-        "breakEvenArmedPct": 0.008,
-        "breakEvenFloorPct": 0.002,
+        "minHoldPnlPct": 0.0035,
+        "breakEvenArmedPct": 0.006,
+        "breakEvenFloorPct": 0.0015,
         "exitRSIThreshold": 70,
         "cooldownMs": 300000
       }
@@ -546,5 +546,6 @@
       }
     }
   },
-  "maxTradesPerDay": 100
+  "maxTradesPerDay": 100,
+  "exitTimeframe": "1min"
 }
