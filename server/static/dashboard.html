@@ -98,7 +98,7 @@
   <div class="hero-right">
     <button class="btn theme" id="themeToggleBtn" type="button">Night</button>
     <button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
-    <span class="hint" id="statusText">Memuat...</span>
+    <span class="hint" id="statusText"> </span>
   </div>
 </section>
 <section class="tabs">
@@ -111,14 +111,22 @@
 
 <!-- REPORT -->
 <section class="tab-panel active" id="reportTab">
-<section class="filters">
-<div class="filter"><label>Scope</label><select id="scopeFilter"><option value="default">Default</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This Week</option><option value="month">This Month</option><option value="all">All Time</option></select></div>
-<div class="filter"><label>Pair</label><select id="pairFilter"><option value="all">All Pairs</option></select></div>
-<div class="filter"><label>Entry Style</label><select id="botTypeFilter"><option value="all">All Entry Styles</option></select></div>
-<div class="filter"><label>Mode</label><select id="modeFilter"><option value="all">All Modes</option></select></div>
-<div class="filter"><label>Market Profile</label><select id="marketProfileFilter"><option value="all">All Profiles</option></select></div>
-<div class="filter"><label>Exit Reason</label><select id="reasonFilter"><option value="all">All Reasons</option></select></div>
-</section>
+<div class="card" style="margin-bottom: 14px; overflow: hidden;">
+  <div class="acc-hd" onclick="toggleAcc('accReportFilters')">
+    <h3>Report Filters</h3>
+    <span class="acc-arrow">&#9660;</span>
+  </div>
+  <div class="acc-bd" id="accReportFilters" style="display: none; padding: 16px;">
+    <section class="filters" style="margin-bottom: 0;">
+      <div class="filter"><label>Scope</label><select id="scopeFilter"><option value="default">Default</option><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="week">This Week</option><option value="month">This Month</option><option value="all">All Time</option></select></div>
+      <div class="filter"><label>Pair</label><select id="pairFilter"><option value="all">All Pairs</option></select></div>
+      <div class="filter"><label>Entry Style</label><select id="botTypeFilter"><option value="all">All Entry Styles</option></select></div>
+      <div class="filter"><label>Mode</label><select id="modeFilter"><option value="all">All Modes</option></select></div>
+      <div class="filter"><label>Market Profile</label><select id="marketProfileFilter"><option value="all">All Profiles</option></select></div>
+      <div class="filter"><label>Exit Reason</label><select id="reasonFilter"><option value="all">All Reasons</option></select></div>
+    </section>
+  </div>
+</div>
 <section class="grid">
 <div class="card"><div class="label">Closed Trades</div><div class="value" id="closedCount">0</div></div>
 <div class="card"><div class="label">Open Trades</div><div class="value blue" id="openCount">0</div></div>
@@ -777,7 +785,7 @@ async function loadFolder(){
     await loadC(JSON.stringify(cfg,null,2),'localhost:/api/config');
     loadJ(JSON.stringify(jrn||[],null,2),'localhost:/api/trades');
     renderReadmeTab();
-    document.getElementById('statusText').textContent='Data loaded from localhost gateway.';
+    document.getElementById('statusText').textContent=' ';
   }catch(e){
     document.getElementById('statusText').textContent=`Gagal load localhost data: ${e.message}`;
   }
