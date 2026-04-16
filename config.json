@@ -5,35 +5,44 @@
   "marketProfileMode": "manual",
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
-    "TAOUSDT": {
-      "enabled": false
-    },
-    "HYPEUSDT": {
-      "enabled": true
-    },
-    "USDCUSDT": {
-      "enabled": true
-    },
-    "RENDERUSDT": {
-      "enabled": false
-    },
     "BTCUSDT": {
+      "enabled": true
+    },
+    "FARTCOINUSDT": {
+      "enabled": true
+    },
+    "RIVERUSDT": {
+      "enabled": true
+    },
+    "WIFUSDT": {
+      "enabled": true
+    },
+    "XPLUSDT": {
+      "enabled": true
+    },
+    "XRPUSDT": {
+      "enabled": true
+    },
+    "FILUSDT": {
+      "enabled": true
+    },
+    "TIAUSDT": {
+      "enabled": true
+    },
+    "COAIUSDT": {
       "enabled": true
     },
     "ETHUSDT": {
       "enabled": true
     },
-    "XAUTUSDT": {
-      "enabled": true
-    },
-    "PENGUUSDT": {
+    "ARBUSDT": {
       "enabled": false
     },
-    "TURBOUSDT": {
+    "LDOUSDT": {
       "enabled": false
     },
-    "BGBUSDT": {
-      "enabled": true
+    "AAVEUSDT": {
+      "enabled": false
     },
     "ADAUSDT": {
       "enabled": false
@@ -50,6 +59,9 @@
     "BANKUSDT": {
       "enabled": false
     },
+    "BGBUSDT": {
+      "enabled": false
+    },
     "BNBUSDT": {
       "enabled": false
     },
@@ -59,10 +71,19 @@
     "DOGEUSDT": {
       "enabled": false
     },
+    "DOTUSDT": {
+      "enabled": false
+    },
     "DRIFTUSDT": {
       "enabled": false
     },
+    "EDGEUSDT": {
+      "enabled": false
+    },
     "ENAUSDT": {
+      "enabled": false
+    },
+    "GOMININGUSDT": {
       "enabled": false
     },
     "GRASSUSDT": {
@@ -71,7 +92,16 @@
     "HUMAUSDT": {
       "enabled": false
     },
+    "HYPEUSDT": {
+      "enabled": false
+    },
     "ICNTUSDT": {
+      "enabled": false
+    },
+    "IRYSUSDT": {
+      "enabled": false
+    },
+    "KITEUSDT": {
       "enabled": false
     },
     "LINKUSDT": {
@@ -80,7 +110,16 @@
     "MAGMAUSDT": {
       "enabled": false
     },
+    "MONUSDT": {
+      "enabled": false
+    },
     "MUSDT": {
+      "enabled": false
+    },
+    "NIGHTUSDT": {
+      "enabled": false
+    },
+    "PENGUUSDT": {
       "enabled": false
     },
     "PEPEUSDT": {
@@ -89,22 +128,37 @@
     "PRLUSDT": {
       "enabled": false
     },
+    "PUMPUSDT": {
+      "enabled": false
+    },
     "RAVEUSDT": {
       "enabled": false
     },
     "REDUSDT": {
       "enabled": false
     },
-    "RIVERUSDT": {
+    "RENDERUSDT": {
       "enabled": false
     },
     "RTXUSDT": {
-      "enabled": true
+      "enabled": false
+    },
+    "SLVONUSDT": {
+      "enabled": false
     },
     "SOLUSDT": {
-      "enabled": true
+      "enabled": false
+    },
+    "SUIUSDT": {
+      "enabled": false
     },
     "SWARMSUSDT": {
+      "enabled": false
+    },
+    "TAGUSDT": {
+      "enabled": false
+    },
+    "TAOUSDT": {
       "enabled": false
     },
     "TONUSDT": {
@@ -113,70 +167,42 @@
     "TRADOORUSDT": {
       "enabled": false
     },
+    "TRUMPUSDT": {
+      "enabled": false
+    },
     "TRXUSDT": {
+      "enabled": false
+    },
+    "TURBOUSDT": {
+      "enabled": false
+    },
+    "USDCUSDT": {
       "enabled": false
     },
     "WLDUSDT": {
       "enabled": false
     },
+    "XAUTUSDT": {
+      "enabled": false
+    },
     "XIONUSDT": {
       "enabled": false
-    },
-    "XRPUSDT": {
-      "enabled": true
-    },
-    "NIGHTUSDT": {
-      "enabled": false
-    },
-    "ARBUSDT": {
-      "enabled": false
-    },
-    "SUIUSDT": {
-      "enabled": false
-    },
-    "EDGEUSDT": {
-      "enabled": false
-    },
-    "AAVEUSDT": {
-      "enabled": false
-    },
-    "GOMININGUSDT": {
-      "enabled": false
-    },
-    "PUMPUSDT": {
-      "enabled": false
-    },
-    "FARTCOINUSDT": {
-      "enabled": false
-    },
-    "KITEUSDT": {
-      "enabled": false
-    },
-    "IRYSUSDT": {
-      "enabled": false
-    },
-    "LDOUSDT": {
-      "enabled": false
-    },
-    "TRUMPUSDT": {
-      "enabled": false
-    },
-    "SLVONUSDT": {
-      "enabled": true
     }
   },
   "riskPercent": 0.15,
   "dryRun": false,
-  "minBuyUSDT": 10,
+  "minBuyUSDT": 5,
   "maxBuyUSDT": 10,
   "reserveUSDT": 1.5,
   "enableMultiTrade": true,
-  "maxOpenPositions": 1,
+  "maxOpenPositions": 3,
   "autoPairRotation": {
     "enabled": true,
     "refreshIntervalHours": 3,
     "topPairs": 10,
     "disableOnStopLoss": true,
+    "disableOnStaleTrade": true,
+    "disableOnAnyLoss": false,
     "stopLossCooldownHours": 24,
     "minQuoteVolumeUSDT": 500000,
     "maxAbsChangePct": 40,
@@ -201,7 +227,7 @@
   "requirePriceAboveEma9": true,
   "requireEdge": true,
   "requireRsiMomentum": true,
-  "requireBreakout": false,
+  "requireBreakout": true,
   "enableRsiBandFilter": true,
   "enableAtrFilter": true,
   "enableVolumeFilter": true,
@@ -233,6 +259,9 @@
   "breakEvenFloorPct": 0.0015,
   "cooldownMs": 300000,
   "lossCooldownMs": 600000,
+  "usePairReentryBlock": true,
+  "pairReentryBlockLossPct": 0.01,
+  "pairReentryBlockMinutes": 1440,
   "maxRoundsPerDay": 100,
   "stopAfterThreeConsecutiveLosses": false,
   "lossStreakHaltThreshold": 10,
@@ -363,7 +392,7 @@
         "optimalAtrLow": 0.005,
         "optimalAtrHigh": 0.012,
         "requireRsiMomentum": true,
-        "requireBreakout": false,
+        "requireBreakout": true,
         "enableRsiBandFilter": true,
         "enableAtrFilter": true,
         "enableVolumeFilter": true,
@@ -626,24 +655,24 @@
   "_effectiveMaxTrades": 100,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-16T00:00:26.039Z",
+    "at": "2026-04-16T11:52:40.486Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 3,
     "topPairs": 10,
     "activePairs": [
+      "FILUSDT",
+      "RIVERUSDT",
+      "TIAUSDT",
+      "XPLUSDT",
+      "COAIUSDT",
       "BTCUSDT",
-      "ETHUSDT",
-      "USDCUSDT",
+      "FARTCOINUSDT",
       "XRPUSDT",
-      "HYPEUSDT",
-      "BGBUSDT",
-      "SOLUSDT",
-      "XAUTUSDT",
-      "RTXUSDT",
-      "SLVONUSDT"
+      "WIFUSDT",
+      "ETHUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 0
+    "blacklistCount": 6
   }
 }

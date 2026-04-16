@@ -581,6 +581,12 @@ function normalizeConfig() {
   config.enableMultiTrade = config.enableMultiTrade === true;
   config.maxOpenPositions = Math.max(1, Math.min(10, Math.floor(Number(config.maxOpenPositions) || 1)));
   config.exposureCapPct = clampNum(config.exposureCapPct, 0.05, 1, 0.5);
+  config.usePairReentryBlock = config.usePairReentryBlock !== false;
+  config.pairReentryBlockLossPct = clampNum(config.pairReentryBlockLossPct, 0.001, 0.2, 0.01);
+  config.pairReentryBlockMinutes = Math.max(1, Math.min(1440, Math.floor(Number(config.pairReentryBlockMinutes) || 10)));
+  config.usePairReentryBlock = config.usePairReentryBlock !== false;
+  config.pairReentryBlockLossPct = clampNum(config.pairReentryBlockLossPct, 0.001, 0.2, 0.01);
+  config.pairReentryBlockMinutes = Math.max(1, Math.min(1440, Math.floor(Number(config.pairReentryBlockMinutes) || 10)));
   config.enableMultiTrade = config.enableMultiTrade === true;
   config.maxOpenPositions = Math.max(1, Math.min(10, Math.floor(Number(config.maxOpenPositions) || 1)));
   config.exposureCapPct = clampNum(config.exposureCapPct, 0.05, 1, 0.5);
@@ -624,7 +630,8 @@ function normalizeConfig() {
     'trailingProtectionPct', 'exitRSIThreshold',
     'minExpectedNetPct', 'minScalpTargetPct', 'maxScalpTargetPct',
     'minAtrPct', 'maxAtrPct', 'minTrendRsi', 'minVolumeRatio', 'maxEmaGapPct',
-    'minCandleStrength', 'breakoutPct', 'maxOpenPositions', 'exposureCapPct'
+    'minCandleStrength', 'breakoutPct', 'maxOpenPositions', 'exposureCapPct',
+    'pairReentryBlockLossPct', 'pairReentryBlockMinutes'
   ];
   for (const field of numericFields) {
     if (config[field] !== undefined) {
@@ -751,7 +758,57 @@ function syncStatePositions(nextState) {
   if (!nextState.lastReportedPnlBySymbol || typeof nextState.lastReportedPnlBySymbol !== "object") {
     nextState.lastReportedPnlBySymbol = {};
   }
+  if (!nextState.entryBlockBySymbol || typeof nextState.entryBlockBySymbol !== "object") {
+    nextState.entryBlockBySymbol = {};
+  }
+  if (!nextState.recentEntriesBySymbol || typeof nextState.recentEntriesBySymbol !== "object") {
+    nextState.recentEntriesBySymbol = {};
+  }
   return positions;
+}
+
+function cleanupExpiredEntryBlocks(nextState, now = Date.now()) {
+  if (!nextState || typeof nextState !== "object") return false;
+  if (!nextState.entryBlockBySymbol || typeof nextState.entryBlockBySymbol !== "object") {
+    nextState.entryBlockBySymbol = {};
+    return false;
+  }
+  let changed = false;
+  for (const [symbol, meta] of Object.entries(nextState.entryBlockBySymbol)) {
+    const until = Number(meta?.until || 0);
+    if (!symbol || !Number.isFinite(until) || until <= now) {
+      delete nextState.entryBlockBySymbol[symbol];
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+function getActiveEntryBlock(nextState, symbol, now = Date.now()) {
+  const key = String(symbol || "").toUpperCase();
+  if (!key) return null;
+  const meta = nextState?.entryBlockBySymbol?.[key];
+  if (!meta) return null;
+  const until = Number(meta.until || 0);
+  if (!Number.isFinite(until) || until <= now) return null;
+  return meta;
+}
+
+function cleanupRecentEntries(nextState, now = Date.now(), ttlMs = 10 * 60 * 1000) {
+  if (!nextState || typeof nextState !== "object") return false;
+  if (!nextState.recentEntriesBySymbol || typeof nextState.recentEntriesBySymbol !== "object") {
+    nextState.recentEntriesBySymbol = {};
+    return false;
+  }
+  let changed = false;
+  for (const [symbol, meta] of Object.entries(nextState.recentEntriesBySymbol)) {
+    const at = Number(meta?.at || 0);
+    if (!symbol || !Number.isFinite(at) || (now - at) > ttlMs) {
+      delete nextState.recentEntriesBySymbol[symbol];
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 function getOpenPositions(nextState) {
@@ -989,6 +1046,8 @@ if (!health.startedAt) {
 if (state.realizedPnlToday === undefined) state.realizedPnlToday = 0;
 if (state.realizedNetPnlToday === undefined) state.realizedNetPnlToday = 0;
 if (state.lastReportedPnlBySymbol === undefined) state.lastReportedPnlBySymbol = {};
+if (state.entryBlockBySymbol === undefined || typeof state.entryBlockBySymbol !== "object") state.entryBlockBySymbol = {};
+if (state.recentEntriesBySymbol === undefined || typeof state.recentEntriesBySymbol !== "object") state.recentEntriesBySymbol = {};
 
 // Globals
 let lastHeartbeatTime = 0, lastMarketReportTime = 0, lastBalanceReportTime = 0, lastHoldReportTime = 0, lastNoSignalReportTime = 0;
@@ -1606,6 +1665,8 @@ function getAutoPairRotationConfig() {
     refreshIntervalHours: 6,
     topPairs: 10,
     disableOnStopLoss: true,
+    disableOnStaleTrade: false,
+    disableOnAnyLoss: false,
     stopLossCooldownHours: 24,
     minQuoteVolumeUSDT: 500000,
     maxAbsChangePct: 40,
@@ -1619,6 +1680,8 @@ function getAutoPairRotationConfig() {
     refreshIntervalHours: Math.max(1, Number(raw.refreshIntervalHours ?? defaults.refreshIntervalHours)),
     topPairs: Math.max(1, Number(raw.topPairs ?? defaults.topPairs)),
     disableOnStopLoss: raw.disableOnStopLoss !== false,
+    disableOnStaleTrade: raw.disableOnStaleTrade === true,
+    disableOnAnyLoss: raw.disableOnAnyLoss === true,
     stopLossCooldownHours: Math.max(1, Number(raw.stopLossCooldownHours ?? defaults.stopLossCooldownHours)),
     minQuoteVolumeUSDT: Math.max(0, Number(raw.minQuoteVolumeUSDT ?? defaults.minQuoteVolumeUSDT)),
     maxAbsChangePct: Math.max(1, Number(raw.maxAbsChangePct ?? defaults.maxAbsChangePct)),
@@ -1636,7 +1699,7 @@ function getAutoPairRotationConfig() {
 
 function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
   const symbols = new Set();
-  if (!rotationCfg.disableOnStopLoss) return symbols;
+  if (!rotationCfg.disableOnStopLoss && !rotationCfg.disableOnStaleTrade && !rotationCfg.disableOnAnyLoss) return symbols;
 
   try {
     if (!fs.existsSync(JOURNAL_PATH)) return symbols;
@@ -1651,7 +1714,15 @@ function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
       const row = journal[i];
       if (!row || row.status !== "closed") continue;
       const reason = String(row.exit?.reason || row.reason || "").toLowerCase();
-      if (!(reason.includes("emergency sl") || reason.includes("atr stop loss"))) continue;
+      const pnlPct = Number(row.exit?.pnlPct ?? row.PnL_pct ?? row.pnlPct ?? 0);
+      const stopLossHit = reason.includes("emergency sl") || reason.includes("atr stop loss");
+      const staleTradeHit = reason.includes("stale trade");
+      const anyLossHit = Number.isFinite(pnlPct) && pnlPct < 0;
+      const shouldFlag =
+        (rotationCfg.disableOnStopLoss && stopLossHit) ||
+        (rotationCfg.disableOnStaleTrade && staleTradeHit) ||
+        (rotationCfg.disableOnAnyLoss && anyLossHit);
+      if (!shouldFlag) continue;
       const pair = String(row.pair || "").toUpperCase();
       if (!pair) continue;
       const closedAt = new Date(row.closedAt || row.openedAt || 0).getTime();
@@ -2185,9 +2256,17 @@ async function runBot() {
       state.realizedNetPnlToday = 0;
       state.lastReportedPnl = null;
       state.lastReportedPnlBySymbol = {};
+      state.entryBlockBySymbol = {};
+      state.recentEntriesBySymbol = {};
       saveState(STATE_PATH, state);
     } else if (!state.startOfDayEquity || state.startOfDayEquity <= 0) {
       state.startOfDayEquity = currentEquity;
+      saveState(STATE_PATH, state);
+    }
+    if (cleanupExpiredEntryBlocks(state, now)) {
+      saveState(STATE_PATH, state);
+    }
+    if (cleanupRecentEntries(state, now)) {
       saveState(STATE_PATH, state);
     }
     const journalRoundsToday = countClosedRoundsForDate(today);
@@ -2254,7 +2333,16 @@ async function runBot() {
 
       // value >= recovery threshold and not yet managed: recover into state
       if (!managedSymbolsSet.has(symbol)) {
-        logEvent(LOG_FILE, "INFO", `Position recovered | ${symbol} est=${safeToFixed(value)} USDT`);
+        const recentEntryMeta = state.recentEntriesBySymbol?.[symbol];
+        const recentEntryAt = Number(recentEntryMeta?.at || 0);
+        const recentlyBoughtByBot = Number.isFinite(recentEntryAt) && (now - recentEntryAt) <= 10 * 60 * 1000;
+        logEvent(
+          LOG_FILE,
+          recentlyBoughtByBot ? "DEBUG" : "INFO",
+          recentlyBoughtByBot
+            ? `Position reconcile from recent bot entry | ${symbol} est=${safeToFixed(value)} USDT`
+            : `Position recovered | ${symbol} est=${safeToFixed(value)} USDT`
+        );
 
         // Inherit TP/DTP/stop from config — same values as a normal entry would get
         const recoveryTakeProfitPct = config._effectiveTakeProfitPct ?? config.takeProfitPct ?? 0.012;
@@ -2264,11 +2352,11 @@ async function runBot() {
 
         const recoveredPosition = {
           symbol,
-          entry: price,
+          entry: Number.isFinite(recentEntryMeta?.entry) && recentEntryMeta.entry > 0 ? recentEntryMeta.entry : price,
           currentPrice: price,
-          qty,
-          sizeUSDT: value,
-          peak: price,
+          qty: Number.isFinite(recentEntryMeta?.qty) && recentEntryMeta.qty > 0 ? recentEntryMeta.qty : qty,
+          sizeUSDT: Number.isFinite(recentEntryMeta?.sizeUSDT) && recentEntryMeta.sizeUSDT > 0 ? recentEntryMeta.sizeUSDT : value,
+          peak: Number.isFinite(recentEntryMeta?.entry) && recentEntryMeta.entry > 0 ? recentEntryMeta.entry : price,
           trailingActive: false,
           stopPct: recoveryStopPct,
           takeProfitPct: recoveryTakeProfitPct,
@@ -2293,29 +2381,31 @@ async function runBot() {
         managedSymbolsSet.add(symbol);
         saveState(STATE_PATH, state);
 
-        logTrade({
-          type: "entry",
-          source: "recovery",
-          botType: config.activeBotType || config.selectedBotType || "",
-          mode: config.activeMode || config.selectedMode || "",
-          marketProfile: config.selectedMarketProfile || "auto",
-          marketProfileMode: config.marketProfileMode || "",
-          pair: symbol,
-          side: "buy",
-          price,
-          qty,
-          sizeUSDT: value,
-          reason: "balance detection"
-        });
+        if (!recentlyBoughtByBot) {
+          logTrade({
+            type: "entry",
+            source: "recovery",
+            botType: config.activeBotType || config.selectedBotType || "",
+            mode: config.activeMode || config.selectedMode || "",
+            marketProfile: config.selectedMarketProfile || "auto",
+            marketProfileMode: config.marketProfileMode || "",
+            pair: symbol,
+            side: "buy",
+            price,
+            qty,
+            sizeUSDT: value,
+            reason: "balance detection"
+          });
+        }
 
         const lastRecoveryTime = state.lastRecoveryTime || 0;
         const lastRecoverySymbol = state.lastRecoverySymbol;
-        if (!lastRecoverySymbol || lastRecoverySymbol !== symbol || Date.now() - lastRecoveryTime > 5 * 60 * 1000) {
+        if (!recentlyBoughtByBot && (!lastRecoverySymbol || lastRecoverySymbol !== symbol || Date.now() - lastRecoveryTime > 5 * 60 * 1000)) {
           await report(`⚠️ POSITION RECOVERED\nPair: ${symbol}\nEstimated Entry: ${safeToFixed(price)}\nValue: ${safeToFixed(value)} USDT\n\nBot detected an existing position from balance.`);
           state.lastRecoveryTime = Date.now();
           state.lastRecoverySymbol = symbol;
           saveState(STATE_PATH, state);
-        } else {
+        } else if (!recentlyBoughtByBot) {
           logEvent(LOG_FILE, "DEBUG", `Recovery message suppressed | last=${lastRecoverySymbol}`);
         }
       }
@@ -2475,11 +2565,18 @@ async function runBot() {
     const scanResult = marketProfileKey ? await scanMarket(scanConfig, getCandles, botLog) : baseScan;
     const { marketData, topScoring, watchlist, marketMode, volatilityState, entryCandidates } = scanResult;
     const heldSymbols = new Set(getOpenPositions(state).map(pos => pos.symbol));
-    const bestEligible = scanConfig.marketEntriesEnabled === false
-      ? null
+    const eligibleCandidates = scanConfig.marketEntriesEnabled === false
+      ? []
       : (entryCandidates || [])
           .filter(candidate => candidate.eligible && !heldSymbols.has(candidate.symbol))
-          .sort((a, b) => b.score - a.score)[0] || null;
+          .sort((a, b) => b.score - a.score);
+    const bestBlockedEligible = eligibleCandidates.find(candidate => getActiveEntryBlock(state, candidate.symbol, now)) || null;
+    const bestEligible = eligibleCandidates.find(candidate => !getActiveEntryBlock(state, candidate.symbol, now)) || null;
+    if (entryGateStatus === "open" && !bestEligible && bestBlockedEligible) {
+      const block = getActiveEntryBlock(state, bestBlockedEligible.symbol, now);
+      const minsLeft = Math.max(1, Math.ceil((Number(block?.until || now) - now) / 60000));
+      entryGateStatus = `pair reentry block (${bestBlockedEligible.symbol} ${minsLeft}m left)`;
+    }
 
     saveJsonFile(MARKET_SNAPSHOT_PATH, {
       generatedAt: new Date().toISOString(),
@@ -2773,7 +2870,8 @@ function normalizeConfig() {
     'trailingProtectionPct', 'exitRSIThreshold',
     'minExpectedNetPct', 'minScalpTargetPct', 'maxScalpTargetPct',
     'minAtrPct', 'maxAtrPct', 'minTrendRsi', 'minVolumeRatio', 'maxEmaGapPct',
-    'minCandleStrength', 'breakoutPct', 'maxOpenPositions', 'exposureCapPct'
+    'minCandleStrength', 'breakoutPct', 'maxOpenPositions', 'exposureCapPct',
+    'pairReentryBlockLossPct', 'pairReentryBlockMinutes'
   ];
   for (const field of numericFields) {
     if (config[field] !== undefined) {

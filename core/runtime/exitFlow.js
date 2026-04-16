@@ -139,6 +139,30 @@ async function handleExitFlow({
         : entryCostUSDT * (netPnlPct / 100);
       const pnlFraction = actualGrossPnlFraction;
       const pnlAbsolute = actualGrossPnlUSDT;
+      const reentryBlockLossPct = Number(config.pairReentryBlockLossPct || 0.01);
+      const reentryBlockMs = Math.max(1, Number(config.pairReentryBlockMinutes || 10)) * 60 * 1000;
+      const shouldBlockReentry =
+        config.usePairReentryBlock !== false &&
+        pnlFraction <= -Math.abs(reentryBlockLossPct) &&
+        reentryBlockMs > 0 &&
+        !String(exitEval.reason || "").toLowerCase().includes("auto-sell unmanaged");
+      let reentryBlockLine = null;
+      if (shouldBlockReentry) {
+        const until = now + reentryBlockMs;
+        state.entryBlockBySymbol = state.entryBlockBySymbol || {};
+        state.entryBlockBySymbol[symbol] = {
+          until,
+          setAt: new Date(now).toISOString(),
+          reason: exitEval.reason,
+          pnlPct: pnlFraction * 100
+        };
+        reentryBlockLine = `Reentry blocked ${Math.max(1, Math.ceil(reentryBlockMs / 60000))}m after ${exitEval.reason}`;
+        logEvent(
+          LOG_FILE,
+          "INFO",
+          `Reentry block set for ${symbol}: ${Math.max(1, Math.ceil(reentryBlockMs / 60000))}m after ${exitEval.reason} (${safeToFixed(pnlFraction * 100, 2)}%)`
+        );
+      }
       logEvent(LOG_FILE, "INFO", `SELL ${symbol} pnl=${safeToFixed(pnlFraction, 4)} reason=${exitEval.reason}`);
 
       logTrade({
@@ -192,8 +216,9 @@ async function handleExitFlow({
             : `Net after fallback fee ${safeToFixed(netPnlPct, 2)}%`,
           `Actual slippage entry ${safeToFixed((entrySlippagePct ?? 0) * 100, 2)}% | exit ${safeToFixed((exitSlippagePct ?? 0) * 100, 2)}%`,
           `TP ${tpMainPct == null ? "N/A" : `${safeToFixed(tpMainPct, 2)}%`} | DTP ${activationPct == null ? "N/A" : `${safeToFixed(activationPct, 2)}%`}`,
-          `Trailing ${openPosition.trailingActive ? "active" : "inactive"} | Stop ${safeToFixed((openPosition.stopPct || 0) * 100, 2)}%`
-        ],
+          `Trailing ${openPosition.trailingActive ? "active" : "inactive"} | Stop ${safeToFixed((openPosition.stopPct || 0) * 100, 2)}%`,
+          reentryBlockLine
+        ].filter(Boolean),
         netPnlPct,
         openPosition?.takeProfitPct ?? null,
         openPosition?.profitActivationPct ?? null
@@ -208,6 +233,9 @@ async function handleExitFlow({
       state.realizedNetPnlToday = Number(state.realizedNetPnlToday || 0) + netPnlAbsolute;
       state.lastReportedPnl = null;
       delete state.lastReportedPnlBySymbol[symbol];
+      if (state.recentEntriesBySymbol && typeof state.recentEntriesBySymbol === "object") {
+        delete state.recentEntriesBySymbol[symbol];
+      }
 
       if (pnlFraction < 0) {
         state.lossStreak++;

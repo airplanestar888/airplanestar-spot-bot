@@ -46,6 +46,8 @@ function getRotationConfig(config) {
     topPairs: 10,
     sortBy: "combined",
     disableOnStopLoss: true,
+    disableOnStaleTrade: false,
+    disableOnAnyLoss: false,
     stopLossCooldownHours: 24,
     minQuoteVolumeUSDT: 500000,
     maxAbsChangePct: 40,
@@ -58,6 +60,8 @@ function getRotationConfig(config) {
     topPairs: Math.max(1, Number(raw.topPairs ?? defaults.topPairs)),
     sortBy: ["volume", "momentum", "combined"].includes(raw.sortBy) ? raw.sortBy : defaults.sortBy,
     disableOnStopLoss: raw.disableOnStopLoss !== false,
+    disableOnStaleTrade: raw.disableOnStaleTrade === true,
+    disableOnAnyLoss: raw.disableOnAnyLoss === true,
     stopLossCooldownHours: Math.max(1, Number(raw.stopLossCooldownHours ?? defaults.stopLossCooldownHours)),
     minQuoteVolumeUSDT: Math.max(0, Number(raw.minQuoteVolumeUSDT ?? defaults.minQuoteVolumeUSDT)),
     maxAbsChangePct: Math.max(1, Number(raw.maxAbsChangePct ?? defaults.maxAbsChangePct)),
@@ -67,7 +71,7 @@ function getRotationConfig(config) {
 
 function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
   const symbols = new Set();
-  if (!rotationCfg.disableOnStopLoss) return symbols;
+  if (!rotationCfg.disableOnStopLoss && !rotationCfg.disableOnStaleTrade && !rotationCfg.disableOnAnyLoss) return symbols;
 
   try {
     if (!fs.existsSync(JOURNAL_PATH)) return symbols;
@@ -82,7 +86,15 @@ function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
       const row = journal[i];
       if (!row || row.status !== "closed") continue;
       const reason = String(row.exit?.reason || row.reason || "").toLowerCase();
-      if (!(reason.includes("emergency sl") || reason.includes("atr stop loss"))) continue;
+      const pnlPct = Number(row.exit?.pnlPct ?? row.PnL_pct ?? row.pnlPct ?? 0);
+      const stopLossHit = reason.includes("emergency sl") || reason.includes("atr stop loss");
+      const staleTradeHit = reason.includes("stale trade");
+      const anyLossHit = Number.isFinite(pnlPct) && pnlPct < 0;
+      const shouldFlag =
+        (rotationCfg.disableOnStopLoss && stopLossHit) ||
+        (rotationCfg.disableOnStaleTrade && staleTradeHit) ||
+        (rotationCfg.disableOnAnyLoss && anyLossHit);
+      if (!shouldFlag) continue;
       const pair = String(row.pair || "").toUpperCase();
       if (!pair) continue;
       const closedAt = new Date(row.closedAt || row.openedAt || 0).getTime();

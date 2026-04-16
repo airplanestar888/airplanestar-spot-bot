@@ -53,6 +53,16 @@ async function handleEntryFlow({
     return { handled: true };
   }
   if (!bestEligible) return { handled: true };
+  const activeEntryBlock = state.entryBlockBySymbol?.[bestEligible.symbol];
+  if (activeEntryBlock && Number(activeEntryBlock.until || 0) > now) {
+    const minsLeft = Math.max(1, Math.ceil((Number(activeEntryBlock.until) - now) / 60000));
+    logEvent(
+      LOG_FILE,
+      "INFO",
+      `Skipping entry ${bestEligible.symbol}: reentry blocked ${minsLeft}m after ${activeEntryBlock.reason || "loss"} (${safeToFixed(activeEntryBlock.pnlPct, 2)}%)`
+    );
+    return { handled: true };
+  }
   if (heldSymbols.has(bestEligible.symbol)) {
     logEvent(LOG_FILE, "DEBUG", `Skipping entry ${bestEligible.symbol}: already open`);
     return { handled: true };
@@ -236,6 +246,13 @@ async function handleEntryFlow({
 
   state.positions = [...positions, reconciledPositionMeta];
   state.position = state.positions[0] || null;
+  state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
+  state.recentEntriesBySymbol[bestEligible.symbol] = {
+    at: now,
+    entry: reconciledPositionMeta.entry,
+    qty: reconciledPositionMeta.qty,
+    sizeUSDT: reconciledPositionMeta.sizeUSDT
+  };
   state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
   saveState(STATE_PATH, state);
 

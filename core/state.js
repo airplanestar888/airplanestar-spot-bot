@@ -23,6 +23,8 @@ function loadState(statePath) {
       lossStreak: 0,
       lastReportedPnl: null,
       lastReportedPnlBySymbol: {},
+      entryBlockBySymbol: {},
+      recentEntriesBySymbol: {},
       startOfDayEquity: null,
       haltedForDay: false,
       haltReason: null,
