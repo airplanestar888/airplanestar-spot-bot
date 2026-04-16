@@ -1025,7 +1025,7 @@ async function performSafeShutdown(source = "manual") {
   shutdownInProgress = true;
 
   if (loopTimer) {
-    clearInterval(loopTimer);
+    clearTimeout(loopTimer);
     loopTimer = null;
   }
 
@@ -1705,6 +1705,7 @@ async function maybeRotatePairUniverse({ now, state }) {
         enabled: false,
         reason: "disabled"
       };
+      persistConfigSnapshot();
       logEvent(LOG_FILE, "INFO", "Auto-rotate disabled, reverted to config pairSettings");
     }
     return;
@@ -1720,6 +1721,7 @@ async function maybeRotatePairUniverse({ now, state }) {
         skippedAt: new Date(now).toISOString(),
         skippedReason: `${openCount} open position(s)`
       };
+      persistConfigSnapshot();
       return;
     }
   }
@@ -1756,6 +1758,7 @@ async function maybeRotatePairUniverse({ now, state }) {
       skippedAt: new Date(now).toISOString(),
       skippedReason: `recoverable balance ${recoverableSymbol}`
     };
+    persistConfigSnapshot();
     return;
   }
 
@@ -1858,6 +1861,7 @@ async function maybeRotatePairUniverse({ now, state }) {
       activeCategories,
       blacklistCount: stopLossBlacklist.size
     };
+    persistConfigSnapshot();
     logEvent(LOG_FILE, "WARN", "Auto-rotate found no eligible pair candidates");
     lastAutoPairRotationAt = now;
     return;
@@ -1879,6 +1883,7 @@ async function maybeRotatePairUniverse({ now, state }) {
     activeCategories,
     blacklistCount: stopLossBlacklist.size
   };
+  persistConfigSnapshot();
 
   if (changed) {
     logEvent(LOG_FILE, "INFO", `Auto-rotate active pairs (${config.pairs.length}): ${config.pairs.join(",")}`);

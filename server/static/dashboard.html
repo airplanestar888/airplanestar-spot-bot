@@ -245,17 +245,6 @@
   </div>
 </div>
 
-<div class="acc" id="accRotate">
-  <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
-  <div class="acc-body">
-    <div class="field-grid">
-      <div class="field"><label>Refresh Interval (hours)</label><input id="autoPairRotateHoursEditor" type="number" step="1" min="1"></div>
-      <div class="field"><label>Active Pairs (top N)</label><input id="autoPairRotateTopEditor" type="number" step="1" min="1"></div>
-      <div class="field"><label>SL Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
-    </div>
-  </div>
-</div>
-
 <div class="acc" id="accIntervals">
   <div class="acc-hd" onclick="toggleAcc('accIntervals')"><h3>Report Intervals</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
@@ -270,8 +259,19 @@
   </div>
 </div>
 
+<div class="acc" id="accRotate">
+  <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Refresh Interval (hours)</label><input id="autoPairRotateHoursEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>Active Pairs (top N)</label><input id="autoPairRotateTopEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>SL Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
+    </div>
+  </div>
+</div>
+
 <div class="acc" id="accPairs">
-  <div class="acc-hd" onclick="toggleAcc('accPairs')"><h3>Pair Universe</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-hd" onclick="toggleAcc('accPairs')"><h3>Active Pairs</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="config-status" id="pairLiveStatus">Live pair weight belum dimuat.</div>
     <div class="pair-grid" id="pairEditor"></div>

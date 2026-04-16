@@ -6,7 +6,7 @@
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
     "TAOUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "HYPEUSDT": {
       "enabled": true
@@ -15,7 +15,7 @@
       "enabled": true
     },
     "RENDERUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BTCUSDT": {
       "enabled": true
@@ -24,16 +24,16 @@
       "enabled": true
     },
     "XAUTUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "PENGUUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "TURBOUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BGBUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ADAUSDT": {
       "enabled": false
@@ -99,10 +99,10 @@
       "enabled": false
     },
     "RTXUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "SOLUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "SWARMSUSDT": {
       "enabled": false
@@ -123,22 +123,55 @@
       "enabled": false
     },
     "XRPUSDT": {
-      "enabled": false
-    },
-    "NIGHTUSDT": {
       "enabled": true
     },
+    "NIGHTUSDT": {
+      "enabled": false
+    },
     "ARBUSDT": {
+      "enabled": false
+    },
+    "SUIUSDT": {
+      "enabled": false
+    },
+    "EDGEUSDT": {
+      "enabled": false
+    },
+    "AAVEUSDT": {
+      "enabled": false
+    },
+    "GOMININGUSDT": {
+      "enabled": false
+    },
+    "PUMPUSDT": {
+      "enabled": false
+    },
+    "FARTCOINUSDT": {
+      "enabled": false
+    },
+    "KITEUSDT": {
+      "enabled": false
+    },
+    "IRYSUSDT": {
+      "enabled": false
+    },
+    "LDOUSDT": {
+      "enabled": false
+    },
+    "TRUMPUSDT": {
+      "enabled": false
+    },
+    "SLVONUSDT": {
       "enabled": true
     }
   },
   "riskPercent": 0.15,
   "dryRun": false,
-  "minBuyUSDT": 5,
+  "minBuyUSDT": 10,
   "maxBuyUSDT": 10,
   "reserveUSDT": 1.5,
   "enableMultiTrade": true,
-  "maxOpenPositions": 2,
+  "maxOpenPositions": 1,
   "autoPairRotation": {
     "enabled": true,
     "refreshIntervalHours": 3,
@@ -179,7 +212,7 @@
   "enableStaleTrade": true,
   "enableCostGuard": true,
   "costGuardArmPct": 0.004,
-  "costGuardFloorPct": 0.0015,
+  "costGuardFloorPct": 0.003,
   "roundTripFeePct": 0.004,
   "slippageBufferPct": 0.001,
   "minExpectedNetPct": 0.002,
@@ -591,5 +624,26 @@
   "_effectiveBreakEvenArmedPct": 0.006,
   "_effectiveCostPct": 0.005,
   "_effectiveMaxTrades": 100,
-  "_effectiveAllowEntries": true
+  "_effectiveAllowEntries": true,
+  "lastAutoPairRotation": {
+    "at": "2026-04-16T00:00:26.039Z",
+    "enabled": true,
+    "changed": true,
+    "refreshIntervalHours": 3,
+    "topPairs": 10,
+    "activePairs": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "USDCUSDT",
+      "XRPUSDT",
+      "HYPEUSDT",
+      "BGBUSDT",
+      "SOLUSDT",
+      "XAUTUSDT",
+      "RTXUSDT",
+      "SLVONUSDT"
+    ],
+    "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
+    "blacklistCount": 0
+  }
 }

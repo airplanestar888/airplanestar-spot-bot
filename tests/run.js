@@ -52,11 +52,11 @@ async function testConfigMerge() {
 
   assert.equal(config.activeBotType, "custom");
   assert.equal(config.activeMode, "aggressive");
-  assert.equal(config.requireFastTrend, false);
+  assert.equal(config.requireFastTrend, baseConfig.botTypeProfiles.custom.overrides.requireFastTrend);
   assert.equal(config.requireBreakout, false); // custom botType overrides requireBreakout: false
   assert.equal(config.enableVolumeFilter, true);
-  assert.equal(config.riskPercent, 0.18);
-  assert.equal(config.takeProfitPct, 0.013);
+  assert.equal(config.riskPercent, baseConfig.modeProfiles.aggressive.overrides.riskPercent);
+  assert.equal(config.takeProfitPct, baseConfig.modeProfiles.aggressive.overrides.takeProfitPct);
   assert.equal(config.marketEntriesEnabled, false);
 }
 

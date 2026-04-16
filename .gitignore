@@ -6,6 +6,7 @@ data/health.json
 data/state.json
 data/market_snapshot.json
 data/trade_journal.json
+data/*.bak
 
 # Logs
 logs/*.log
