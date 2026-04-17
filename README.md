@@ -7,6 +7,7 @@ Bot spot trading Bitget berbasis Node.js dengan:
 - report Telegram
 - konfigurasi terpusat di `config.json`
 - mode single-trade atau multi-trade ringan
+- startup validation untuk file engine, config, dan dependency
 
 ## Disclaimer
 
@@ -118,6 +119,12 @@ Atau di Linux:
 - install dependency yang kurang bila perlu
 - lalu menjalankan startup validation sebelum loop bot dimulai
 
+Validation startup mencakup:
+- file engine penting ada dan bisa dibaca
+- folder runtime bisa ditulis
+- field config utama valid
+- profile `bot type`, `trade style`, dan `market profile` yang dipilih memang ada
+
 Stop bot:
 - tekan `Ctrl+C`
 
@@ -149,8 +156,10 @@ Untuk setting umum yang berlaku lintas strategi:
 - `maxRoundsPerDay`
 - `dailyProfitTargetPct`, `dailyLossLimitPct`
 - `loopIntervalMs`
+- `holdCheckIntervalMs`
 - `report.*`
 - `autoPairRotation.*`
+- `usePairReentryBlock`, `pairReentryBlockLossPct`, `pairReentryBlockMinutes`
 - `pairSettings`
 
 `pairSettings` hanya menentukan pair aktif:
@@ -229,6 +238,7 @@ Field umumnya:
 - `breakEvenFloorPct`
 - `minMomentumExitPct`
 - `exitRSIThreshold`
+- `exitTimeframe`
 - `cooldownMs`
 
 ## Entry Logic
@@ -280,6 +290,11 @@ Saat Dynamic TP aktif:
 - level yang lebih rendah ditampilkan sebagai `DTP`
 - jika profit sempat melewati `DTP` lalu gagal lanjut ke `TP`, bot bisa keluar lewat `DTP Fallback`
 
+Catatan:
+- `Exit Candle Timeframe` menentukan candle basis analisa exit saat posisi sudah hold
+- `holdCheckIntervalMs` menentukan seberapa sering posisi hold dicek ulang
+- default dashboard saat ini mendukung `Exit Candle Timeframe = Follow Signal TF`
+
 ## Runtime Flow
 
 Urutan runtime sederhananya:
@@ -292,6 +307,11 @@ Urutan runtime sederhananya:
 7. bot evaluasi exit
 8. jika aman dan ada setup, bot bisa entry
 
+Polling runtime:
+- saat tidak ada posisi, loop ikut `loopIntervalMs`
+- saat ada posisi hold, loop ikut `holdCheckIntervalMs`
+- polling hold berbeda dari `exitTimeframe`: yang satu ritme cek, yang satu basis candle analisa
+
 Aturan recovery:
 1. asset di bawah `minManagedPositionUSDT` dianggap terlalu kecil untuk dikelola
 2. recovery hanya boleh mulai dari `minRecoverUSDT`
@@ -302,6 +322,16 @@ Aturan auto rotate:
 2. auto rotate hanya boleh jalan saat tidak ada open position
 3. jika ada balance recoverable `>= minRecoverUSDT`, auto rotate akan di-skip
 4. saat startup, bot menjalankan satu siklus `runBot()` dulu sebelum auto rotate pertama
+5. hasil rotate pair aktif akan langsung dipersist ke `config.json`, jadi dashboard dan runtime membaca sumber pair aktif yang sama
+
+Pair flags untuk auto rotate:
+- `Disable Pair on SL`
+- `Disable Pair on Stale Trade`
+- `Disable Pair on Any Loss`
+
+Catatan pair flags:
+- `Cost Guard` tidak ikut dihitung sebagai `Any Loss` blacklist
+- reentry block berbeda dengan pair flag auto rotate; reentry block hanya mencegah buy ulang cepat pada pair yang sama
 
 ## File Runtime
 
@@ -328,6 +358,8 @@ File runtime penting:
 - `Enable Multi Trade=true` mengizinkan beberapa posisi terbuka sekaligus, tetap dibatasi oleh `maxOpenPositions` dan `exposureCapPct`.
 - `Managed Position Min USDT` dan `Recovery Min USDT` bisa diatur dari dashboard untuk menentukan kapan asset kecil diabaikan dan kapan balance boleh direcover jadi posisi bot.
 - accounting trade sekarang memakai actual fill price untuk gross PnL, dan memakai actual fee/slippage bila data exchange tersedia.
+- dry-run memakai engine yang sama dengan live untuk decision flow; yang dibedakan hanya execution/fill simulasi.
+- log CLI candle fetch sengaja diringkas pada kondisi sukses, sementara detail pair tetap muncul saat `WARN` atau `ERROR`.
 
 ## Command Berguna
 

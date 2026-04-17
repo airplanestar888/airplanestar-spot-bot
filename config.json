@@ -5,13 +5,19 @@
   "marketProfileMode": "manual",
   "selectedMarketProfile": "neutral",
   "pairSettings": {
-    "NIGHTUSDT": {
-      "enabled": true
-    },
     "IRYSUSDT": {
       "enabled": true
     },
+    "PAXGUSDT": {
+      "enabled": false
+    },
     "ABUSDT": {
+      "enabled": false
+    },
+    "COLLECTUSDT": {
+      "enabled": true
+    },
+    "SOLUSDT": {
       "enabled": true
     },
     "XRPUSDT": {
@@ -20,14 +26,11 @@
     "HYPEUSDT": {
       "enabled": true
     },
-    "CYSUSDT": {
+    "SLVONUSDT": {
       "enabled": true
     },
     "ADAUSDT": {
-      "enabled": true
-    },
-    "BTCUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "DOGEUSDT": {
       "enabled": true
@@ -36,33 +39,30 @@
       "enabled": true
     },
     "LINKUSDT": {
-      "enabled": true
-    },
-    "SOLUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "XPLUSDT": {
+      "enabled": false
+    },
+    "USDCUSDT": {
       "enabled": true
     },
-    "COLLECTUSDT": {
-      "enabled": true
-    },
-    "SLVONUSDT": {
+    "XAUTUSDT": {
       "enabled": true
     },
     "EDGEUSDT": {
       "enabled": true
     },
-    "USDCUSDT": {
+    "NIGHTUSDT": {
+      "enabled": true
+    },
+    "BTCUSDT": {
+      "enabled": true
+    },
+    "CYSUSDT": {
       "enabled": true
     },
     "BGBUSDT": {
-      "enabled": true
-    },
-    "PAXGUSDT": {
-      "enabled": true
-    },
-    "XAUTUSDT": {
       "enabled": true
     },
     "AAVEUSDT": {
@@ -126,7 +126,7 @@
       "enabled": false
     },
     "ICNTUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "INJUSDT": {
       "enabled": false
@@ -195,7 +195,7 @@
       "enabled": false
     },
     "TAGUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "TAOUSDT": {
       "enabled": false
@@ -238,6 +238,15 @@
     },
     "ZBCNUSDT": {
       "enabled": false
+    },
+    "TRIAUSDT": {
+      "enabled": true
+    },
+    "XDCUSDT": {
+      "enabled": true
+    },
+    "HUSDT": {
+      "enabled": true
     }
   },
   "riskPercent": 0.15,
@@ -262,7 +271,7 @@
   "exposureCapPct": 0.5,
   "minManagedPositionUSDT": 2.5,
   "minRecoverUSDT": 3,
-  "takeProfitPct": 0.012,
+  "takeProfitPct": 0.015,
   "useDynamicTakeProfit": true,
   "dynamicTakeProfitAtrMultiplier": 1.35,
   "trailingActivationPct": 0.008,
@@ -668,7 +677,7 @@
       "overrides": {
         "riskPercent": 0.15,
         "reserveUSDT": 1,
-        "takeProfitPct": 0.012,
+        "takeProfitPct": 0.015,
         "trailingActivationPct": 0.008,
         "trailingDrawdownPct": 0.004,
         "trailingProtectionPct": 0.003,
@@ -700,43 +709,43 @@
   "_effectiveSlippageBufferPct": 0.001,
   "_effectiveRoundTripFeePct": 0.004,
   "_effectiveMinExpectedNetPct": 0.0026,
-  "_effectiveTakeProfitPct": 0.012,
+  "_effectiveTakeProfitPct": 0.015,
   "_effectiveTrailingActivationPct": 0.008,
   "_effectiveBreakEvenArmedPct": 0.006,
   "_effectiveCostPct": 0.005,
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-17T04:35:30.259Z",
+    "at": "2026-04-17T06:34:40.448Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 3,
     "topPairs": 20,
     "activePairs": [
-      "EDGEUSDT",
+      "TAGUSDT",
+      "IRYSUSDT",
+      "ICNTUSDT",
       "BTCUSDT",
       "ETHUSDT",
+      "TRIAUSDT",
+      "EDGEUSDT",
       "USDCUSDT",
-      "SLVONUSDT",
+      "NIGHTUSDT",
       "BGBUSDT",
-      "SOLUSDT",
       "XRPUSDT",
       "HYPEUSDT",
-      "IRYSUSDT",
+      "SLVONUSDT",
+      "XDCUSDT",
+      "SOLUSDT",
+      "COLLECTUSDT",
       "XAUTUSDT",
       "DOGEUSDT",
-      "NIGHTUSDT",
       "CYSUSDT",
-      "COLLECTUSDT",
-      "XPLUSDT",
-      "PAXGUSDT",
-      "ADAUSDT",
-      "LINKUSDT",
-      "ABUSDT"
+      "HUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
     "blacklistCount": 8,
-    "skippedAt": "2026-04-17T06:18:58.510Z",
-    "skippedReason": "1 open position(s)"
+    "skippedAt": "2026-04-17T09:34:40.456Z",
+    "skippedReason": "2 open position(s)"
   }
 }
