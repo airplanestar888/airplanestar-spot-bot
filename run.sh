@@ -16,7 +16,10 @@ if [ "$dep_status" -ne 0 ]; then
   fi
 
   echo "[VALIDATION] installing missing dependencies..."
-  npm install
+  if ! npm install; then
+    echo "[VALIDATION] dependency install failed. Startup canceled."
+    exit 1
+  fi
   echo "[VALIDATION] dependencies installed."
 fi
 

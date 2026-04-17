@@ -244,7 +244,7 @@
   "dryRun": false,
   "minBuyUSDT": 5,
   "maxBuyUSDT": 10,
-  "reserveUSDT": 1.5,
+  "reserveUSDT": 1,
   "enableMultiTrade": true,
   "maxOpenPositions": 3,
   "autoPairRotation": {
@@ -296,8 +296,8 @@
   "minScalpTargetPct": 0.008,
   "maxScalpTargetPct": 0.012,
   "minTrendRsi": 40,
-  "minAtrPct": 0.0028,
-  "maxAtrPct": 0.02,
+  "minAtrPct": 0.002,
+  "maxAtrPct": 0.025,
   "minVolumeRatio": 1.06,
   "maxEmaGapPct": 0.015,
   "minMomentumExitPct": 0.0045,
@@ -313,7 +313,7 @@
   "usePairReentryBlock": true,
   "pairReentryBlockLossPct": 0.01,
   "pairReentryBlockMinutes": 1440,
-  "maxRoundsPerDay": 100,
+  "maxRoundsPerDay": 9999,
   "stopAfterThreeConsecutiveLosses": false,
   "lossStreakHaltThreshold": 10,
   "dailyProfitTargetPct": 0.05,
@@ -687,24 +687,24 @@
       }
     }
   },
-  "maxTradesPerDay": 100,
+  "maxTradesPerDay": 9999,
   "exitTimeframe": "signal",
   "activeBotType": "custom",
   "activeBotTypeLabel": "Custom Bot Type",
   "activeBotTypeDescription": "Profile bot type buatan user. Gunakan ini kalau mau mengatur struktur setup sendiri tanpa mengubah profile bot type bawaan.",
-  "activeMode": "aggressive",
-  "activeModeLabel": "Aggressive Light",
-  "activeModeDescription": "Lebih sering cari entry, tapi masih pakai guard fee dan time stop.",
+  "activeMode": "custom",
+  "activeModeLabel": "Custom Trade",
+  "activeModeDescription": "Profile gaya trading buatan user. Pakai ini kalau mau simpan setting sendiri tanpa mengubah mode bawaan.",
   "_effectiveRisk": 0.15,
   "_effectiveCooldown": 600000,
   "_effectiveSlippageBufferPct": 0.001,
   "_effectiveRoundTripFeePct": 0.004,
-  "_effectiveMinExpectedNetPct": 0.002,
+  "_effectiveMinExpectedNetPct": 0.0026,
   "_effectiveTakeProfitPct": 0.012,
   "_effectiveTrailingActivationPct": 0.008,
   "_effectiveBreakEvenArmedPct": 0.006,
   "_effectiveCostPct": 0.005,
-  "_effectiveMaxTrades": 100,
+  "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
     "at": "2026-04-17T04:35:30.259Z",
@@ -735,6 +735,8 @@
       "ABUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 8
+    "blacklistCount": 8,
+    "skippedAt": "2026-04-17T06:18:58.510Z",
+    "skippedReason": "1 open position(s)"
   }
 }

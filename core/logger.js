@@ -13,6 +13,8 @@ const COLORS = {
   cyan: "\x1b[36m"
 };
 
+const lastCliDebugSummaryAt = new Map();
+
 function cliTime(isoTime) {
   const dt = new Date(isoTime);
   if (Number.isNaN(dt.getTime())) return "--:--:--";
@@ -79,7 +81,7 @@ function summarizeCliMessage(level, message) {
 
   const candleMatch = text.match(/^Candle fetch\s+(\S+)\s+\(([^)]+)\)/i);
   if (candleMatch) {
-    return `Candle fetch ${candleMatch[1]} (${candleMatch[2]})`;
+    return `Candle fetch ${candleMatch[2]} pass`;
   }
 
   for (const item of mappings) {
@@ -95,6 +97,15 @@ function printCliEntry(entry) {
   const timeText = cliTime(entry.time);
   const status = getCliStatus(entry.level, entry.message);
   const displayMessage = summarizeCliMessage(entry.level, entry.message);
+  const upper = String(entry.level || "").toUpperCase();
+  if (upper === "DEBUG" && /^Candle fetch\s+/i.test(displayMessage)) {
+    const nowMs = Date.parse(entry.time) || Date.now();
+    const lastAt = lastCliDebugSummaryAt.get(displayMessage) || 0;
+    if ((nowMs - lastAt) < 5000) {
+      return;
+    }
+    lastCliDebugSummaryAt.set(displayMessage, nowMs);
+  }
   const divider = `${COLORS.dim}|${COLORS.reset}`;
   console.log(
     `${COLORS.brightGreen}${timeText}${COLORS.reset} ${divider} ${status.color}${padRight(status.label, 5)}${COLORS.reset} ${divider} ${COLORS.white}${displayMessage}${COLORS.reset}`
