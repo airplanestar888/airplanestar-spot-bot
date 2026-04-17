@@ -89,7 +89,8 @@ function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
       const pnlPct = Number(row.exit?.pnlPct ?? row.PnL_pct ?? row.pnlPct ?? 0);
       const stopLossHit = reason.includes("emergency sl") || reason.includes("atr stop loss");
       const staleTradeHit = reason.includes("stale trade");
-      const anyLossHit = Number.isFinite(pnlPct) && pnlPct < 0;
+      const costGuardHit = reason.includes("cost guard");
+      const anyLossHit = Number.isFinite(pnlPct) && pnlPct < 0 && !costGuardHit;
       const shouldFlag =
         (rotationCfg.disableOnStopLoss && stopLossHit) ||
         (rotationCfg.disableOnStaleTrade && staleTradeHit) ||
