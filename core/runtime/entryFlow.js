@@ -153,8 +153,28 @@ async function handleEntryFlow({
   if (config.dryRun) {
     state.positions = [...positions, positionMeta];
     state.position = state.positions[0] || null;
+    state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
+    state.recentEntriesBySymbol[bestEligible.symbol] = {
+      at: now,
+      entry: positionMeta.entry,
+      qty: positionMeta.qty,
+      sizeUSDT: positionMeta.sizeUSDT
+    };
     state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
     saveState(STATE_PATH, state);
+    await report(reporting.buildBuyReport(
+      bestEligible.symbol,
+      positionMeta.entry,
+      positionMeta.sizeUSDT,
+      positionMeta.qty,
+      stopPct,
+      config.emergencyStopLossPct,
+      config.trailingActivationPct,
+      usdtFree - plannedSize,
+      buyReasons,
+      positionTakeProfitPct,
+      profitActivationPct
+    ));
     logTrade({
       type: "entry",
       source: "signal",
@@ -165,6 +185,8 @@ async function handleEntryFlow({
       pair: bestEligible.symbol,
       side: "buy",
       price: bestEligible.price,
+      intendedPrice: bestEligible.price,
+      fillPrice: bestEligible.price,
       qty: estimatedQty,
       sizeUSDT: plannedSize,
       reason: (positionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
@@ -174,7 +196,10 @@ async function handleEntryFlow({
       entry_marketMode: marketMode,
       entry_volatility: volatilityState
     });
-    return { handled: true };
+    return {
+      handled: true,
+      currentPositionPrice: positionMeta.entry
+    };
   }
 
   const entryResult = await safeExecute(async () => placeOrder(bestEligible.symbol, "buy", sizeCapped, clientOrderId));
