@@ -504,7 +504,11 @@ async function evaluateExit(position, balances, config, getCandles) {
   }
   // Exit check uses exitTimeframe (default 1min) for real-time responsiveness.
   // Entry signals use signalTimeframe (3min) + trendTimeframe (15min) — intentionally different.
-  const exitTimeframe = config.exitTimeframe || "1min";
+  const rawExitTimeframe = String(config.exitTimeframe || "").trim().toLowerCase();
+  const exitTimeframe =
+    !rawExitTimeframe || rawExitTimeframe === "signal"
+      ? (config.signalTimeframe || "3min")
+      : config.exitTimeframe;
   const candles = await getCandles(symbol, exitTimeframe, 60);
   if (!candles || candles.length < 2) return null;
   const closes = candles.map(c => parseFloat(c[4]));

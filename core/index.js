@@ -631,7 +631,7 @@ function normalizeConfig() {
     'minExpectedNetPct', 'minScalpTargetPct', 'maxScalpTargetPct',
     'minAtrPct', 'maxAtrPct', 'minTrendRsi', 'minVolumeRatio', 'maxEmaGapPct',
     'minCandleStrength', 'breakoutPct', 'maxOpenPositions', 'exposureCapPct',
-    'pairReentryBlockLossPct', 'pairReentryBlockMinutes'
+    'pairReentryBlockLossPct', 'pairReentryBlockMinutes', 'holdCheckIntervalMs'
   ];
   for (const field of numericFields) {
     if (config[field] !== undefined) {
@@ -2083,7 +2083,7 @@ function detectOpenPositionFromBalanceLegacy(balances, priceMap, config) {
   return null;
 }
 
-async function placeOrder(symbol, side, size, clientOrderId = null) {
+async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPrice = null) {
   if (executionKillSwitch) {
     throw new Error("Execution kill switch active");
   }
@@ -2132,9 +2132,12 @@ async function placeOrder(symbol, side, size, clientOrderId = null) {
   }
 
   if (config.dryRun) {
-    // Fix #5: use cached market price as simulated fill price (not 0)
+    // Keep dry-run fills aligned with the runtime decision price whenever
+    // the caller already has a validated entry/exit price.
     const coinKey = symbol.replace(/USDT$/i, "").toLowerCase();
-    const simPrice = cachedPrices?.[coinKey] ?? 0;
+    const simPrice = Number.isFinite(simulatedPrice) && Number(simulatedPrice) > 0
+      ? Number(simulatedPrice)
+      : (cachedPrices?.[coinKey] ?? 0);
     logEvent(LOG_FILE, "SIMULATE", `ORDER ${side} ${symbol} size=${sizeStr} simPrice=${simPrice}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
     return {
       orderId: `SIM_${Date.now()}`,
@@ -2976,7 +2979,9 @@ async function startBot() {
     } finally {
       if (!shutdownRequested) {
         const hasOpenPos = getOpenPositions(state).length > 0;
-        const delayMs = hasOpenPos ? 30000 : (config.loopIntervalMs || 60000);
+        const delayMs = hasOpenPos
+          ? (config.holdCheckIntervalMs || 30000)
+          : (config.loopIntervalMs || 60000);
         loopTimer = setTimeout(scheduleNextRun, delayMs);
       }
     }

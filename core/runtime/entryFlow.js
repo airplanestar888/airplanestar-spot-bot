@@ -151,22 +151,62 @@ async function handleEntryFlow({
   });
 
   if (config.dryRun) {
-    state.positions = [...positions, positionMeta];
+    const entryResult = await safeExecute(async () => placeOrder(
+      bestEligible.symbol,
+      "buy",
+      sizeCapped,
+      clientOrderId,
+      bestEligible.price
+    ));
+    if (!entryResult.success) {
+      return { handled: true };
+    }
+
+    const orderResult = entryResult.result;
+    if (!["FILLED", "PARTIAL"].includes(normalizeOrderStatus(orderResult.status))) {
+      throw new Error(`Dry-run entry not executable: ${orderResult.status}`);
+    }
+    logEvent(LOG_FILE, "INFO", `Dry-run order placed: ${orderResult.orderId} filled=${orderResult.filledSize} avg=${safeToFixed(orderResult.avgPrice, 6)} status=${orderResult.status}`);
+
+    const dryRunEntryPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
+      ? Number(orderResult.avgPrice)
+      : bestEligible.price;
+    const dryRunEntrySlippagePct = calcBuySlippagePct(bestEligible.price, dryRunEntryPrice);
+    const dryRunPositionMeta = buildPositionMeta({
+      bestEligible,
+      marketMode,
+      stopPct,
+      plannedSize,
+      estimatedQty,
+      now,
+      entryPrice: dryRunEntryPrice,
+      actualQty: estimatedQty,
+      actualSizeUSDT: plannedSize,
+      intendedEntryPrice: bestEligible.price,
+      entryFillPrice: dryRunEntryPrice,
+      entrySlippagePct: dryRunEntrySlippagePct,
+      takeProfitPct: positionTakeProfitPct,
+      profitActivationPct,
+      profitActivationFloorPct,
+      useDynamicTakeProfit: dynamicTakeProfitEnabled
+    });
+
+    state.positions = [...positions, dryRunPositionMeta];
     state.position = state.positions[0] || null;
     state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
     state.recentEntriesBySymbol[bestEligible.symbol] = {
       at: now,
-      entry: positionMeta.entry,
-      qty: positionMeta.qty,
-      sizeUSDT: positionMeta.sizeUSDT
+      entry: dryRunPositionMeta.entry,
+      qty: dryRunPositionMeta.qty,
+      sizeUSDT: dryRunPositionMeta.sizeUSDT
     };
     state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
     saveState(STATE_PATH, state);
     await report(reporting.buildBuyReport(
       bestEligible.symbol,
-      positionMeta.entry,
-      positionMeta.sizeUSDT,
-      positionMeta.qty,
+      dryRunPositionMeta.entry,
+      dryRunPositionMeta.sizeUSDT,
+      dryRunPositionMeta.qty,
       stopPct,
       config.emergencyStopLossPct,
       config.trailingActivationPct,
@@ -184,12 +224,13 @@ async function handleEntryFlow({
       marketProfileMode: config.marketProfileMode || "",
       pair: bestEligible.symbol,
       side: "buy",
-      price: bestEligible.price,
+      price: dryRunEntryPrice,
       intendedPrice: bestEligible.price,
-      fillPrice: bestEligible.price,
+      fillPrice: dryRunEntryPrice,
+      slippagePct: dryRunEntrySlippagePct != null ? dryRunEntrySlippagePct * 100 : null,
       qty: estimatedQty,
       sizeUSDT: plannedSize,
-      reason: (positionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
+      reason: (dryRunPositionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
       entry_rsi: bestEligible.rsi,
       entry_atrPct: bestEligible.atrPct,
       entry_score: bestEligible.score,
@@ -198,11 +239,17 @@ async function handleEntryFlow({
     });
     return {
       handled: true,
-      currentPositionPrice: positionMeta.entry
+      currentPositionPrice: dryRunPositionMeta.entry
     };
   }
 
-  const entryResult = await safeExecute(async () => placeOrder(bestEligible.symbol, "buy", sizeCapped, clientOrderId));
+  const entryResult = await safeExecute(async () => placeOrder(
+    bestEligible.symbol,
+    "buy",
+    sizeCapped,
+    clientOrderId,
+    bestEligible.price
+  ));
   if (!entryResult.success) {
     return { handled: true };
   }

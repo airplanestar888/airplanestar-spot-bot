@@ -80,7 +80,7 @@ async function handleExitFlow({
         ? exitEval.currentPrice
         : resolvedCurrentPrice;
 
-      const exitResult = await safeExecute(async () => placeOrder(symbol, "sell", coinBal));
+      const exitResult = await safeExecute(async () => placeOrder(symbol, "sell", coinBal, null, exitPrice));
       if (!exitResult.success) {
         if (exitResult.skip) return { handledExit: true, lastHoldReportTime };
         logEvent(LOG_FILE, "ERROR", `Exit failed: ${exitResult.error?.message || "unknown"}`);

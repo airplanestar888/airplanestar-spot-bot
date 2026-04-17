@@ -255,6 +255,7 @@
   <div class="acc-body">
     <div class="field-grid">
       <div class="field"><label>Loop (ms)</label><input id="loopIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>Hold Check (ms)</label><input id="holdCheckIntervalEditor" type="number" step="1000" min="1000"></div>
       <div class="field"><label>Heartbeat (ms)</label><input id="heartbeatIntervalEditor" type="number" step="1000" min="0"></div>
       <div class="field"><label>Market Report (ms)</label><input id="marketIntervalEditor" type="number" step="1000" min="0"></div>
       <div class="field"><label>Balance Report (ms)</label><input id="balanceIntervalEditor" type="number" step="1000" min="0"></div>
@@ -395,7 +396,7 @@ let journal=[],currentConfig=null,folderHandle=null,configHandle=null,journalHan
 let toastTimer=null;
 
 /* --- Editor maps (STRICT layer separation) --- */
-const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',minManagedPositionUSDT:'minManagedPositionUsdtEditor',minRecoverUSDT:'minRecoverUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',usePairReentryBlock:'pairReentryBlockEnabledEditor',pairReentryBlockLossPct:'pairReentryBlockLossPctEditor',pairReentryBlockMinutes:'pairReentryBlockMinutesEditor',loopIntervalMs:'loopIntervalEditor'};
+const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',minManagedPositionUSDT:'minManagedPositionUsdtEditor',minRecoverUSDT:'minRecoverUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',usePairReentryBlock:'pairReentryBlockEnabledEditor',pairReentryBlockLossPct:'pairReentryBlockLossPctEditor',pairReentryBlockMinutes:'pairReentryBlockMinutesEditor',loopIntervalMs:'loopIntervalEditor',holdCheckIntervalMs:'holdCheckIntervalEditor'};
 const BOT_BOOL_KEYS=new Set(['dryRun','enableCostGuard','useDynamicTakeProfit','enableMultiTrade','stopAfterThreeConsecutiveLosses','usePairReentryBlock']);
 const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor','autoPairRotation.enabled':'autoPairRotateEnabledEditor','autoPairRotation.refreshIntervalHours':'autoPairRotateHoursEditor','autoPairRotation.topPairs':'autoPairRotateTopEditor','autoPairRotation.disableOnStopLoss':'autoPairDisableSlEditor','autoPairRotation.disableOnStaleTrade':'autoPairDisableStaleEditor','autoPairRotation.disableOnAnyLoss':'autoPairDisableAnyLossEditor','autoPairRotation.stopLossCooldownHours':'autoPairSlCooldownHoursEditor'};
 const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled','autoPairRotation.enabled','autoPairRotation.disableOnStopLoss','autoPairRotation.disableOnStaleTrade','autoPairRotation.disableOnAnyLoss']);
@@ -561,6 +562,12 @@ function popPairs(ps={}){
   }).join(''):'<div class="empty">Pair settings tidak ditemukan.</div>';
 }
 
+function ensureExitTimeframeOptions(){
+  const el=document.getElementById('tExitTimeframe');
+  if(!el)return;
+  el.innerHTML='<option value="signal">Follow Signal TF</option><option value="1min">1min</option><option value="3min">3min</option><option value="5min">5min</option><option value="15min">15min</option><option value="1h">1h</option><option value="4h">4h</option>';
+}
+
 function popCfg(){
   if(!currentConfig)return;
   if(currentConfig.maxRoundsPerDay==null&&currentConfig.maxTradesPerDay!=null)currentConfig.maxRoundsPerDay=currentConfig.maxTradesPerDay;
@@ -570,7 +577,9 @@ function popCfg(){
   if(currentConfig.autoPairRotation.topPairs==null)currentConfig.autoPairRotation.topPairs=10;
   if(currentConfig.autoPairRotation.disableOnStopLoss==null)currentConfig.autoPairRotation.disableOnStopLoss=true;
   if(!currentConfig.autoPairRotation.stopLossCooldownHours)currentConfig.autoPairRotation.stopLossCooldownHours=24;
-  if(!currentConfig.exitTimeframe)currentConfig.exitTimeframe='1min';
+  if(!currentConfig.holdCheckIntervalMs)currentConfig.holdCheckIntervalMs=30000;
+  ensureExitTimeframeOptions();
+  if(!currentConfig.exitTimeframe)currentConfig.exitTimeframe='signal';
   popBotType();popMode();popMktProf();
   for(const[k,id]of Object.entries(BOT_MAP))sEv(id,currentConfig[k]);
   for(const[path,id]of Object.entries(BOT_NESTED_MAP))sEv(id,getByPath(currentConfig,path));

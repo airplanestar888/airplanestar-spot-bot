@@ -69,6 +69,7 @@ function validateConfig(config, selection = {}) {
     ...validateNumericRange(config, "minCandleStrength", { min: 0, max: 1 }),
     ...validateNumericRange(config, "breakoutPct", { min: 0.9, max: 1.1 }),
     ...validateNumericRange(config, "loopIntervalMs", { min: 1000, max: 86_400_000 }),
+    ...validateNumericRange(config, "holdCheckIntervalMs", { min: 1000, max: 86_400_000 }),
     ...validateNumericRange(config, "cooldownMs", { min: 0, max: 86_400_000 }),
     ...validateNumericRange(config, "pairReentryBlockLossPct", { min: 0.001, max: 0.2 }),
     ...validateNumericRange(config, "pairReentryBlockMinutes", { min: 1, max: 1440 }),

@@ -1,68 +1,71 @@
 {
   "baseUrl": "https://api.bitget.com",
   "selectedBotType": "custom",
-  "selectedMode": "aggressive",
-  "marketProfileMode": "auto",
-  "selectedMarketProfile": "bullish_slow",
+  "selectedMode": "custom",
+  "marketProfileMode": "manual",
+  "selectedMarketProfile": "neutral",
   "pairSettings": {
+    "NIGHTUSDT": {
+      "enabled": true
+    },
+    "IRYSUSDT": {
+      "enabled": true
+    },
+    "ABUSDT": {
+      "enabled": true
+    },
     "XRPUSDT": {
       "enabled": true
     },
-    "UNIUSDT": {
-      "enabled": false
-    },
-    "INJUSDT": {
-      "enabled": false
-    },
-    "ZBCNUSDT": {
-      "enabled": false
-    },
-    "XPLUSDT": {
-      "enabled": false
-    },
-    "VIRTUALUSDT": {
-      "enabled": false
-    },
-    "SHIBUSDT": {
-      "enabled": false
-    },
-    "PEPEUSDT": {
-      "enabled": false
-    },
-    "WLDUSDT": {
-      "enabled": false
-    },
-    "SUIUSDT": {
-      "enabled": false
-    },
-    "ONDOUSDT": {
-      "enabled": false
-    },
-    "DOGEUSDT": {
+    "HYPEUSDT": {
       "enabled": true
     },
-    "PENGUUSDT": {
-      "enabled": false
-    },
-    "BONKUSDT": {
-      "enabled": false
-    },
-    "ETHFIUSDT": {
-      "enabled": false
+    "CYSUSDT": {
+      "enabled": true
     },
     "ADAUSDT": {
       "enabled": true
     },
-    "FARTCOINUSDT": {
-      "enabled": false
+    "BTCUSDT": {
+      "enabled": true
     },
-    "AAVEUSDT": {
-      "enabled": false
+    "DOGEUSDT": {
+      "enabled": true
+    },
+    "ETHUSDT": {
+      "enabled": true
+    },
+    "LINKUSDT": {
+      "enabled": true
     },
     "SOLUSDT": {
       "enabled": true
     },
-    "XLMUSDT": {
+    "XPLUSDT": {
+      "enabled": true
+    },
+    "COLLECTUSDT": {
+      "enabled": true
+    },
+    "SLVONUSDT": {
+      "enabled": true
+    },
+    "EDGEUSDT": {
+      "enabled": true
+    },
+    "USDCUSDT": {
+      "enabled": true
+    },
+    "BGBUSDT": {
+      "enabled": true
+    },
+    "PAXGUSDT": {
+      "enabled": true
+    },
+    "XAUTUSDT": {
+      "enabled": true
+    },
+    "AAVEUSDT": {
       "enabled": false
     },
     "AINUSDT": {
@@ -83,17 +86,14 @@
     "BANKUSDT": {
       "enabled": false
     },
-    "BGBUSDT": {
-      "enabled": true
-    },
     "BNBUSDT": {
+      "enabled": false
+    },
+    "BONKUSDT": {
       "enabled": false
     },
     "BSBUSDT": {
       "enabled": false
-    },
-    "BTCUSDT": {
-      "enabled": true
     },
     "COAIUSDT": {
       "enabled": false
@@ -104,14 +104,14 @@
     "DRIFTUSDT": {
       "enabled": false
     },
-    "EDGEUSDT": {
-      "enabled": true
-    },
     "ENAUSDT": {
       "enabled": false
     },
-    "ETHUSDT": {
-      "enabled": true
+    "ETHFIUSDT": {
+      "enabled": false
+    },
+    "FARTCOINUSDT": {
+      "enabled": false
     },
     "FILUSDT": {
       "enabled": false
@@ -125,23 +125,20 @@
     "HUMAUSDT": {
       "enabled": false
     },
-    "HYPEUSDT": {
-      "enabled": true
-    },
     "ICNTUSDT": {
       "enabled": false
     },
-    "IRYSUSDT": {
-      "enabled": true
+    "INJUSDT": {
+      "enabled": false
+    },
+    "JCTUSDT": {
+      "enabled": false
     },
     "KITEUSDT": {
       "enabled": false
     },
     "LDOUSDT": {
       "enabled": false
-    },
-    "LINKUSDT": {
-      "enabled": true
     },
     "MAGMAUSDT": {
       "enabled": false
@@ -152,10 +149,16 @@
     "MUSDT": {
       "enabled": false
     },
-    "NIGHTUSDT": {
-      "enabled": true
+    "ONDOUSDT": {
+      "enabled": false
     },
     "OPUSDT": {
+      "enabled": false
+    },
+    "PENGUUSDT": {
+      "enabled": false
+    },
+    "PEPEUSDT": {
       "enabled": false
     },
     "PIUSDT": {
@@ -182,8 +185,11 @@
     "RTXUSDT": {
       "enabled": false
     },
-    "SLVONUSDT": {
-      "enabled": true
+    "SHIBUSDT": {
+      "enabled": false
+    },
+    "SUIUSDT": {
+      "enabled": false
     },
     "SWARMSUSDT": {
       "enabled": false
@@ -207,34 +213,31 @@
       "enabled": false
     },
     "TRXUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "TURBOUSDT": {
       "enabled": false
     },
-    "USDCUSDT": {
-      "enabled": true
+    "UNIUSDT": {
+      "enabled": false
+    },
+    "VIRTUALUSDT": {
+      "enabled": false
     },
     "WIFUSDT": {
       "enabled": false
     },
-    "XAUTUSDT": {
-      "enabled": true
+    "WLDUSDT": {
+      "enabled": false
     },
     "XIONUSDT": {
       "enabled": false
     },
-    "CYSUSDT": {
-      "enabled": true
+    "XLMUSDT": {
+      "enabled": false
     },
-    "JCTUSDT": {
-      "enabled": true
-    },
-    "PAXGUSDT": {
-      "enabled": true
-    },
-    "ABUSDT": {
-      "enabled": true
+    "ZBCNUSDT": {
+      "enabled": false
     }
   },
   "riskPercent": 0.15,
@@ -264,7 +267,7 @@
   "dynamicTakeProfitAtrMultiplier": 1.35,
   "trailingActivationPct": 0.008,
   "trailingDrawdownPct": 0.004,
-  "trailingProtectionPct": 0.0025,
+  "trailingProtectionPct": 0.003,
   "atrStopMultiplier": 1.5,
   "minStopPct": -0.025,
   "maxStopPct": -0.006,
@@ -289,15 +292,15 @@
   "costGuardFloorPct": 0.003,
   "roundTripFeePct": 0.004,
   "slippageBufferPct": 0.001,
-  "minExpectedNetPct": 0.002,
+  "minExpectedNetPct": 0.0026,
   "minScalpTargetPct": 0.008,
   "maxScalpTargetPct": 0.012,
-  "minTrendRsi": 36,
-  "minAtrPct": 0.0024,
-  "maxAtrPct": 0.025,
-  "minVolumeRatio": 1.03,
-  "maxEmaGapPct": 0.018,
-  "minMomentumExitPct": 0.004,
+  "minTrendRsi": 40,
+  "minAtrPct": 0.0028,
+  "maxAtrPct": 0.02,
+  "minVolumeRatio": 1.06,
+  "maxEmaGapPct": 0.015,
+  "minMomentumExitPct": 0.0045,
   "timeStopMinutes": 18,
   "timeStopProfitPct": 0.003,
   "maxHoldMinutes": 30,
@@ -333,6 +336,7 @@
     "noSignalReportIntervalMs": 3600000
   },
   "loopIntervalMs": 60000,
+  "holdCheckIntervalMs": 30000,
   "signalTimeframe": "3min",
   "trendTimeframe": "15min",
   "telegram": {
@@ -662,29 +666,29 @@
       "label": "Custom Trade",
       "description": "Profile gaya trading buatan user. Pakai ini kalau mau simpan setting sendiri tanpa mengubah mode bawaan.",
       "overrides": {
-        "riskPercent": 0.2,
+        "riskPercent": 0.15,
         "reserveUSDT": 1,
-        "takeProfitPct": 0.015,
-        "trailingActivationPct": 0.0075,
-        "trailingDrawdownPct": 0.003,
-        "trailingProtectionPct": 0.0045,
-        "minMomentumExitPct": 0.002,
+        "takeProfitPct": 0.012,
+        "trailingActivationPct": 0.008,
+        "trailingDrawdownPct": 0.004,
+        "trailingProtectionPct": 0.003,
+        "minMomentumExitPct": 0.0045,
         "enableTimeStop": false,
-        "timeStopProfitPct": 0.006,
+        "timeStopProfitPct": 0.003,
         "enableStaleTrade": true,
-        "minHoldPnlPct": 0.006,
-        "breakEvenArmedPct": 0.003,
-        "breakEvenFloorPct": 0.0005,
-        "cooldownMs": 0,
+        "minHoldPnlPct": 0.0035,
+        "breakEvenArmedPct": 0.006,
+        "breakEvenFloorPct": 0.0015,
+        "cooldownMs": 300000,
         "maxRoundsPerDay": 9999,
-        "exitRSIThreshold": 65,
+        "exitRSIThreshold": 70,
         "minAtrPct": 0.002,
         "maxAtrPct": 0.025
       }
     }
   },
   "maxTradesPerDay": 100,
-  "exitTimeframe": "1min",
+  "exitTimeframe": "signal",
   "activeBotType": "custom",
   "activeBotTypeLabel": "Custom Bot Type",
   "activeBotTypeDescription": "Profile bot type buatan user. Gunakan ini kalau mau mengatur struktur setup sendiri tanpa mengubah profile bot type bawaan.",
@@ -703,32 +707,32 @@
   "_effectiveMaxTrades": 100,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-17T02:29:27.405Z",
+    "at": "2026-04-17T04:35:30.259Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 3,
     "topPairs": 20,
     "activePairs": [
+      "EDGEUSDT",
       "BTCUSDT",
       "ETHUSDT",
-      "CYSUSDT",
       "USDCUSDT",
-      "JCTUSDT",
-      "BGBUSDT",
       "SLVONUSDT",
-      "EDGEUSDT",
-      "HYPEUSDT",
-      "XRPUSDT",
+      "BGBUSDT",
       "SOLUSDT",
+      "XRPUSDT",
+      "HYPEUSDT",
       "IRYSUSDT",
       "XAUTUSDT",
       "DOGEUSDT",
       "NIGHTUSDT",
-      "ADAUSDT",
+      "CYSUSDT",
+      "COLLECTUSDT",
+      "XPLUSDT",
       "PAXGUSDT",
+      "ADAUSDT",
       "LINKUSDT",
-      "ABUSDT",
-      "TRXUSDT"
+      "ABUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
     "blacklistCount": 8
