@@ -90,7 +90,25 @@
     .sec-hd h3{margin:0;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--yellow)}
     .sec-hd::after{content:"";flex:1;height:1px;background:var(--line)}
     @media(max-width:980px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr 1fr}}
-    @media(max-width:720px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr}.wrap{width:min(100% - 20px,100%)}}
+    @media(max-width:720px){
+      .filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr}
+      .wrap{width:min(100% - 20px,100%)}
+      #tradeTable td,#tradeTable th{padding:9px 8px;font-size:11px;vertical-align:top}
+      #tradeTable .pill{padding:3px 7px;font-size:10px}
+      #tradeTable td:nth-child(5),
+      #tradeTable th:nth-child(5),
+      #tradeTable td:nth-child(6),
+      #tradeTable th:nth-child(6),
+      #tradeTable td:nth-child(7),
+      #tradeTable th:nth-child(7),
+      #tradeTable td:nth-child(8),
+      #tradeTable th:nth-child(8),
+      #tradeTable td:nth-child(9),
+      #tradeTable th:nth-child(9){display:none}
+      #tradeTable td:nth-child(1){min-width:88px;font-weight:700}
+      #tradeTable td:nth-child(3),#tradeTable td:nth-child(4){white-space:normal;line-height:1.25;min-width:82px}
+      #tradeTable td:nth-child(10),#tradeTable td:nth-child(11){white-space:nowrap;font-weight:700}
+    }
   </style>
 </head>
 <body>
