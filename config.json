@@ -6,28 +6,28 @@
   "selectedMarketProfile": "neutral",
   "pairSettings": {
     "IRYSUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "PAXGUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ABUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "COLLECTUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "SOLUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "XRPUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "HYPEUSDT": {
       "enabled": true
     },
     "SLVONUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "ADAUSDT": {
       "enabled": false
@@ -39,7 +39,7 @@
       "enabled": true
     },
     "LINKUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "XPLUSDT": {
       "enabled": false
@@ -51,16 +51,16 @@
       "enabled": true
     },
     "EDGEUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "NIGHTUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BTCUSDT": {
       "enabled": true
     },
     "CYSUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BGBUSDT": {
       "enabled": true
@@ -87,7 +87,7 @@
       "enabled": false
     },
     "BNBUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "BONKUSDT": {
       "enabled": false
@@ -123,10 +123,10 @@
       "enabled": false
     },
     "HUMAUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ICNTUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "INJUSDT": {
       "enabled": false
@@ -162,7 +162,7 @@
       "enabled": false
     },
     "PIUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "PRLUSDT": {
       "enabled": false
@@ -195,7 +195,7 @@
       "enabled": false
     },
     "TAGUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "TAOUSDT": {
       "enabled": false
@@ -213,7 +213,7 @@
       "enabled": false
     },
     "TRXUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "TURBOUSDT": {
       "enabled": false
@@ -240,12 +240,57 @@
       "enabled": false
     },
     "TRIAUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "XDCUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "HUSDT": {
+      "enabled": false
+    },
+    "WBTCUSDT": {
+      "enabled": true
+    },
+    "KASUSDT": {
+      "enabled": false
+    },
+    "MORPHOUSDT": {
+      "enabled": false
+    },
+    "KATUSDT": {
+      "enabled": false
+    },
+    "CRVUSDT": {
+      "enabled": false
+    },
+    "ZECUSDT": {
+      "enabled": false
+    },
+    "ROBOUSDT": {
+      "enabled": false
+    },
+    "IDOLUSDT": {
+      "enabled": true
+    },
+    "ZBTUSDT": {
+      "enabled": false
+    },
+    "MOODENGUSDT": {
+      "enabled": false
+    },
+    "ASTERUSDT": {
+      "enabled": true
+    },
+    "NEARUSDT": {
+      "enabled": false
+    },
+    "MYXUSDT": {
+      "enabled": true
+    },
+    "WALUSDT": {
+      "enabled": true
+    },
+    "RLUSDUSDT": {
       "enabled": true
     }
   },
@@ -716,36 +761,34 @@
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-17T06:34:40.448Z",
+    "at": "2026-04-18T12:58:16.918Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 3,
     "topPairs": 20,
     "activePairs": [
-      "TAGUSDT",
-      "IRYSUSDT",
-      "ICNTUSDT",
+      "HUMAUSDT",
       "BTCUSDT",
       "ETHUSDT",
-      "TRIAUSDT",
-      "EDGEUSDT",
       "USDCUSDT",
-      "NIGHTUSDT",
-      "BGBUSDT",
-      "XRPUSDT",
+      "MYXUSDT",
+      "WALUSDT",
+      "IDOLUSDT",
       "HYPEUSDT",
-      "SLVONUSDT",
-      "XDCUSDT",
-      "SOLUSDT",
-      "COLLECTUSDT",
       "XAUTUSDT",
+      "BGBUSDT",
+      "PIUSDT",
       "DOGEUSDT",
-      "CYSUSDT",
-      "HUSDT"
+      "TRXUSDT",
+      "PAXGUSDT",
+      "ASTERUSDT",
+      "LINKUSDT",
+      "ABUSDT",
+      "RLUSDUSDT",
+      "WBTCUSDT",
+      "BNBUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 8,
-    "skippedAt": "2026-04-17T09:34:40.456Z",
-    "skippedReason": "2 open position(s)"
+    "blacklistCount": 10
   }
 }
