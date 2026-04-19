@@ -29,6 +29,21 @@ async function handleExitFlow({
     if (!Number.isFinite(intendedPrice) || intendedPrice <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) return null;
     return Math.max(0, (intendedPrice - fillPrice) / intendedPrice);
   };
+  const shouldForceReentryBlock = (reason, pnlFraction) => {
+    const lowerReason = String(reason || "").toLowerCase();
+    const rotationCfg = config.autoPairRotation && typeof config.autoPairRotation === "object"
+      ? config.autoPairRotation
+      : {};
+    const staleTradeHit = lowerReason.includes("stale trade");
+    const stopLossHit = lowerReason.includes("emergency sl") || lowerReason.includes("atr stop loss");
+    const costGuardHit = lowerReason.includes("cost guard");
+    const anyLossHit = Number.isFinite(pnlFraction) && pnlFraction < 0 && !costGuardHit;
+    return (
+      (rotationCfg.disableOnStaleTrade === true && staleTradeHit) ||
+      (rotationCfg.disableOnStopLoss !== false && stopLossHit) ||
+      (rotationCfg.disableOnAnyLoss === true && anyLossHit)
+    );
+  };
 
   const positions = Array.isArray(state.positions)
     ? state.positions.filter(Boolean)
@@ -141,10 +156,14 @@ async function handleExitFlow({
       const pnlAbsolute = actualGrossPnlUSDT;
       const reentryBlockLossPct = Number(config.pairReentryBlockLossPct || 0.01);
       const reentryBlockMs = Math.max(1, Number(config.pairReentryBlockMinutes || 10)) * 60 * 1000;
+      const forceReentryBlock = shouldForceReentryBlock(exitEval.reason, pnlFraction);
       const shouldBlockReentry =
         config.usePairReentryBlock !== false &&
-        pnlFraction <= -Math.abs(reentryBlockLossPct) &&
         reentryBlockMs > 0 &&
+        (
+          forceReentryBlock ||
+          pnlFraction <= -Math.abs(reentryBlockLossPct)
+        ) &&
         !String(exitEval.reason || "").toLowerCase().includes("auto-sell unmanaged");
       let reentryBlockLine = null;
       if (shouldBlockReentry) {
