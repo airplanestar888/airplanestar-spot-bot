@@ -172,9 +172,9 @@ Untuk setting umum yang berlaku lintas strategi:
 }
 ```
 
-### 2. Entry Style
+### 2. Bot Type
 
-`botType` adalah gaya masuk utama bot.
+`botType` adalah struktur entry engine utama bot.
 
 Preset bawaan:
 - `scalp_trend`
@@ -185,10 +185,25 @@ Preset bawaan:
 
 Layer ini mengatur:
 - timeframe signal dan trend
-- confirmation
-- breakout / continuation style
-- filter entry
+- hold structure
+- confirmation core
+- breakout threshold
 - struktur setup masuk
+
+Field umumnya:
+- `signalTimeframe`
+- `trendTimeframe`
+- `minScalpTargetPct`
+- `maxScalpTargetPct`
+- `timeStopMinutes`
+- `maxHoldMinutes`
+- `breakEvenMinutes`
+- `minConfirmation`
+- `breakoutPct`
+- `requireEma21Rising`
+- `requireFastTrend`
+- `requirePriceAboveEma9`
+- `requireEdge`
 
 ### 3. Market Profile
 
@@ -210,10 +225,26 @@ Layer ini mengatur filter entry sesuai kondisi market, seperti:
 - `minAtrPct`
 - `maxAtrPct`
 - `maxEmaGapPct`
+- `requireRsiMomentum`
+- `requireBreakout`
+- `enableRsiBandFilter`
+- `enableAtrFilter`
+- `enableVolumeFilter`
+- `enableCandleStrengthFilter`
+- `enablePriceExtensionFilter`
+- `enableRangeRecoveryFilter`
+- `rsiBandLower`
+- `rsiBandUpper`
+- `minCandleStrength`
+- `optimalRsiLow`
+- `optimalRsiHigh`
+- `optimalAtrLow`
+- `optimalAtrHigh`
+- `minEmaGapNeg`
 
-### 4. Trading Style
+### 4. Trade Style
 
-Trading style mengatur agresivitas, risk, dan exit.
+Trade style mengatur risk behavior dan exit behavior.
 
 Preset bawaan:
 - `conservative`
@@ -230,6 +261,10 @@ Field umumnya:
 - `trailingActivationPct`
 - `trailingDrawdownPct`
 - `trailingProtectionPct`
+- `atrStopMultiplier`
+- `minStopPct`
+- `maxStopPct`
+- `emergencyStopLossPct`
 - `enableTimeStop`
 - `enableStaleTrade`
 - `timeStopProfitPct`
@@ -241,6 +276,12 @@ Field umumnya:
 - `exitTimeframe`
 - `cooldownMs`
 
+Ringkasan layer dashboard:
+- `Bot Settings` = runtime global, sizing, exposure, reporting, pair management
+- `Bot Type` = struktur entry engine
+- `Market Profile` = filter market dan quality filter entry
+- `Trade Style` = risk, trailing, hard stop, stale, break-even, dan exit profile
+
 ## Entry Logic
 
 Scoring pair berbasis live market, bukan bobot pair manual.
@@ -249,12 +290,13 @@ Komponen utama:
 - trend pada timeframe trend
 - kualitas candle pada timeframe signal
 - volume ratio
-- breakout atau recovery sesuai entry style
-- ATR dan RSI quality
+- breakout atau recovery sesuai bot type
+- ATR dan RSI quality sesuai market profile
 - `live weight` pair dari market snapshot
 
 Catatan:
 - keputusan entry sekarang fokus ke kualitas setup market
+- `Bot Type` menentukan struktur setup, `Market Profile` menentukan kualitas filter setup
 - cost trade dipakai untuk accounting/report setelah order fill, bukan untuk memblok entry utama
 
 Istilah penting:
@@ -291,9 +333,9 @@ Saat Dynamic TP aktif:
 - jika profit sempat melewati `DTP` lalu gagal lanjut ke `TP`, bot bisa keluar lewat `DTP Fallback`
 
 Catatan:
-- `Exit Candle Timeframe` menentukan candle basis analisa exit saat posisi sudah hold
+- `Exit Timeframe` menentukan candle basis analisa exit saat posisi sudah hold
 - `holdCheckIntervalMs` menentukan seberapa sering posisi hold dicek ulang
-- default dashboard saat ini mendukung `Exit Candle Timeframe = Follow Signal TF`
+- hard stop berada di layer `Trade Style`, bukan `Bot Settings`
 
 ## Runtime Flow
 
