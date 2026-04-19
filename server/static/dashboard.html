@@ -201,7 +201,7 @@
   <div class="acc-body">
     <div class="field"><label>Selected Bot Type</label><select id="selectedBotTypeEditor"></select></div>
     <div class="field"><label>Description</label><div class="info-box" id="activeBotTypeDescription">-</div></div>
-    <div class="note">Bot Type mengatur struktur entry engine: timeframe, tempo entry, hold window, dan confirmation core. Bagian ini tidak mengatur risk, sizing, atau hard stop. Filter kualitas setup lanjutan ditampilkan di tab Market Profile agar lebih enak dibaca, tetapi nilainya tetap tersimpan per Bot Type aktif.</div>
+    <div class="note">Bot Type mengatur struktur entry engine: timeframe, tempo entry, hold window, dan confirmation core. Bagian ini tidak mengatur risk, sizing, hard stop, atau quality filter market.</div>
     <div class="check-grid">
       <label class="check-item"><input id="btReqEma21" type="checkbox"><span>Require EMA21 Rising</span></label>
       <label class="check-item"><input id="btReqFast" type="checkbox"><span>Require Fast Trend</span></label>
@@ -228,12 +228,12 @@
     <div class="field-grid">
       <div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
-      <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"><div class="hint">Global bot setting. Tidak diubah oleh Trade Style.</div></div>
       <div class="field"><label>Min Managed Position (USDT)</label><input id="minManagedPositionUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Min Recovery Position (USDT)</label><input id="minRecoverUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
       <div class="field"><label>Max Exposure %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
-      <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
+      <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"><div class="hint">Global bot limit. Tidak diubah oleh Trade Style.</div></div>
       <div class="field"><label>Daily Profit Target %</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
       <div class="field"><label>Daily Loss Limit %</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
       <div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
@@ -344,7 +344,7 @@
 <section class="tab-panel" id="marketTab">
 <section class="panel">
 <h2>Market Profile</h2>
-<div class="note">Market Profile mengatur kualitas market dan filter entry: volume ratio, ATR band, RSI trend, EMA gap, quality filter, dan allow entries. Ini adalah layer yang paling cocok untuk tuning kondisi market atau AI agent nanti.</div>
+<div class="note">Market Profile mengatur semua filter entry yang terkait kondisi market: volume ratio, ATR band, RSI trend, EMA gap, quality filter, dan allow entries. Layer ini cocok untuk tuning manual maupun AI agent nanti.</div>
 <div class="field-grid">
 <div class="field"><label>Market Profile Mode</label><select id="marketProfileModeEditor"><option value="auto">Auto</option><option value="manual">Manual</option></select></div>
 <div class="field"><label>Selected Market Profile</label><select id="selectedMarketProfileEditor"></select></div>
@@ -352,41 +352,32 @@
 <div class="field"><label>Description</label><div class="info-box" id="activeMarketDescription">-</div></div>
 <div class="check-grid"><label class="check-item"><input id="marketAllowEntriesEditor" type="checkbox"><span>Allow Entries</span></label></div>
 <h3>Entry Filters</h3>
+<div class="note">Semua filter di bawah ini sekarang tersimpan per Market Profile. Ganti profile akan langsung mengganti seluruh quality filter yang aktif, termasuk ATR band dan quality filter.</div>
+<div class="check-grid">
+  <label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>RSI Momentum</span></label>
+  <label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Breakout Check</span></label>
+  <label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>RSI Band</span></label>
+  <label class="check-item"><input id="btEnableAtr" type="checkbox"><span>ATR Filter</span></label>
+  <label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Volume Filter</span></label>
+  <label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Candle Strength</span></label>
+  <label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Price Extension</span></label>
+  <label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Range Recovery</span></label>
+</div>
 <div class="field-grid">
 <div class="field"><label>Min Expected Net %</label><input id="mMinExpNet" type="number" step="0.0001" min="0"></div>
 <div class="field"><label>Min Volume Ratio</label><input id="mMinVol" type="number" step="0.01" min="0"></div>
 <div class="field"><label>Min Trend RSI</label><input id="mMinRsi" type="number" step="1" min="0"></div>
-<div class="field"><label>Min ATR Pct</label><input id="mMinAtr" type="number" step="0.0001" min="0"></div>
-<div class="field"><label>Max ATR Pct</label><input id="mMaxAtr" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Min ATR Pct</label><input id="mMinAtr" type="number" step="0.0001" min="0"><div class="hint">Mengikuti Market Profile aktif.</div></div>
+<div class="field"><label>Max ATR Pct</label><input id="mMaxAtr" type="number" step="0.0001" min="0"><div class="hint">Mengikuti Market Profile aktif.</div></div>
 <div class="field"><label>Max EMA Gap Pct</label><input id="mMaxEma" type="number" step="0.0005" min="0"></div>
-</div>
-
-<div class="acc" id="accFilters">
-  <div class="acc-hd" onclick="toggleAcc('accFilters')"><h3>Entry Quality Filters</h3><span class="acc-badge" id="entryQualityScopeBadge">Linked to Bot Type</span><span class="acc-arrow">&#9660;</span></div>
-  <div class="acc-body">
-    <div class="note">Filter ini menentukan kualitas setup entry. Panelnya diletakkan di sini supaya dibaca berdekatan dengan Market Profile, tetapi save/load-nya tetap mengikuti Bot Type aktif agar runtime dan flow bot tidak berubah.</div>
-    <div class="hint" id="entryQualityScopeHint" style="margin-bottom:12px">Linked to bot type: -</div>
-    <div class="check-grid">
-      <label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>RSI Momentum</span></label>
-      <label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Breakout Check</span></label>
-      <label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>RSI Band</span></label>
-      <label class="check-item"><input id="btEnableAtr" type="checkbox"><span>ATR Filter</span></label>
-      <label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Volume Filter</span></label>
-      <label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Candle Strength</span></label>
-      <label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Price Extension</span></label>
-      <label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Range Recovery</span></label>
-    </div>
-    <div class="field-grid">
-      <div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
-      <div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
-      <div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
-      <div class="field"><label>EMA Gap Buffer</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
-      <div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
-      <div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
-      <div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
-      <div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
-    </div>
-  </div>
+<div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
+<div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
+<div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
+<div class="field"><label>EMA Gap Buffer</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
+<div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
+<div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
 </div>
 </section></section>
 
@@ -538,10 +529,11 @@ const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbe
 const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled','autoPairRotation.enabled','autoPairRotation.disableOnStopLoss','autoPairRotation.disableOnStaleTrade','autoPairRotation.disableOnAnyLoss']);
 const AUTO_PAIR_HOUR_PRESETS=new Set([1,2,3,6,12]);
 const AUTO_PAIR_TOP_PRESETS=new Set([5,8,10,12,15]);
-const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTimeframe',minScalpTargetPct:'btMinTarget',maxScalpTargetPct:'btMaxTarget',timeStopMinutes:'btTimeStopMinutes',maxHoldMinutes:'btMaxHold',breakEvenMinutes:'btBreakEvenMinutes',minConfirmation:'btMinConfirmation',breakoutPct:'btBreakoutPct',requireEma21Rising:'btReqEma21',requireFastTrend:'btReqFast',requirePriceAboveEma9:'btReqPriceEma9',requireEdge:'tReqEdge',requireRsiMomentum:'btReqRsiMomentum',requireBreakout:'btReqBreakout',enableRsiBandFilter:'btEnableRsiBand',enableAtrFilter:'btEnableAtr',enableVolumeFilter:'btEnableVolume',enableCandleStrengthFilter:'btEnableCandleStrength',enablePriceExtensionFilter:'btEnablePriceExtension',enableRangeRecoveryFilter:'btEnableRangeRecovery',rsiBandLower:'tRsiLo',rsiBandUpper:'tRsiHi',minCandleStrength:'tCandle',minEmaGapNeg:'tEmaNeg',optimalRsiLow:'tOrsiLo',optimalRsiHigh:'tOrsiHi',optimalAtrLow:'tOatrLo',optimalAtrHigh:'tOatrHi'};
-const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge','requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
+const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTimeframe',minScalpTargetPct:'btMinTarget',maxScalpTargetPct:'btMaxTarget',timeStopMinutes:'btTimeStopMinutes',maxHoldMinutes:'btMaxHold',breakEvenMinutes:'btBreakEvenMinutes',minConfirmation:'btMinConfirmation',breakoutPct:'btBreakoutPct',requireEma21Rising:'btReqEma21',requireFastTrend:'btReqFast',requirePriceAboveEma9:'btReqPriceEma9',requireEdge:'tReqEdge'};
+const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge']);
 const BTYPE_STRING_KEYS=new Set(['signalTimeframe','trendTimeframe']);
-const MKT_MAP={minExpectedNetPct:'mMinExpNet',minVolumeRatio:'mMinVol',minTrendRsi:'mMinRsi',minAtrPct:'mMinAtr',maxAtrPct:'mMaxAtr',maxEmaGapPct:'mMaxEma'};
+const MKT_MAP={minExpectedNetPct:'mMinExpNet',minVolumeRatio:'mMinVol',minTrendRsi:'mMinRsi',minAtrPct:'mMinAtr',maxAtrPct:'mMaxAtr',maxEmaGapPct:'mMaxEma',requireRsiMomentum:'btReqRsiMomentum',requireBreakout:'btReqBreakout',enableRsiBandFilter:'btEnableRsiBand',enableAtrFilter:'btEnableAtr',enableVolumeFilter:'btEnableVolume',enableCandleStrengthFilter:'btEnableCandleStrength',enablePriceExtensionFilter:'btEnablePriceExtension',enableRangeRecoveryFilter:'btEnableRangeRecovery',rsiBandLower:'tRsiLo',rsiBandUpper:'tRsiHi',minCandleStrength:'tCandle',minEmaGapNeg:'tEmaNeg',optimalRsiLow:'tOrsiLo',optimalRsiHigh:'tOrsiHi',optimalAtrLow:'tOatrLo',optimalAtrHigh:'tOatrHi'};
+const MKT_BOOL_KEYS=new Set(['requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
 const TRD_MAP={riskPercent:'tRisk',cooldownMs:'tCooldown',takeProfitPct:'tTP',trailingActivationPct:'tTrailAct',trailingDrawdownPct:'tTrailDD',trailingProtectionPct:'tTrailProt',atrStopMultiplier:'tAtrStopMultiplier',minStopPct:'tMinStopPct',maxStopPct:'tMaxStopPct',emergencyStopLossPct:'tEmergencyStopLossPct',minMomentumExitPct:'tMomentum',enableTimeStop:'tEnableTS',enableStaleTrade:'tEnableStale',timeStopProfitPct:'tTsProfit',minHoldPnlPct:'tMinHoldPnl',breakEvenArmedPct:'tBeArmed',breakEvenFloorPct:'tBeFloor',exitRSIThreshold:'tExitRsi',exitTimeframe:'tExitTimeframe'};
 
 function fmt(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d):'N/A'}
@@ -633,16 +625,6 @@ function updBotTypeDesc(){
   const s=document.getElementById('selectedBotTypeEditor');
   const p=currentConfig.botTypeProfiles?.[s.value];
   document.getElementById('activeBotTypeDescription').textContent=p?.description||'-';
-  updEntryQualityScope();
-}
-function updEntryQualityScope(){
-  const selected=document.getElementById('selectedBotTypeEditor')?.value||'-';
-  const profile=currentConfig?.botTypeProfiles?.[selected];
-  const label=profile?.label||selected;
-  const hint=document.getElementById('entryQualityScopeHint');
-  const badge=document.getElementById('entryQualityScopeBadge');
-  if(hint) hint.textContent=`Linked to bot type: ${label}`;
-  if(badge) badge.textContent='Bot Type-linked';
 }
 
 function popMode(){
@@ -683,7 +665,10 @@ function syncMktProf(){
   const s=document.getElementById('selectedMarketProfileEditor');
   const p=currentConfig.marketProfiles?.[s.value]||{};
   document.getElementById('marketAllowEntriesEditor').checked=p.allowEntries!==false;
-  for(const[k,id]of Object.entries(MKT_MAP))sEv(id,p.entryOverrides?.[k]);
+  for(const[k,id]of Object.entries(MKT_MAP)){
+    const nextVal=p.entryOverrides?.[k]!==undefined?p.entryOverrides[k]:currentConfig[k];
+    sEv(id,nextVal);
+  }
 }
 function updMktDesc(){
   if(!currentConfig)return;
@@ -827,7 +812,8 @@ function applyCfg(){
   mp.allowEntries=document.getElementById('marketAllowEntriesEditor').checked;
   const mpo=mp.entryOverrides||{};
   for(const[k,id]of Object.entries(MKT_MAP)){
-    const nextVal=Number(gEv(id));
+    const raw=gEv(id);
+    const nextVal=MKT_BOOL_KEYS.has(k)?Boolean(raw):Number(raw);
     mpo[k]=nextVal;
     nc[k]=nextVal;
   }

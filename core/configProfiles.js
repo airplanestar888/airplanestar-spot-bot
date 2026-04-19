@@ -27,23 +27,7 @@ const BOT_TYPE_OVERRIDE_KEYS = new Set([
   "requireEma21Rising",
   "requireFastTrend",
   "requirePriceAboveEma9",
-  "requireEdge",
-  "rsiBandLower",
-  "rsiBandUpper",
-  "minCandleStrength",
-  "optimalRsiLow",
-  "optimalRsiHigh",
-  "optimalAtrLow",
-  "optimalAtrHigh",
-  "minEmaGapNeg",
-  "requireRsiMomentum",
-  "requireBreakout",
-  "enableRsiBandFilter",
-  "enableAtrFilter",
-  "enableVolumeFilter",
-  "enableCandleStrengthFilter",
-  "enablePriceExtensionFilter",
-  "enableRangeRecoveryFilter"
+  "requireEdge"
 ]);
 
 function filterOverrides(override, allowedKeys = null, blockedKeys = null) {
