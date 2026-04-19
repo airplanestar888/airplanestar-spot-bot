@@ -442,7 +442,7 @@
 <section class="tab-panel" id="agentTab">
 <section class="panel">
 <h2>AI Agent</h2>
-<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Arah desainnya: agent hanya boleh tuning entry filter dan market profile, tanpa menyentuh Bot Type, Sizing &amp; Limits, atau Trade Style.</div>
+<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Agent hanya boleh override layer Market Profile: pilih profile market, atur allow entries, dan tuning filter entry market. Bot Type, Sizing &amp; Limits, dan Trade Style tetap manual.</div>
 
 <div class="acc open" id="accAgentGeneral">
   <div class="acc-hd" onclick="toggleAcc('accAgentGeneral')"><h3>General</h3><span class="acc-arrow">&#9660;</span></div>
@@ -461,9 +461,11 @@
   <div class="acc-body">
     <div class="check-grid">
       <label class="check-item"><input id="aiAllowMarketProfile" type="checkbox" checked><span>Auto select Market Profile</span></label>
-      <label class="check-item"><input id="aiAllowMode" type="checkbox" checked><span>Auto select Mode</span></label>
+      <label class="check-item"><input id="aiAllowEntriesToggle" type="checkbox" checked><span>Allow Entries toggle</span></label>
+      <label class="check-item"><input id="aiAllowMarketFilters" type="checkbox" checked><span>Tune Market Entry Filters</span></label>
+      <label class="check-item"><input id="aiAllowQualityFilters" type="checkbox" checked><span>Tune Quality Filters</span></label>
     </div>
-    <div class="field"><label>Locked Areas</label><div class="info-box">Bot Flags, Sizing &amp; Limits, Report Intervals, dan Pair Flags tetap dikunci oleh sistem dan tidak boleh disentuh AI Agent.</div></div>
+    <div class="field"><label>Scope Summary</label><div class="info-box">AI Agent hanya boleh menyentuh layer Market Profile. Bot Type core, Trade Style, hard stop, TP, trailing, sizing, dan pair management tetap manual dan dikunci oleh sistem.</div></div>
   </div>
 </div>
 
@@ -471,12 +473,10 @@
   <div class="acc-hd" onclick="toggleAcc('accAgentSafety')"><h3>Safety &amp; Guardrails</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="check-grid">
-      <label class="check-item"><input id="aiRequireShortlist" type="checkbox" checked><span>Require shortlist only</span></label>
       <label class="check-item"><input id="aiFallbackRule" type="checkbox" checked><span>Fallback to rule-based if invalid</span></label>
-      <label class="check-item"><input id="aiMaxPairsLock" type="checkbox" checked><span>Respect max active pairs limit</span></label>
-      <label class="check-item"><input id="aiPresetOnly" type="checkbox" checked><span>Preset selector only</span></label>
+      <label class="check-item"><input id="aiTelegramReport" type="checkbox" checked><span>Report applied changes to Telegram</span></label>
     </div>
-    <div class="note" style="margin-top:10px">Tujuan tahap awal: AI Agent hanya jadi selector pair + preset, bukan operator risiko atau eksekutor order.</div>
+    <div class="note" style="margin-top:10px">Tujuan tahap awal: AI Agent hanya jadi market interpreter. Dia boleh menyesuaikan Market Profile aktif, tetapi tidak boleh mengubah DNA strategi masuk atau risk engine bot.</div>
   </div>
 </div>
 
@@ -485,10 +485,10 @@
   <div class="acc-body">
     <div class="field-grid">
       <div class="field"><label>Last Market Profile</label><input id="aiLastMarketProfile" type="text" value="-" readonly></div>
-      <div class="field"><label>Last Mode</label><input id="aiLastMode" type="text" value="-" readonly></div>
+      <div class="field"><label>Allow Entries</label><input id="aiLastAllowEntries" type="text" value="-" readonly></div>
       <div class="field"><label>Status</label><input id="aiLastStatus" type="text" value="Not applied" readonly></div>
     </div>
-    <div class="field"><label>Last Active Pairs</label><div class="info-box" id="aiLastPairs">-</div></div>
+    <div class="field"><label>Applied Market Filters</label><div class="info-box" id="aiLastFilters">-</div></div>
     <div class="field"><label>Reason</label><div class="info-box" id="aiLastReason">Belum ada keputusan agent.</div></div>
     <div class="field"><label>Timestamp</label><input id="aiLastTimestamp" type="text" value="-" readonly></div>
   </div>
