@@ -281,7 +281,7 @@ function buildReport(lastDecision) {
     .map(([key, value]) => `- ${key}: ${value}`)
     .join("\n") || "- no filter changes";
   return [
-    "AI AGENT UPDATE",
+    "🤖 AI AGENT UPDATE",
     "--------------------",
     `Provider: ${lastDecision.provider || "openai"} / ${lastDecision.model || "-"}`,
     `Profile: ${lastDecision.marketProfile}`,
