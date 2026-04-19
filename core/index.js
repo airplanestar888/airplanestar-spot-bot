@@ -1214,49 +1214,61 @@ async function report(msg) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
-  let timer = null;
-  try {
-    const controller = new AbortController();
-    const timeoutMs = Number(config.telegram?.timeoutMs) > 0 ? Number(config.telegram.timeoutMs) : 15000;
-    timer = setTimeout(() => controller.abort(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
-    const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      signal: controller.signal,
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: `<pre>${escapedMsg}</pre>`,
-        parse_mode: "HTML",
-        disable_web_page_preview: true
-      })
-    });
-    clearTimeout(timer);
-    timer = null;
+  const maxAttempts = 3;
 
-    let data = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    let timer = null;
     try {
-      data = await res.json();
-    } catch (parseErr) {
-      throw new Error(`telegram response parse failed: ${parseErr.message}`);
-    }
-    if (!res.ok || !data?.ok) {
-      const error = new Error("telegram api rejected message");
-      error.context = {
-        status: res.status,
-        statusText: res.statusText,
-        description: data?.description,
-        errorCode: data?.error_code
-      };
-      throw error;
-    }
+      const controller = new AbortController();
+      const timeoutMs = Number(config.telegram?.timeoutMs) > 0 ? Number(config.telegram.timeoutMs) : 15000;
+      timer = setTimeout(() => controller.abort(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+      const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `<pre>${escapedMsg}</pre>`,
+          parse_mode: "HTML",
+          disable_web_page_preview: true
+        })
+      });
+      clearTimeout(timer);
+      timer = null;
 
-    return true;
-  } catch (err) {
-    logEvent(LOG_FILE, "ERROR", `Telegram send failed: ${describeTelegramError(err, err?.context)}`);
-    return false;
-  } finally {
-    if (timer) clearTimeout(timer);
+      let data = null;
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        throw new Error(`telegram response parse failed: ${parseErr.message}`);
+      }
+      if (!res.ok || !data?.ok) {
+        const error = new Error("telegram api rejected message");
+        error.context = {
+          status: res.status,
+          statusText: res.statusText,
+          description: data?.description,
+          errorCode: data?.error_code
+        };
+        throw error;
+      }
+
+      if (attempt > 1) logEvent(LOG_FILE, "PASS", `Telegram send recovered on attempt ${attempt}/${maxAttempts}`);
+      return true;
+    } catch (err) {
+      const detail = describeTelegramError(err, err?.context);
+      if (attempt < maxAttempts) {
+        logEvent(LOG_FILE, "WARN", `Telegram send attempt ${attempt}/${maxAttempts} failed: ${detail}`);
+        await sleep(1000 * attempt);
+      } else {
+        logEvent(LOG_FILE, "ERROR", `Telegram send failed after ${maxAttempts} attempts: ${detail}`);
+      }
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   }
+
+  return false;
 }
 
 function shouldReport(intervalMs, lastTime) {

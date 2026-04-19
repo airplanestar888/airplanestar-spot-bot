@@ -27,6 +27,7 @@ const QUALITY_FILTER_KEYS = new Set([
   "enablePriceExtensionFilter",
   "enableRangeRecoveryFilter"
 ]);
+const AI_AGENT_PROFILE_KEY = "ai_agent";
 
 const RANGES = {
   minExpectedNetPct: [0.0015, 0.006],
@@ -53,6 +54,10 @@ function normalizeCustomNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function getAiAgentSettings(config) {
   const raw = isPlainObject(config.aiAgent) ? config.aiAgent : {};
   const allowed = isPlainObject(raw.allowedDecisions) ? raw.allowedDecisions : {};
@@ -64,6 +69,7 @@ function getAiAgentSettings(config) {
     geminiModel: process.env.GEMINI_MODEL || raw.geminiModel || "gemini-2.5-flash",
     openrouterModel: process.env.OPENROUTER_MODEL || raw.openrouterModel || "openai/gpt-5-mini",
     timeoutMs: Math.max(3000, Math.min(20000, Number(process.env.AI_AGENT_TIMEOUT_MS || raw.timeoutMs || 8000))),
+    retryAttempts: Math.max(1, Math.min(3, Number(process.env.AI_AGENT_RETRY_ATTEMPTS || raw.retryAttempts || 3))),
     allowMarketProfile: allowed.marketProfile !== false,
     allowEntriesToggle: allowed.entriesToggle !== false,
     allowMarketFilters: allowed.marketFilters !== false,
@@ -84,38 +90,182 @@ function extractResponseText(data) {
   return parts.join("\n");
 }
 
-function parseJson(text) {
-  const cleaned = String(text || "").trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+function tryParseJson(text) {
   try {
-    return JSON.parse(cleaned);
+    return JSON.parse(text);
   } catch (_) {
-    const match = cleaned.match(/\{[\s\S]*\}/);
-    return match ? JSON.parse(match[0]) : null;
+    return null;
   }
 }
 
-function buildPrompt({ config, rotation, candidates }) {
-  const marketProfiles = Object.fromEntries(
-    Object.entries(config.marketProfiles || {}).map(([key, value]) => [
-      key,
-      {
-        allowEntries: value?.allowEntries !== false,
-        entryOverrides: value?.entryOverrides || {}
+function extractFirstJsonObject(text) {
+  const source = String(text || "");
+  const start = source.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < source.length; i += 1) {
+    const ch = source[i];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inString = false;
       }
-    ])
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return source.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function parseJson(text) {
+  const cleaned = String(text || "")
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  const direct = tryParseJson(cleaned);
+  if (direct) return direct;
+
+  const extracted = extractFirstJsonObject(cleaned);
+  if (extracted) {
+    const parsed = tryParseJson(extracted);
+    if (parsed) return parsed;
+  }
+
+  const normalized = cleaned
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .trim();
+  const normalizedParsed = tryParseJson(normalized);
+  if (normalizedParsed) return normalizedParsed;
+
+  const normalizedExtracted = extractFirstJsonObject(normalized);
+  if (normalizedExtracted) return tryParseJson(normalizedExtracted);
+  return null;
+}
+
+function buildPrompt({ config, rotation, candidates }) {
+  const mkField = (value, example, meaning) => ({
+    type: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "string",
+    value,
+    example,
+    meaning
+  });
+  const activePairSet = new Set(rotation?.activePairs || config.pairs || []);
+  const rankedCandidates = (candidates || []).slice(0, 20).map((item, index) => ({
+    rank: index + 1,
+    symbol: item.symbol,
+    score: Number(item.score?.toFixed ? item.score.toFixed(4) : item.score),
+    quoteVol: item.quoteVol,
+    changePct: item.changePct,
+    rangePct: item.rangePct,
+    last: item.last,
+    activeNow: activePairSet.has(item.symbol)
+  }));
+  const activePairs = rankedCandidates.filter((item) => item.activeNow).map((item) => ({
+    ...item,
+    status: "active"
+  }));
+  const marketProfiles = Object.fromEntries(
+    Object.entries(config.marketProfiles || {}).map(([key, value]) => [key, {
+      allowEntries: mkField(value?.allowEntries !== false, !(value?.allowEntries !== false), "Whether entries are allowed in this profile"),
+      entryOverrides: Object.fromEntries(
+        Object.entries(value?.entryOverrides || {}).map(([field, fieldValue]) => [
+          field,
+          mkField(fieldValue, typeof fieldValue === "boolean" ? !fieldValue : fieldValue, field)
+        ])
+      )
+    }])
   );
+  const richContext = {
+    role: {
+      persona: "Senior crypto spot trader in 2026",
+      objective: [
+        "Preserve capital first",
+        "Match market regime with active entry style",
+        "Allow entries only when market quality fits the bot",
+        "Avoid forcing trades in weak or overextended conditions"
+      ]
+    },
+    botContext: {
+      selectedBotType: mkField(config.selectedBotType || "custom", "custom", "Active entry style used by the bot"),
+      selectedMode: mkField(config.selectedMode || "custom", "custom", "Active trade style / exit behavior"),
+      signalTimeframe: mkField(config.signalTimeframe, "5min", "Main signal timeframe for entries"),
+      trendTimeframe: mkField(config.trendTimeframe, "1h", "Trend confirmation timeframe"),
+      minScalpTargetPct: mkField(config.minScalpTargetPct, 0.008, "Minimum scalp target expected from a setup"),
+      maxScalpTargetPct: mkField(config.maxScalpTargetPct, 0.02, "Maximum scalp target expected from a setup"),
+      timeStopMinutes: mkField(config.timeStopMinutes, 15, "Trade should not stay alive too long without progress"),
+      maxHoldMinutes: mkField(config.maxHoldMinutes, 60, "Maximum acceptable hold duration"),
+      breakEvenMinutes: mkField(config.breakEvenMinutes, 12, "When break-even protection becomes relevant"),
+      minConfirmation: mkField(config.minConfirmation, 3, "Required confirmation count before entry"),
+      breakoutPct: mkField(config.breakoutPct, 0.002, "Breakout threshold used by the entry logic"),
+      requireEma21Rising: mkField(config.requireEma21Rising, false, "Require EMA21 to be rising"),
+      requireFastTrend: mkField(config.requireFastTrend, false, "Require fast trend alignment"),
+      requirePriceAboveEma9: mkField(config.requirePriceAboveEma9, false, "Require price above EMA9"),
+      requireEdge: mkField(config.requireEdge, false, "Require edge filter to confirm setup"),
+      requireRsiMomentum: mkField(config.requireRsiMomentum, false, "RSI momentum filter must confirm the setup"),
+      requireBreakout: mkField(config.requireBreakout, false, "Only allow entries when breakout confirmation is present"),
+      enableRsiBandFilter: mkField(config.enableRsiBandFilter, false, "RSI band filter is active"),
+      enableAtrFilter: mkField(config.enableAtrFilter, false, "ATR volatility filter is active"),
+      enableVolumeFilter: mkField(config.enableVolumeFilter, false, "Volume quality filter is active"),
+      enableCandleStrengthFilter: mkField(config.enableCandleStrengthFilter, false, "Candle strength filter is active"),
+      enablePriceExtensionFilter: mkField(config.enablePriceExtensionFilter, false, "Price extension filter is active"),
+      enableRangeRecoveryFilter: mkField(config.enableRangeRecoveryFilter, false, "Range recovery filter is active")
+    },
+    marketProfiles,
+    activePairs,
+    rankedCandidates,
+    minimalGlobalContext: {
+      candidateCount: candidates?.length || 0,
+      activePairCount: activePairSet.size,
+      averageCandidateChangePct: rankedCandidates.length ? Number((rankedCandidates.reduce((sum, item) => sum + (Number(item.changePct) || 0), 0) / rankedCandidates.length).toFixed(4)) : 0,
+      averageCandidateRangePct: rankedCandidates.length ? Number((rankedCandidates.reduce((sum, item) => sum + (Number(item.rangePct) || 0), 0) / rankedCandidates.length).toFixed(4)) : 0,
+      rotationTopPairs: rotation?.topPairs || null,
+      rotationCategories: rotation?.activeCategories || "-"
+    },
+    constraints: {
+      allowedChanges: ["marketProfile", "allowEntries", "entryOverrides", "reason"],
+      forbiddenChanges: ["riskPercent", "sizing", "pair list", "bot type", "trade mode", "TP", "SL", "cooldown"]
+    },
+    expectedOutputSchema: {
+      marketProfile: "custom",
+      allowEntries: true,
+      entryOverrides: {
+        minExpectedNetPct: 0.0026,
+        minVolumeRatio: 1.08,
+        minTrendRsi: 40,
+        minAtrPct: 0.0028,
+        maxAtrPct: 0.02,
+        maxEmaGapPct: 0.015,
+        requireRsiMomentum: true,
+        requireBreakout: true
+      },
+      reason: "short reason"
+    }
+  };
 
   return [
-    "You are a conservative market-profile tuner for a spot crypto bot.",
-    "Return JSON only. Do not place orders. Do not change risk, sizing, bot type, trade style, stops, TP, or pair list.",
-    "Allowed JSON shape:",
-    '{"marketProfile":"custom","allowEntries":true,"entryOverrides":{"minExpectedNetPct":0.0026,"minVolumeRatio":1.08,"minTrendRsi":40,"minAtrPct":0.0028,"maxAtrPct":0.02,"maxEmaGapPct":0.015,"requireRsiMomentum":true,"requireBreakout":true},"reason":"short reason"}',
-    `Allowed profiles: ${[...PROFILE_KEYS].join(", ")}`,
-    `Active pairs: ${(rotation?.activePairs || config.pairs || []).join(", ")}`,
-    `Top market candidates: ${JSON.stringify((candidates || []).slice(0, 12))}`,
-    `Current selected market profile: ${config.selectedMarketProfile || "neutral"}`,
-    `Current profiles: ${JSON.stringify(marketProfiles)}`
-  ].join("\n");
+    "You are a senior crypto spot trader in 2026.",
+    "Read the full structured trading context carefully. Understand the bot objective, bot type, trade style, market profile values, and pair candidates before deciding.",
+    "Return one valid JSON object only. No markdown. No extra text.",
+    "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
+    JSON.stringify(richContext, null, 2)
+  ].join("\n\n");
 }
 
 async function askOpenAi({ apiKey, model, timeoutMs, prompt }) {
@@ -124,7 +274,7 @@ async function askOpenAi({ apiKey, model, timeoutMs, prompt }) {
     {
       model,
       input: prompt,
-      max_output_tokens: 500
+      max_output_tokens: 10000
     },
     {
       timeout: timeoutMs,
@@ -160,7 +310,7 @@ async function askGemini({ apiKey, model, timeoutMs, prompt }) {
       ],
       generationConfig: {
         responseMimeType: "application/json",
-        maxOutputTokens: 500
+        maxOutputTokens: 10000
       }
     },
     {
@@ -191,7 +341,7 @@ async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
         }
       ],
       response_format: { type: "json_object" },
-      max_tokens: 500,
+      max_tokens: 10000,
       temperature: 0.2
     },
     {
@@ -247,28 +397,61 @@ function validateDecision(raw, settings) {
 
 function applyDecision(config, decision, now = Date.now()) {
   if (!isPlainObject(config.aiAgent)) config.aiAgent = {};
-  const targetProfile = decision.marketProfile || config.selectedMarketProfile || "neutral";
-  if (!config.marketProfiles?.[targetProfile]) throw new Error(`market profile not found: ${targetProfile}`);
+  if (!isPlainObject(config.marketProfiles)) config.marketProfiles = {};
 
-  const profile = config.marketProfiles[targetProfile];
+  const existingAiProfile = isPlainObject(config.marketProfiles[AI_AGENT_PROFILE_KEY])
+    ? config.marketProfiles[AI_AGENT_PROFILE_KEY]
+    : null;
+  const fallbackProfileKey = config.marketProfiles?.custom ? "custom" : "neutral";
+
+  if (!existingAiProfile) {
+    const seedProfile = config.marketProfiles?.[fallbackProfileKey];
+    if (!seedProfile) throw new Error(`market profile not found: ${fallbackProfileKey}`);
+    config.marketProfiles[AI_AGENT_PROFILE_KEY] = {
+      label: "AI Agent Profile",
+      description: "Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.",
+      allowEntries: seedProfile.allowEntries !== false,
+      entryOverrides: { ...(seedProfile.entryOverrides || {}) }
+    };
+  }
+
+  const aiProfile = config.marketProfiles[AI_AGENT_PROFILE_KEY];
+  const requestedProfileKey = decision.marketProfile || fallbackProfileKey;
+  const requestedProfile = config.marketProfiles?.[requestedProfileKey] || config.marketProfiles?.[fallbackProfileKey];
+  if (!requestedProfile) throw new Error(`market profile not found: ${requestedProfileKey}`);
+
   const before = {
     marketProfile: config.selectedMarketProfile,
-    allowEntries: profile.allowEntries !== false,
-    entryOverrides: { ...(profile.entryOverrides || {}) }
+    sourceMarketProfile: requestedProfileKey,
+    allowEntries: aiProfile.allowEntries !== false,
+    entryOverrides: { ...(aiProfile.entryOverrides || {}) }
   };
 
-  if (decision.marketProfile) config.selectedMarketProfile = decision.marketProfile;
-  if (decision.allowEntries != null) profile.allowEntries = decision.allowEntries;
-  profile.entryOverrides = {
-    ...(profile.entryOverrides || {}),
+  aiProfile.label = aiProfile.label || "AI Agent Profile";
+  aiProfile.description = aiProfile.description || "Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.";
+
+  if (decision.marketProfile && decision.marketProfile !== AI_AGENT_PROFILE_KEY) {
+    aiProfile.allowEntries = requestedProfile.allowEntries !== false;
+    aiProfile.entryOverrides = { ...(requestedProfile.entryOverrides || {}) };
+  } else {
+    aiProfile.allowEntries = aiProfile.allowEntries !== false;
+    aiProfile.entryOverrides = { ...(aiProfile.entryOverrides || {}) };
+  }
+
+  if (decision.allowEntries != null) aiProfile.allowEntries = decision.allowEntries;
+  aiProfile.entryOverrides = {
+    ...aiProfile.entryOverrides,
     ...decision.entryOverrides
   };
-  config.marketProfiles[targetProfile] = profile;
+
+  config.marketProfiles[AI_AGENT_PROFILE_KEY] = aiProfile;
+  config.selectedMarketProfile = AI_AGENT_PROFILE_KEY;
   config.aiAgent.lastDecision = {
     at: new Date(now).toISOString(),
     status: "applied",
-    marketProfile: targetProfile,
-    allowEntries: profile.allowEntries !== false,
+    marketProfile: AI_AGENT_PROFILE_KEY,
+    sourceMarketProfile: requestedProfileKey,
+    allowEntries: aiProfile.allowEntries !== false,
     entryOverrides: decision.entryOverrides,
     reason: decision.reason,
     before
@@ -321,12 +504,32 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
 
   try {
     const prompt = buildPrompt({ config, rotation, candidates });
-    const raw = settings.provider === "gemini"
-      ? await askGemini({ apiKey, model: settings.geminiModel, timeoutMs: settings.timeoutMs, prompt })
-      : settings.provider === "openrouter"
-        ? await askOpenRouter({ apiKey, model: settings.openrouterModel, timeoutMs: settings.timeoutMs, prompt })
-      : await askOpenAi({ apiKey, model: settings.model, timeoutMs: settings.timeoutMs, prompt });
-    const decision = validateDecision(raw, settings);
+    let decision = null;
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= settings.retryAttempts; attempt += 1) {
+      try {
+        const raw = settings.provider === "gemini"
+          ? await askGemini({ apiKey, model: settings.geminiModel, timeoutMs: settings.timeoutMs, prompt })
+          : settings.provider === "openrouter"
+            ? await askOpenRouter({ apiKey, model: settings.openrouterModel, timeoutMs: settings.timeoutMs, prompt })
+          : await askOpenAi({ apiKey, model: settings.model, timeoutMs: settings.timeoutMs, prompt });
+        decision = validateDecision(raw, settings);
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err;
+        log?.("WARN", `AI Agent attempt ${attempt}/${settings.retryAttempts} failed: ${err.message}`);
+        if (attempt < settings.retryAttempts) {
+          await sleep(750 * attempt);
+        }
+      }
+    }
+
+    if (!decision) {
+      throw lastError || new Error("AI Agent failed after retries");
+    }
+
     const lastDecision = applyDecision(config, decision, now);
     lastDecision.provider = settings.provider;
     lastDecision.model = settings.provider === "gemini"
@@ -335,16 +538,24 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
         ? settings.openrouterModel
         : settings.model;
     log?.("INFO", `AI Agent applied market profile ${lastDecision.marketProfile} via ${lastDecision.provider}/${lastDecision.model}`);
-    if (settings.telegramReport && report) await report(buildReport(lastDecision));
+    try {
+      if (settings.telegramReport && report) await report(buildReport(lastDecision));
+    } catch (reportErr) {
+      log?.("WARN", `AI Agent report failed: ${reportErr.message}`);
+    }
     return { applied: true, decision: lastDecision };
   } catch (err) {
+    const fallbackProfileKey = config.marketProfiles?.custom ? "custom" : (config.marketProfiles?.neutral ? "neutral" : null);
+    if (fallbackProfileKey) config.selectedMarketProfile = fallbackProfileKey;
     config.aiAgent.lastDecision = {
       at: new Date(now).toISOString(),
-      status: "error",
-      reason: err.message
+      status: "failed",
+      reason: err.message,
+      fallbackProfile: fallbackProfileKey,
+      attempts: settings.retryAttempts
     };
-    log?.("WARN", `AI Agent skipped: ${err.message}`);
-    return { skipped: true, reason: err.message };
+    log?.("WARN", `AI Agent failed after ${settings.retryAttempts} attempt(s): ${err.message}${fallbackProfileKey ? `, fallback to ${fallbackProfileKey}` : ""}`);
+    return { skipped: true, reason: err.message, fallbackProfile: fallbackProfileKey };
   }
 }
 
@@ -352,5 +563,7 @@ module.exports = {
   getAiAgentSettings,
   runAiAgentAfterRotation,
   validateDecision,
-  applyDecision
+  applyDecision,
+  __buildPromptForTest: buildPrompt,
+  __parseJsonForTest: parseJson
 };

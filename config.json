@@ -5,58 +5,55 @@
   "marketProfileMode": "auto",
   "selectedMarketProfile": "bullish_slow",
   "pairSettings": {
-    "ETHUSDT": {
-      "enabled": true
-    },
     "HYPEUSDT": {
-      "enabled": true
-    },
-    "USDCUSDT": {
-      "enabled": true
-    },
-    "TRUMPUSDT": {
-      "enabled": false
-    },
-    "SOLUSDT": {
-      "enabled": true
-    },
-    "KASUSDT": {
-      "enabled": false
-    },
-    "ENAUSDT": {
-      "enabled": false
-    },
-    "ASTERUSDT": {
-      "enabled": false
-    },
-    "DOGEUSDT": {
-      "enabled": true
-    },
-    "RTXUSDT": {
-      "enabled": true
-    },
-    "BTCUSDT": {
       "enabled": true
     },
     "SAPIENUSDT": {
       "enabled": true
     },
+    "MONUSDT": {
+      "enabled": true
+    },
+    "USDCUSDT": {
+      "enabled": true
+    },
+    "DOGEUSDT": {
+      "enabled": true
+    },
+    "ENAUSDT": {
+      "enabled": false
+    },
+    "FETUSDT": {
+      "enabled": false
+    },
+    "WLDUSDT": {
+      "enabled": true
+    },
+    "BTCUSDT": {
+      "enabled": true
+    },
+    "ADAUSDT": {
+      "enabled": false
+    },
+    "ETHUSDT": {
+      "enabled": true
+    },
+    "SOLUSDT": {
+      "enabled": true
+    },
+    "CRVUSDT": {
+      "enabled": false
+    },
+    "FARTCOINUSDT": {
+      "enabled": true
+    },
     "BGBUSDT": {
-      "enabled": true
-    },
-    "XAUTUSDT": {
-      "enabled": true
-    },
-    "TRXUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "AAVEUSDT": {
       "enabled": false
     },
     "ABUSDT": {
-      "enabled": false
-    },
-    "ADAUSDT": {
       "enabled": false
     },
     "AINUSDT": {
@@ -72,6 +69,9 @@
       "enabled": false
     },
     "ARIAUSDT": {
+      "enabled": false
+    },
+    "ASTERUSDT": {
       "enabled": false
     },
     "BANKUSDT": {
@@ -98,9 +98,6 @@
     "COLLECTUSDT": {
       "enabled": false
     },
-    "CRVUSDT": {
-      "enabled": false
-    },
     "CYSUSDT": {
       "enabled": false
     },
@@ -114,9 +111,6 @@
       "enabled": false
     },
     "ETHFIUSDT": {
-      "enabled": false
-    },
-    "FARTCOINUSDT": {
       "enabled": false
     },
     "FILUSDT": {
@@ -152,10 +146,16 @@
     "JCTUSDT": {
       "enabled": false
     },
+    "KASUSDT": {
+      "enabled": false
+    },
     "KATUSDT": {
       "enabled": false
     },
     "KITEUSDT": {
+      "enabled": false
+    },
+    "LATUSDT": {
       "enabled": false
     },
     "LDOUSDT": {
@@ -170,14 +170,11 @@
     "MAGMAUSDT": {
       "enabled": false
     },
-    "MONUSDT": {
-      "enabled": true
-    },
     "MOODENGUSDT": {
       "enabled": false
     },
     "MORPHOUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "MUSDT": {
       "enabled": false
@@ -186,7 +183,7 @@
       "enabled": false
     },
     "NEARUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "NIGHTUSDT": {
       "enabled": false
@@ -198,7 +195,7 @@
       "enabled": false
     },
     "PAXGUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "PENGUUSDT": {
       "enabled": false
@@ -210,7 +207,7 @@
       "enabled": false
     },
     "PRLUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "PUMPUSDT": {
       "enabled": false
@@ -228,9 +225,12 @@
       "enabled": false
     },
     "RLUSDUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "ROBOUSDT": {
+      "enabled": false
+    },
+    "RTXUSDT": {
       "enabled": false
     },
     "SHIBUSDT": {
@@ -263,6 +263,12 @@
     "TRIAUSDT": {
       "enabled": false
     },
+    "TRUMPUSDT": {
+      "enabled": false
+    },
+    "TRXUSDT": {
+      "enabled": false
+    },
     "TURBOUSDT": {
       "enabled": false
     },
@@ -284,7 +290,7 @@
     "WIFUSDT": {
       "enabled": false
     },
-    "WLDUSDT": {
+    "XAUTUSDT": {
       "enabled": false
     },
     "XDCUSDT": {
@@ -300,7 +306,7 @@
       "enabled": false
     },
     "XRPUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ZBCNUSDT": {
       "enabled": false
@@ -311,11 +317,14 @@
     "ZECUSDT": {
       "enabled": false
     },
-    "LATUSDT": {
+    "DYDXUSDT": {
+      "enabled": false
+    },
+    "PNUTUSDT": {
       "enabled": true
     }
   },
-  "riskPercent": 0.15,
+  "riskPercent": "0.15",
   "dryRun": false,
   "minBuyUSDT": 5,
   "maxBuyUSDT": 10,
@@ -354,7 +363,7 @@
   "requirePriceAboveEma9": true,
   "requireEdge": false,
   "requireRsiMomentum": true,
-  "requireBreakout": true,
+  "requireBreakout": false,
   "enableRsiBandFilter": true,
   "enableAtrFilter": true,
   "enableVolumeFilter": true,
@@ -372,7 +381,7 @@
   "minScalpTargetPct": 0.008,
   "maxScalpTargetPct": 0.012,
   "minTrendRsi": 36,
-  "minAtrPct": 0.002,
+  "minAtrPct": 0.0024,
   "maxAtrPct": 0.025,
   "minVolumeRatio": 1.03,
   "maxEmaGapPct": 0.018,
@@ -395,16 +404,16 @@
   "lossStreakHaltThreshold": 10,
   "dailyProfitTargetPct": 0.05,
   "dailyLossLimitPct": -0.3,
-  "rsiBandLower": 46,
+  "rsiBandLower": 45,
   "rsiBandUpper": 64,
-  "minCandleStrength": 0.35,
+  "minCandleStrength": 0.3,
   "minConfirmation": 3,
   "breakoutPct": 0.9985,
-  "optimalRsiLow": 49,
+  "optimalRsiLow": 47,
   "optimalRsiHigh": 58,
-  "optimalAtrLow": 0.005,
-  "optimalAtrHigh": 0.012,
-  "minEmaGapNeg": 0.0015,
+  "optimalAtrLow": 0.004,
+  "optimalAtrHigh": 0.011,
+  "minEmaGapNeg": 0.0018,
   "report": {
     "heartbeatIntervalMs": 300000,
     "marketReportIntervalMs": 1800000,
@@ -844,7 +853,7 @@
       "label": "Custom Trade",
       "description": "Profile gaya trading buatan user. Pakai ini kalau mau simpan setting sendiri tanpa mengubah mode bawaan.",
       "overrides": {
-        "riskPercent": 0.15,
+        "riskPercent": "0.15",
         "takeProfitPct": 0.015,
         "trailingActivationPct": 0.008,
         "trailingDrawdownPct": 0.004,
@@ -885,32 +894,50 @@
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-19T09:54:38.730Z",
+    "at": "2026-04-19T14:10:28.101Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 2,
     "topPairs": 15,
     "activePairs": [
-      "BTCUSDT",
+      "MORPHOUSDT",
       "SAPIENUSDT",
-      "BGBUSDT",
+      "PNUTUSDT",
+      "FARTCOINUSDT",
+      "BTCUSDT",
+      "MONUSDT",
       "ETHUSDT",
+      "NEARUSDT",
+      "XRPUSDT",
       "USDCUSDT",
-      "RTXUSDT",
-      "TRXUSDT",
+      "WLDUSDT",
       "SOLUSDT",
       "DOGEUSDT",
-      "HYPEUSDT",
-      "MONUSDT",
-      "LATUSDT",
-      "XAUTUSDT",
-      "PAXGUSDT",
-      "RLUSDUSDT"
+      "PRLUSDT",
+      "HYPEUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 17,
+    "blacklistCount": 15,
     "pending": false,
     "pendingAt": null,
     "pendingReason": null
+  },
+  "aiAgent": {
+    "allowedDecisions": {
+      "marketProfile": true,
+      "entriesToggle": true,
+      "marketFilters": true,
+      "qualityFilters": true
+    },
+    "safety": {
+      "fallbackRuleBased": true,
+      "telegramReport": true
+    },
+    "enabled": true,
+    "lastDecision": {
+      "at": "2026-04-19T14:10:28.101Z",
+      "status": "error",
+      "reason": "invalid JSON decision"
+    }
   }
 }
