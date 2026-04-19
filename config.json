@@ -27,7 +27,7 @@
       "enabled": false
     },
     "ASTERUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "DOGEUSDT": {
       "enabled": true
@@ -63,7 +63,7 @@
       "enabled": false
     },
     "APRUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "APTUSDT": {
       "enabled": false
@@ -198,7 +198,7 @@
       "enabled": false
     },
     "PAXGUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "PENGUUSDT": {
       "enabled": false
@@ -228,7 +228,7 @@
       "enabled": false
     },
     "RLUSDUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ROBOUSDT": {
       "enabled": false
@@ -438,7 +438,8 @@
         "breakoutPct": 0.9985,
         "requireEma21Rising": true,
         "requireFastTrend": true,
-        "requirePriceAboveEma9": true
+        "requirePriceAboveEma9": true,
+        "requireEdge": true
       }
     },
     "day_trade": {
@@ -456,7 +457,8 @@
         "breakoutPct": 0.999,
         "requireEma21Rising": true,
         "requireFastTrend": true,
-        "requirePriceAboveEma9": true
+        "requirePriceAboveEma9": true,
+        "requireEdge": true
       }
     },
     "swing_trade": {
@@ -474,7 +476,8 @@
         "breakoutPct": 0.9995,
         "requireEma21Rising": true,
         "requireFastTrend": true,
-        "requirePriceAboveEma9": true
+        "requirePriceAboveEma9": true,
+        "requireEdge": true
       }
     },
     "range_scalp": {
@@ -492,7 +495,8 @@
         "breakoutPct": 0.9975,
         "requireEma21Rising": false,
         "requireFastTrend": false,
-        "requirePriceAboveEma9": false
+        "requirePriceAboveEma9": false,
+        "requireEdge": false
       }
     },
     "custom": {
@@ -511,23 +515,7 @@
         "requireEma21Rising": true,
         "requireFastTrend": false,
         "requirePriceAboveEma9": true,
-        "requireEdge": false,
-        "rsiBandLower": 46,
-        "rsiBandUpper": 64,
-        "minCandleStrength": 0.35,
-        "minEmaGapNeg": 0.0015,
-        "optimalRsiLow": 49,
-        "optimalRsiHigh": 58,
-        "optimalAtrLow": 0.005,
-        "optimalAtrHigh": 0.012,
-        "requireRsiMomentum": true,
-        "requireBreakout": true,
-        "enableRsiBandFilter": true,
-        "enableAtrFilter": true,
-        "enableVolumeFilter": true,
-        "enableCandleStrengthFilter": true,
-        "enablePriceExtensionFilter": true,
-        "enableRangeRecoveryFilter": true
+        "requireEdge": false
       }
     }
   },
@@ -542,7 +530,23 @@
         "minTrendRsi": 39,
         "minAtrPct": 0.0025,
         "maxAtrPct": 0.025,
-        "maxEmaGapPct": 0.018
+        "maxEmaGapPct": 0.018,
+        "requireRsiMomentum": true,
+        "requireBreakout": true,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": false,
+        "rsiBandLower": 48,
+        "rsiBandUpper": 66,
+        "minCandleStrength": 0.32,
+        "optimalRsiLow": 50,
+        "optimalRsiHigh": 61,
+        "optimalAtrLow": 0.0045,
+        "optimalAtrHigh": 0.013,
+        "minEmaGapNeg": 0.0018
       }
     },
     "bullish_slow": {
@@ -555,7 +559,23 @@
         "minTrendRsi": 36,
         "minAtrPct": 0.0024,
         "maxAtrPct": 0.025,
-        "maxEmaGapPct": 0.018
+        "maxEmaGapPct": 0.018,
+        "requireRsiMomentum": true,
+        "requireBreakout": false,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": true,
+        "rsiBandLower": 45,
+        "rsiBandUpper": 64,
+        "minCandleStrength": 0.3,
+        "optimalRsiLow": 47,
+        "optimalRsiHigh": 58,
+        "optimalAtrLow": 0.004,
+        "optimalAtrHigh": 0.011,
+        "minEmaGapNeg": 0.0018
       }
     },
     "neutral": {
@@ -568,7 +588,23 @@
         "minTrendRsi": 40,
         "minAtrPct": 0.0028,
         "maxAtrPct": 0.02,
-        "maxEmaGapPct": 0.015
+        "maxEmaGapPct": 0.015,
+        "requireRsiMomentum": true,
+        "requireBreakout": true,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": true,
+        "rsiBandLower": 46,
+        "rsiBandUpper": 64,
+        "minCandleStrength": 0.35,
+        "optimalRsiLow": 49,
+        "optimalRsiHigh": 58,
+        "optimalAtrLow": 0.005,
+        "optimalAtrHigh": 0.012,
+        "minEmaGapNeg": 0.0015
       }
     },
     "bearish": {
@@ -581,7 +617,23 @@
         "minTrendRsi": 43,
         "minAtrPct": 0.0032,
         "maxAtrPct": 0.018,
-        "maxEmaGapPct": 0.012
+        "maxEmaGapPct": 0.012,
+        "requireRsiMomentum": true,
+        "requireBreakout": false,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": false,
+        "enableRangeRecoveryFilter": true,
+        "rsiBandLower": 48,
+        "rsiBandUpper": 62,
+        "minCandleStrength": 0.4,
+        "optimalRsiLow": 50,
+        "optimalRsiHigh": 56,
+        "optimalAtrLow": 0.006,
+        "optimalAtrHigh": 0.011,
+        "minEmaGapNeg": 0.0012
       }
     },
     "choppy": {
@@ -594,7 +646,23 @@
         "minTrendRsi": 43,
         "minAtrPct": 0.0032,
         "maxAtrPct": 0.012,
-        "maxEmaGapPct": 0.008
+        "maxEmaGapPct": 0.008,
+        "requireRsiMomentum": true,
+        "requireBreakout": false,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": false,
+        "enableRangeRecoveryFilter": true,
+        "rsiBandLower": 47,
+        "rsiBandUpper": 60,
+        "minCandleStrength": 0.42,
+        "optimalRsiLow": 48,
+        "optimalRsiHigh": 55,
+        "optimalAtrLow": 0.004,
+        "optimalAtrHigh": 0.009,
+        "minEmaGapNeg": 0.001
       }
     },
     "custom": {
@@ -607,7 +675,23 @@
         "minTrendRsi": 39,
         "minAtrPct": 0.0026,
         "maxAtrPct": 0.02,
-        "maxEmaGapPct": 0.016
+        "maxEmaGapPct": 0.016,
+        "requireRsiMomentum": true,
+        "requireBreakout": true,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": true,
+        "rsiBandLower": 46,
+        "rsiBandUpper": 64,
+        "minCandleStrength": 0.35,
+        "optimalRsiLow": 49,
+        "optimalRsiHigh": 58,
+        "optimalAtrLow": 0.005,
+        "optimalAtrHigh": 0.012,
+        "minEmaGapNeg": 0.0015
       }
     }
   },
@@ -801,34 +885,32 @@
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-19T07:42:21.737Z",
+    "at": "2026-04-19T09:54:38.730Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 2,
     "topPairs": 15,
     "activePairs": [
       "BTCUSDT",
+      "SAPIENUSDT",
       "BGBUSDT",
       "ETHUSDT",
-      "SAPIENUSDT",
       "USDCUSDT",
-      "DOGEUSDT",
-      "SOLUSDT",
       "RTXUSDT",
-      "HYPEUSDT",
-      "ASTERUSDT",
       "TRXUSDT",
-      "APRUSDT",
-      "XAUTUSDT",
+      "SOLUSDT",
+      "DOGEUSDT",
+      "HYPEUSDT",
+      "MONUSDT",
       "LATUSDT",
-      "MONUSDT"
+      "XAUTUSDT",
+      "PAXGUSDT",
+      "RLUSDUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
     "blacklistCount": 17,
-    "pending": true,
-    "pendingAt": "2026-04-19T09:42:39.152Z",
-    "pendingReason": "1 open position(s)",
-    "skippedAt": "2026-04-19T09:42:39.152Z",
-    "skippedReason": "1 open position(s)"
+    "pending": false,
+    "pendingAt": null,
+    "pendingReason": null
   }
 }
