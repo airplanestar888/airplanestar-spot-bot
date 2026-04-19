@@ -19,6 +19,7 @@ const { runScheduledReports } = require("./runtime/reports");
 const { handleExitFlow } = require("./runtime/exitFlow");
 const { handleEntryFlow } = require("./runtime/entryFlow");
 const { validateConfig, validateEngineFiles } = require("./configValidation");
+const { getAiAgentSettings, runAiAgentAfterRotation } = require("./aiAgent");
 const dotenv = require("dotenv");
 const path = require("path");
 const fs = require("fs");
@@ -944,6 +945,11 @@ function applySelectedMode(modeKey) {
 }
 
 function resolveMarketProfileKey(marketMode) {
+  const aiDecision = config.aiAgent?.lastDecision;
+  if (getAiAgentSettings(config).enabled && aiDecision?.status === "applied" && config.marketProfiles?.[aiDecision.marketProfile]) {
+    return aiDecision.marketProfile;
+  }
+
   if (config.marketProfileMode === "manual") {
     return config.selectedMarketProfile || null;
   }
@@ -2013,6 +2019,16 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     pendingAt: null,
     pendingReason: null
   };
+  persistConfigSnapshot();
+
+  await runAiAgentAfterRotation({
+    config,
+    rotation: config.lastAutoPairRotation,
+    candidates: scored,
+    now,
+    report,
+    log: (level, message, meta) => logEvent(LOG_FILE, level, message, meta)
+  });
   persistConfigSnapshot();
 
   if (changed) {

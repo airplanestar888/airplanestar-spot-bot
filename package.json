@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "app": "node app.js",
+    "test:openai": "node scripts/test-openai.js",
     "test": "node tests/run.js"
   },
   "dependencies": {

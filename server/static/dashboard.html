@@ -96,6 +96,10 @@
       .wrap{width:min(100% - 20px,100%)}
       #tradeTable td,#tradeTable th{padding:9px 8px;font-size:11px;vertical-align:top}
       #tradeTable .pill{padding:3px 7px;font-size:10px}
+      #tradeTable td:nth-child(3),
+      #tradeTable th:nth-child(3),
+      #tradeTable td:nth-child(4),
+      #tradeTable th:nth-child(4),
       #tradeTable td:nth-child(5),
       #tradeTable th:nth-child(5),
       #tradeTable td:nth-child(6),
@@ -107,8 +111,8 @@
       #tradeTable td:nth-child(9),
       #tradeTable th:nth-child(9){display:none}
       #tradeTable td:nth-child(1){min-width:88px;font-weight:700}
-      #tradeTable td:nth-child(3),#tradeTable td:nth-child(4){white-space:normal;line-height:1.25;min-width:82px}
-      #tradeTable td:nth-child(10),#tradeTable td:nth-child(11){white-space:nowrap;font-weight:700}
+      #tradeTable td:nth-child(10){white-space:nowrap;font-weight:700}
+      #tradeTable td:nth-child(11){white-space:normal;line-height:1.25}
     }
   </style>
 </head>
@@ -321,7 +325,7 @@
   <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="field-grid">
-      <div class="field"><label>Refresh Interval</label><select id="autoPairRotateHoursEditor"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" id="autoPairRotateHoursHint" style="margin-top:6px">Used by Auto Pair Rotation.</div></div>
+      <div class="field"><label>Refresh Interval</label><select id="autoPairRotateHoursEditor"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" id="autoPairRotateHoursHint" style="margin-top:6px">Used by Auto Pair Rotation and AI Agent.</div></div>
       <div class="field"><label>Active Pairs (top N)</label><select id="autoPairRotateTopEditor"><option value="5">5 pairs - freshest</option><option value="8">8 pairs - fast</option><option value="10">10 pairs - balanced</option><option value="12">12 pairs - wider</option><option value="15">15 pairs - max safe</option></select><div class="hint" style="margin-top:6px">Filtered and managed by the bot auto-rotate engine.</div></div>
       <div class="field"><label>Blacklist Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
       <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0">Active pair lebih kecil = scan candle lebih cepat dan risiko sinyal basi lebih rendah. Untuk scalping, 8-10 biasanya paling aman.</div></div>
@@ -442,16 +446,15 @@
 <section class="tab-panel" id="agentTab">
 <section class="panel">
 <h2>AI Agent</h2>
-<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Agent hanya boleh override layer Market Profile: pilih profile market, atur allow entries, dan tuning filter entry market. Bot Type, Sizing &amp; Limits, dan Trade Style tetap manual.</div>
+<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Agent mengikuti interval Auto Pair Rotation dan idealnya bekerja setelah auto-pair selesai. Agent hanya boleh override layer Market Profile: pilih profile market, atur allow entries, dan tuning filter entry market. Bot Type, Sizing &amp; Limits, dan Trade Style tetap manual.</div>
 
 <div class="acc open" id="accAgentGeneral">
   <div class="acc-hd" onclick="toggleAcc('accAgentGeneral')"><h3>General</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
-    <div class="check-grid">
-      <label class="check-item"><input id="aiAgentEnabled" type="checkbox"><span>Enable AI Agent</span></label>
-    </div>
     <div class="field-grid">
-      <div class="field"><label>Decision Cadence</label><select id="aiAgentDecisionInterval"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" style="margin-top:6px">Uses the same refresh interval as Auto Pair Rotation.</div></div>
+      <label class="check-item"><input id="aiAgentEnabled" type="checkbox"><span>Enable AI Agent</span></label>
+      <div class="field"><label>AI Provider</label><select id="aiProviderEditor"><option value="openrouter">OpenRouter</option><option value="gemini">Gemini</option><option value="openai">OpenAI</option></select><div class="hint" style="margin-top:6px">Default: OpenRouter.</div></div>
+      <div class="field"><label>Decision Cadence</label><select id="aiAgentDecisionInterval" disabled><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" style="margin-top:6px">Follows Auto Pair Rotation interval.</div></div>
     </div>
   </div>
 </div>
@@ -565,23 +568,53 @@ function weightedPct(trades, usdtFn){
 function gEv(id){const e=document.getElementById(id);if(!e)return null;return e.type==='checkbox'?e.checked:e.value}
 function sEv(id,v){const e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=Boolean(v);else e.value=v??''}
 function syncAiAgentCadenceUI(){
-  const aiEnabled=document.getElementById('aiAgentEnabled');
   const aiCadence=document.getElementById('aiAgentDecisionInterval');
   const rotateCadence=document.getElementById('autoPairRotateHoursEditor');
   const rotateHint=document.getElementById('autoPairRotateHoursHint');
   if(!aiCadence||!rotateCadence)return;
   aiCadence.value=rotateCadence.value;
-  const locked=Boolean(aiEnabled?.checked);
-  rotateCadence.disabled=locked;
-  if(rotateHint) rotateHint.textContent=locked ? 'Managed by AI Agent cadence.' : 'Used by Auto Pair Rotation.';
+  aiCadence.disabled=true;
+  if(rotateHint) rotateHint.textContent='Used by Auto Pair Rotation and AI Agent.';
 }
 function bindAiAgentCadenceUI(){
   const aiEnabled=document.getElementById('aiAgentEnabled');
-  const aiCadence=document.getElementById('aiAgentDecisionInterval');
   const rotateCadence=document.getElementById('autoPairRotateHoursEditor');
   if(aiEnabled) aiEnabled.addEventListener('change',syncAiAgentCadenceUI);
-  if(aiCadence&&rotateCadence) aiCadence.addEventListener('change',()=>{ rotateCadence.value=aiCadence.value; syncAiAgentCadenceUI(); });
   if(rotateCadence) rotateCadence.addEventListener('change',syncAiAgentCadenceUI);
+}
+function ensureAiAgentConfig(){
+  if(!currentConfig.aiAgent||typeof currentConfig.aiAgent!=='object')currentConfig.aiAgent={};
+  if(!currentConfig.aiAgent.allowedDecisions||typeof currentConfig.aiAgent.allowedDecisions!=='object')currentConfig.aiAgent.allowedDecisions={};
+  if(!currentConfig.aiAgent.safety||typeof currentConfig.aiAgent.safety!=='object')currentConfig.aiAgent.safety={};
+  const a=currentConfig.aiAgent;
+  if(a.enabled==null)a.enabled=false;
+  if(!a.provider)a.provider='openrouter';
+  if(a.allowedDecisions.marketProfile==null)a.allowedDecisions.marketProfile=true;
+  if(a.allowedDecisions.entriesToggle==null)a.allowedDecisions.entriesToggle=true;
+  if(a.allowedDecisions.marketFilters==null)a.allowedDecisions.marketFilters=true;
+  if(a.allowedDecisions.qualityFilters==null)a.allowedDecisions.qualityFilters=true;
+  if(a.safety.fallbackRuleBased==null)a.safety.fallbackRuleBased=true;
+  if(a.safety.telegramReport==null)a.safety.telegramReport=true;
+}
+function renderAiAgentConfig(){
+  ensureAiAgentConfig();
+  const a=currentConfig.aiAgent;
+  sEv('aiAgentEnabled',a.enabled);
+  sEv('aiProviderEditor',a.provider||'openrouter');
+  sEv('aiAllowMarketProfile',a.allowedDecisions.marketProfile);
+  sEv('aiAllowEntriesToggle',a.allowedDecisions.entriesToggle);
+  sEv('aiAllowMarketFilters',a.allowedDecisions.marketFilters);
+  sEv('aiAllowQualityFilters',a.allowedDecisions.qualityFilters);
+  sEv('aiFallbackRule',a.safety.fallbackRuleBased);
+  sEv('aiTelegramReport',a.safety.telegramReport);
+  const d=a.lastDecision||{};
+  sEv('aiLastMarketProfile',d.marketProfile||'-');
+  sEv('aiLastAllowEntries',d.allowEntries==null?'-':(d.allowEntries?'yes':'no'));
+  sEv('aiLastStatus',d.status||'Not applied');
+  document.getElementById('aiLastFilters').textContent=d.entryOverrides?JSON.stringify(d.entryOverrides,null,2):'-';
+  document.getElementById('aiLastReason').textContent=d.reason||'Belum ada keputusan agent.';
+  sEv('aiLastTimestamp',d.at||'-');
+  syncAiAgentCadenceUI();
 }
 async function rH(h){return(await h.getFile()).text()}
 async function wH(h,c){const w=await h.createWritable();await w.write(c);await w.close()}
@@ -760,6 +793,7 @@ function popCfg(){
   if(!currentConfig)return;
   if(currentConfig.maxRoundsPerDay==null&&currentConfig.maxTradesPerDay!=null)currentConfig.maxRoundsPerDay=currentConfig.maxTradesPerDay;
   if(!currentConfig.autoPairRotation||typeof currentConfig.autoPairRotation!=='object')currentConfig.autoPairRotation={};
+  ensureAiAgentConfig();
   if(currentConfig.autoPairRotation.enabled==null)currentConfig.autoPairRotation.enabled=false;
   if(currentConfig.autoPairRotation.refreshIntervalHours==null)currentConfig.autoPairRotation.refreshIntervalHours=6;
   currentConfig.autoPairRotation.refreshIntervalHours=normalizeAutoPairHours(currentConfig.autoPairRotation.refreshIntervalHours);
@@ -776,6 +810,7 @@ function popCfg(){
   for(const[path,id]of Object.entries(BOT_NESTED_MAP))sEv(id,getByPath(currentConfig,path));
   for(const[k,id]of Object.entries(BTYPE_MAP))sEv(id,botTypeVal(currentConfig,k));
   for(const[k,id]of Object.entries(TRD_MAP))sEv(id,effVal(currentConfig,k));
+  renderAiAgentConfig();
   popPairs(currentConfig.pairSettings||{});
   document.getElementById('configStatus').textContent=`Config aktif — bot type: ${currentConfig.selectedBotType||'-'}, trade style: ${currentConfig.selectedMode||'-'}, market profile: ${currentConfig.selectedMarketProfile||'-'} (${currentConfig.marketProfileMode||'auto'})`;
   renderReadmeTab();
@@ -819,6 +854,17 @@ function applyCfg(){
   }
   mp.entryOverrides=mpo;
   if(nc.marketProfiles?.[nc.selectedMarketProfile])nc.marketProfiles[nc.selectedMarketProfile]=mp;
+  if(!nc.aiAgent||typeof nc.aiAgent!=='object')nc.aiAgent={};
+  if(!nc.aiAgent.allowedDecisions||typeof nc.aiAgent.allowedDecisions!=='object')nc.aiAgent.allowedDecisions={};
+  if(!nc.aiAgent.safety||typeof nc.aiAgent.safety!=='object')nc.aiAgent.safety={};
+  nc.aiAgent.enabled=Boolean(gEv('aiAgentEnabled'));
+  nc.aiAgent.provider=String(gEv('aiProviderEditor')||'openrouter');
+  nc.aiAgent.allowedDecisions.marketProfile=Boolean(gEv('aiAllowMarketProfile'));
+  nc.aiAgent.allowedDecisions.entriesToggle=Boolean(gEv('aiAllowEntriesToggle'));
+  nc.aiAgent.allowedDecisions.marketFilters=Boolean(gEv('aiAllowMarketFilters'));
+  nc.aiAgent.allowedDecisions.qualityFilters=Boolean(gEv('aiAllowQualityFilters'));
+  nc.aiAgent.safety.fallbackRuleBased=Boolean(gEv('aiFallbackRule'));
+  nc.aiAgent.safety.telegramReport=Boolean(gEv('aiTelegramReport'));
   const ps={};
   for(const c of document.getElementById('pairEditor').querySelectorAll('[data-pe]')){
     const s=c.getAttribute('data-pe');
