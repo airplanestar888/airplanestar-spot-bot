@@ -27,7 +27,8 @@ async function handleEntryFlow({
   reporting,
   logEvent,
   LOG_FILE,
-  safeToFixed
+  safeToFixed,
+  cachedPrices
 }) {
   const calcBuySlippagePct = (intendedPrice, fillPrice) => {
     if (!Number.isFinite(intendedPrice) || intendedPrice <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) return null;
@@ -79,6 +80,25 @@ async function handleEntryFlow({
   if (typeof bestEligible.price !== "number" || !isFinite(bestEligible.price) || bestEligible.price <= 0) {
     logEvent(LOG_FILE, "WARN", "Skipping entry: invalid price from signal");
     return { handled: true };
+  }
+  const coinKey = String(bestEligible.symbol || "").replace(/USDT$/i, "").toLowerCase();
+  const livePrice = Number(cachedPrices?.[coinKey] ?? cachedPrices?.[bestEligible.symbol] ?? 0);
+  const maxEntryPriceDriftPct = Number(config.maxEntryPriceDriftPct ?? 0.006);
+  if (
+    Number.isFinite(livePrice) &&
+    livePrice > 0 &&
+    Number.isFinite(maxEntryPriceDriftPct) &&
+    maxEntryPriceDriftPct > 0
+  ) {
+    const liveDriftPct = (livePrice - bestEligible.price) / bestEligible.price;
+    if (Math.abs(liveDriftPct) > maxEntryPriceDriftPct) {
+      logEvent(
+        LOG_FILE,
+        "INFO",
+        `Skipping entry ${bestEligible.symbol}: live price drift ${(liveDriftPct * 100).toFixed(2)}% exceeds max ${(maxEntryPriceDriftPct * 100).toFixed(2)}% (signal=${safeToFixed(bestEligible.price, 6)} live=${safeToFixed(livePrice, 6)})`
+      );
+      return { handled: true };
+    }
   }
 
   const entryPlan = buildEntryPlan({ usdtFree, bestEligible, config, maxAllowedSizeUSDT: remainingExposureUsdt });

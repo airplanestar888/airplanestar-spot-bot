@@ -18,6 +18,7 @@
     .hero-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
     .btn{border:0;border-radius:10px;padding:9px 14px;color:#07111e;background:linear-gradient(180deg,#ffd24d,#f4b92a);font-weight:700;cursor:pointer;font-size:13px}
     .btn.secondary{background:linear-gradient(180deg,#7ec7ff,#4ba7ff)}
+    .btn.danger{background:linear-gradient(180deg,#ff8f70,#ff4f4f);color:#1a0707}
     .btn.theme{background:var(--softStrong);color:var(--text);border:1px solid var(--line)}
     .hint{color:var(--muted);font-size:13px}
     /* ─── Panel / Card ─── */
@@ -120,6 +121,7 @@
   </div>
   <div class="hero-right">
     <button class="btn theme" id="themeToggleBtn" type="button">Night</button>
+    <button class="btn danger" id="restartBotBtn" type="button">Restart Bot</button>
     <button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
     <span class="hint" id="statusText"> </span>
   </div>
@@ -272,13 +274,13 @@
   <div class="acc-hd" onclick="toggleAcc('accIntervals')"><h3>Report Intervals</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="field-grid">
-      <div class="field"><label>Loop (ms)</label><input id="loopIntervalEditor" type="number" step="1000" min="0"></div>
-      <div class="field"><label>Hold Check (ms)</label><input id="holdCheckIntervalEditor" type="number" step="1000" min="1000"></div>
-      <div class="field"><label>Heartbeat (ms)</label><input id="heartbeatIntervalEditor" type="number" step="1000" min="0"></div>
-      <div class="field"><label>Market Report (ms)</label><input id="marketIntervalEditor" type="number" step="1000" min="0"></div>
-      <div class="field"><label>Balance Report (ms)</label><input id="balanceIntervalEditor" type="number" step="1000" min="0"></div>
-      <div class="field"><label>Hold Report (ms)</label><input id="holdIntervalEditor" type="number" step="1000" min="0"></div>
-      <div class="field"><label>No Signal (ms)</label><input id="noSignalIntervalEditor" type="number" step="1000" min="0"></div>
+      <div class="field"><label>Loop Interval</label><select id="loopIntervalEditor"><option value="30000">30 detik - aggressive</option><option value="60000">1 menit - balanced</option><option value="120000">2 menit - light</option><option value="180000">3 menit - slower</option></select></div>
+      <div class="field"><label>Hold Check Interval</label><select id="holdCheckIntervalEditor"><option value="15000">15 detik - aggressive</option><option value="20000">20 detik - fast</option><option value="30000">30 detik - balanced</option><option value="60000">1 menit - light</option></select></div>
+      <div class="field"><label>Heartbeat Interval</label><select id="heartbeatIntervalEditor"><option value="60000">1 menit - fast</option><option value="180000">3 menit - balanced</option><option value="300000">5 menit - default</option><option value="600000">10 menit - light</option></select></div>
+      <div class="field"><label>Market Report Interval</label><select id="marketIntervalEditor"><option value="900000">15 menit - fast</option><option value="1800000">30 menit - balanced</option><option value="3600000">1 jam - default</option><option value="7200000">2 jam - light</option></select></div>
+      <div class="field"><label>Balance Report Interval</label><select id="balanceIntervalEditor"><option value="1800000">30 menit - fast</option><option value="3600000">1 jam - default</option><option value="7200000">2 jam - balanced</option><option value="14400000">4 jam - light</option></select></div>
+      <div class="field"><label>Hold Summary Interval</label><select id="holdIntervalEditor"><option value="60000">1 menit - fast</option><option value="180000">3 menit - active</option><option value="300000">5 menit - balanced</option><option value="600000">10 menit - light</option></select></div>
+      <div class="field"><label>No Signal Interval</label><select id="noSignalIntervalEditor"><option value="1800000">30 menit - fast</option><option value="3600000">1 jam - balanced</option><option value="7200000">2 jam - light</option><option value="14400000">4 jam - quieter</option></select></div>
     </div>
   </div>
 </div>
@@ -287,9 +289,10 @@
   <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="field-grid">
-      <div class="field"><label>Refresh Interval (hours)</label><input id="autoPairRotateHoursEditor" type="number" step="1" min="1"></div>
-      <div class="field"><label>Active Pairs (top N)</label><input id="autoPairRotateTopEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>Refresh Interval</label><select id="autoPairRotateHoursEditor"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select></div>
+      <div class="field"><label>Active Pairs (top N)</label><select id="autoPairRotateTopEditor"><option value="5">5 pairs - freshest</option><option value="8">8 pairs - fast</option><option value="10">10 pairs - balanced</option><option value="12">12 pairs - wider</option><option value="15">15 pairs - max safe</option></select></div>
       <div class="field"><label>Flag Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
+      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0">Active pair lebih kecil = scan candle lebih cepat dan risiko sinyal basi lebih rendah. Untuk scalping, 8-10 biasanya paling aman.</div></div>
     </div>
   </div>
 </div>
@@ -418,6 +421,8 @@ const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',use
 const BOT_BOOL_KEYS=new Set(['dryRun','enableCostGuard','useDynamicTakeProfit','enableMultiTrade','stopAfterThreeConsecutiveLosses','usePairReentryBlock']);
 const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor','autoPairRotation.enabled':'autoPairRotateEnabledEditor','autoPairRotation.refreshIntervalHours':'autoPairRotateHoursEditor','autoPairRotation.topPairs':'autoPairRotateTopEditor','autoPairRotation.disableOnStopLoss':'autoPairDisableSlEditor','autoPairRotation.disableOnStaleTrade':'autoPairDisableStaleEditor','autoPairRotation.disableOnAnyLoss':'autoPairDisableAnyLossEditor','autoPairRotation.stopLossCooldownHours':'autoPairSlCooldownHoursEditor'};
 const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled','autoPairRotation.enabled','autoPairRotation.disableOnStopLoss','autoPairRotation.disableOnStaleTrade','autoPairRotation.disableOnAnyLoss']);
+const AUTO_PAIR_HOUR_PRESETS=new Set([1,2,3,6,12]);
+const AUTO_PAIR_TOP_PRESETS=new Set([5,8,10,12,15]);
 const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTimeframe',minScalpTargetPct:'btMinTarget',maxScalpTargetPct:'btMaxTarget',timeStopMinutes:'btTimeStopMinutes',maxHoldMinutes:'btMaxHold',breakEvenMinutes:'btBreakEvenMinutes',minConfirmation:'btMinConfirmation',breakoutPct:'btBreakoutPct',requireEma21Rising:'btReqEma21',requireFastTrend:'btReqFast',requirePriceAboveEma9:'btReqPriceEma9',requireEdge:'tReqEdge',requireRsiMomentum:'btReqRsiMomentum',requireBreakout:'btReqBreakout',enableRsiBandFilter:'btEnableRsiBand',enableAtrFilter:'btEnableAtr',enableVolumeFilter:'btEnableVolume',enableCandleStrengthFilter:'btEnableCandleStrength',enablePriceExtensionFilter:'btEnablePriceExtension',enableRangeRecoveryFilter:'btEnableRangeRecovery',rsiBandLower:'tRsiLo',rsiBandUpper:'tRsiHi',minCandleStrength:'tCandle',minEmaGapNeg:'tEmaNeg',optimalRsiLow:'tOrsiLo',optimalRsiHigh:'tOrsiHi',optimalAtrLow:'tOatrLo',optimalAtrHigh:'tOatrHi'};
 const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge','requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
 const BTYPE_STRING_KEYS=new Set(['signalTimeframe','trendTimeframe']);
@@ -463,6 +468,8 @@ async function pJ(url,payload){
 }
 function getByPath(obj,path){return path.split('.').reduce((acc,key)=>acc&&acc[key],obj)}
 function setByPath(obj,path,val){const keys=path.split('.');let cur=obj;for(let i=0;i<keys.length-1;i++){const k=keys[i];if(!cur[k]||typeof cur[k]!=='object')cur[k]={};cur=cur[k]}cur[keys[keys.length-1]]=val}
+function normalizeAutoPairHours(value){const n=Number(value);return AUTO_PAIR_HOUR_PRESETS.has(n)?n:3}
+function normalizeAutoPairTopPairs(value){const n=Number(value);return AUTO_PAIR_TOP_PRESETS.has(n)?n:10}
 function snapshotMap(){return new Map((marketSnapshot?.pairs||[]).map(p=>[p.symbol,p]))}
 function pairSnapshotStatus(live){
   if(!live) return 'Belum ada live snapshot';
@@ -586,16 +593,43 @@ function ensureExitTimeframeOptions(){
   el.innerHTML='<option value="signal">Follow Signal TF</option><option value="1min">1min</option><option value="3min">3min</option><option value="5min">5min</option><option value="15min">15min</option><option value="1h">1h</option><option value="4h">4h</option>';
 }
 
+function ensureSelectOption(id, value, label=null){
+  const el=document.getElementById(id);
+  if(!el || el.tagName!=='SELECT')return;
+  const nextValue=String(value ?? '');
+  if(!nextValue)return;
+  const exists=[...el.options].some(opt=>String(opt.value)===nextValue);
+  if(!exists){
+    const opt=document.createElement('option');
+    opt.value=nextValue;
+    opt.textContent=label || `${nextValue} ms - custom`;
+    el.appendChild(opt);
+  }
+}
+
+function ensureRuntimeIntervalOptions(){
+  ensureSelectOption('loopIntervalEditor', currentConfig?.loopIntervalMs);
+  ensureSelectOption('holdCheckIntervalEditor', currentConfig?.holdCheckIntervalMs);
+  ensureSelectOption('heartbeatIntervalEditor', currentConfig?.report?.heartbeatIntervalMs);
+  ensureSelectOption('marketIntervalEditor', currentConfig?.report?.marketReportIntervalMs);
+  ensureSelectOption('balanceIntervalEditor', currentConfig?.report?.balanceReportIntervalMs);
+  ensureSelectOption('holdIntervalEditor', currentConfig?.report?.holdReportIntervalMs);
+  ensureSelectOption('noSignalIntervalEditor', currentConfig?.report?.noSignalReportIntervalMs);
+}
+
 function popCfg(){
   if(!currentConfig)return;
   if(currentConfig.maxRoundsPerDay==null&&currentConfig.maxTradesPerDay!=null)currentConfig.maxRoundsPerDay=currentConfig.maxTradesPerDay;
   if(!currentConfig.autoPairRotation||typeof currentConfig.autoPairRotation!=='object')currentConfig.autoPairRotation={};
   if(currentConfig.autoPairRotation.enabled==null)currentConfig.autoPairRotation.enabled=false;
   if(currentConfig.autoPairRotation.refreshIntervalHours==null)currentConfig.autoPairRotation.refreshIntervalHours=6;
+  currentConfig.autoPairRotation.refreshIntervalHours=normalizeAutoPairHours(currentConfig.autoPairRotation.refreshIntervalHours);
   if(currentConfig.autoPairRotation.topPairs==null)currentConfig.autoPairRotation.topPairs=10;
+  currentConfig.autoPairRotation.topPairs=normalizeAutoPairTopPairs(currentConfig.autoPairRotation.topPairs);
   if(currentConfig.autoPairRotation.disableOnStopLoss==null)currentConfig.autoPairRotation.disableOnStopLoss=true;
   if(!currentConfig.autoPairRotation.stopLossCooldownHours)currentConfig.autoPairRotation.stopLossCooldownHours=24;
   if(!currentConfig.holdCheckIntervalMs)currentConfig.holdCheckIntervalMs=30000;
+  ensureRuntimeIntervalOptions();
   ensureExitTimeframeOptions();
   if(!currentConfig.exitTimeframe)currentConfig.exitTimeframe='signal';
   popBotType();popMode();popMktProf();
@@ -881,6 +915,19 @@ document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
   }catch(e){
     document.getElementById('configStatus').textContent=`Gagal save config: ${e.message}`
     showToast('error','Save Failed',e.message)
+  }
+});
+document.getElementById('restartBotBtn').addEventListener('click',async()=>{
+  const ok=confirm('Restart bot sekarang? Bot akan shutdown rapi lalu run.bat/run.sh menyalakan ulang.');
+  if(!ok)return;
+  const btn=document.getElementById('restartBotBtn');
+  if(btn){btn.disabled=true;btn.textContent='Restarting...'}
+  try{
+    await pJ('/api/restart',{source:'dashboard'});
+    showToast('success','Restart Requested','Bot sedang shutdown rapi dan akan start ulang.')
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent='Restart Bot'}
+    showToast('error','Restart Failed',e.message)
   }
 });
 ['scopeFilter','pairFilter','botTypeFilter','modeFilter','marketProfileFilter','reasonFilter'].forEach(id=>{

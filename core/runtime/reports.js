@@ -30,7 +30,8 @@ async function runScheduledReports({
   saveHealth,
   HEALTH_PATH,
   getPortfolioValue,
-  safeToFixed
+  safeToFixed,
+  runtimeJobs
 }) {
   const openPositions = Array.isArray(state.positions)
     ? state.positions.filter(Boolean)
@@ -67,7 +68,8 @@ async function runScheduledReports({
         loopMinutes: Math.round((config.loopIntervalMs || 60000) / 60000),
         signalTimeframe: config.signalTimeframe || "3min",
         trendTimeframe: config.trendTimeframe || "15min",
-        entryGateStatus
+        entryGateStatus,
+        runtimeJobs
       }
     ));
     logEvent(LOG_FILE, "DEBUG", `Heartbeat send | sent=${sent}`);

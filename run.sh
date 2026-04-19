@@ -23,4 +23,18 @@ if [ "$dep_status" -ne 0 ]; then
   echo "[VALIDATION] dependencies installed."
 fi
 
-node app.js
+while true; do
+  set +e
+  node app.js
+  code=$?
+  set -e
+  if [ "$code" -eq 0 ]; then
+    exit 0
+  fi
+  if [ "$code" -eq 42 ]; then
+    echo "[BOOT] Restart requested from dashboard. Relaunching..."
+    sleep 2
+    continue
+  fi
+  exit "$code"
+done

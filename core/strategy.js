@@ -50,6 +50,24 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function timeframeToMs(timeframe) {
+  const raw = String(timeframe || "").toLowerCase().trim();
+  const match = raw.match(/^(\d+)\s*(min|m|minute|minutes|hour|hours|h)$/);
+  if (!match) return 0;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  const unit = match[2];
+  if (unit === "h" || unit === "hour" || unit === "hours") return value * 60 * 60 * 1000;
+  return value * 60 * 1000;
+}
+
+function toTimeMs(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Date.now();
+}
+
 function computeTrendLiveWeight({
   marketTrendOk,
   trendOk15,
@@ -521,10 +539,20 @@ async function evaluateExit(position, balances, config, getCandles) {
   const roundTripFeePct = config._effectiveRoundTripFeePct ?? config.roundTripFeePct ?? 0.004;
   const slippageBufferPct = config._effectiveSlippageBufferPct ?? config.slippageBufferPct ?? 0.001;
   const estimatedNetPnl = pnl - roundTripFeePct - slippageBufferPct;
-  const ageMin = Math.floor((Date.now() - entryTime) / 60000);
+  const nowMs = Date.now();
+  const entryTimeMs = toTimeMs(entryTime);
+  const ageMs = Math.max(0, nowMs - entryTimeMs);
+  const ageMin = Math.floor(ageMs / 60000);
   const priorPeak = Number.isFinite(position.peak) && position.peak > 0 ? position.peak : entry;
-  // Fix #8: use current candle high (not just close) for peak tracking
-  const currentHigh = Number.isFinite(highs[highs.length - 1]) ? highs[highs.length - 1] : price;
+  const latestCandle = candles[candles.length - 1];
+  const exitTimeframeMs = timeframeToMs(exitTimeframe);
+  const latestCandleCloseTime = Array.isArray(latestCandle) && exitTimeframeMs > 0
+    ? Number(latestCandle[0]) + exitTimeframeMs
+    : 0;
+  // Only trust candle high for peak tracking when that candle closed after entry.
+  // Otherwise a just-bought position can inherit a pre-entry high and false-trigger trailing.
+  const candleClosedAfterEntry = Number.isFinite(latestCandleCloseTime) && latestCandleCloseTime > entryTimeMs;
+  const currentHigh = candleClosedAfterEntry && Number.isFinite(highs[highs.length - 1]) ? highs[highs.length - 1] : price;
   const effectivePeak = Math.max(priorPeak, price, currentHigh);
   const peakPnl = (effectivePeak - entry) / entry;
   const peakEstimatedNetPnl = peakPnl - roundTripFeePct - slippageBufferPct;
@@ -547,6 +575,8 @@ async function evaluateExit(position, balances, config, getCandles) {
   // trailing activation
   let useTrailing = trailingActive;
   const trailingActivationPct = config._effectiveTrailingActivationPct ?? config.trailingActivationPct ?? 0.008;
+  const minTrailingAgeMs = config.minTrailingAgeMs ?? 60000;
+  const trailingAgeReady = ageMs >= minTrailingAgeMs;
   const dynamicTakeProfitEnabled = position.useDynamicTakeProfit === true || config.useDynamicTakeProfit === true;
   const configuredTakeProfitPct = config._effectiveTakeProfitPct ?? config.takeProfitPct ?? 0.012;
   const rawPositionTakeProfitPct = position.takeProfitPct;
@@ -564,7 +594,7 @@ async function evaluateExit(position, balances, config, getCandles) {
     : resolvedActivationPct;
   const profitActivationFloorPct = activationPct;
   const breakEvenArmedPct = config._effectiveBreakEvenArmedPct ?? config.breakEvenArmedPct ?? 0.006;
-  if (!useTrailing && pnl >= trailingActivationPct) {
+  if (!useTrailing && trailingAgeReady && pnl >= trailingActivationPct) {
     useTrailing = true;
   }
 
@@ -603,8 +633,8 @@ async function evaluateExit(position, balances, config, getCandles) {
     rsi < prevRsi &&
     price < prevClose;
   const drawdownFromPeak = effectivePeak > 0 ? (price - effectivePeak) / effectivePeak : 0;
-  const trailingExit = !costGuardBlocksSoftExit && useTrailing && drawdownFromPeak <= -config.trailingDrawdownPct;
-  const trailingProtection = !costGuardBlocksSoftExit && useTrailing && pnl < config.trailingProtectionPct;
+  const trailingExit = !costGuardBlocksSoftExit && trailingAgeReady && useTrailing && drawdownFromPeak <= -config.trailingDrawdownPct;
+  const trailingProtection = !costGuardBlocksSoftExit && trailingAgeReady && useTrailing && pnl < config.trailingProtectionPct;
   const profitActivationExit =
     !costGuardBlocksSoftExit &&
     profitActivationArmed &&
@@ -648,7 +678,7 @@ async function evaluateExit(position, balances, config, getCandles) {
     pnl < staleTradeProfitPct &&
     staleInvalidation;
 
-  // Fix #8: update peak using current candle high (not just close price)
+  // Update peak using only the latest close or a post-entry candle high.
   if (Math.max(price, currentHigh) > priorPeak) {
     position.peak = Math.max(price, currentHigh);
   }
@@ -663,6 +693,9 @@ async function evaluateExit(position, balances, config, getCandles) {
     peakEstimatedNetPnlPct: peakEstimatedNetPnl * 100,
     drawdownFromPeakPct: drawdownFromPeak * 100,
     ageMin,
+    minTrailingAgeMs,
+    trailingAgeReady,
+    candleClosedAfterEntry,
     trailingActive: position.trailingActive,
     costCovered,
     timeStopEnabled,

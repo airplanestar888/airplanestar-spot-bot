@@ -31,6 +31,12 @@ function withFooterTime(title, body, timeText) {
   return `${title}\n${divider}\n${body}\n${divider}\nTime: ${timeText}`;
 }
 
+function withFooterMetaTime(title, body, metaLine, timeText) {
+  const divider = "--------------------";
+  const meta = metaLine ? `${metaLine}\n` : "";
+  return `${title}\n${divider}\n${body}\n${divider}\n${meta}Time: ${timeText}`;
+}
+
 function fmtReportTime(value) {
   const dt = value instanceof Date ? value : new Date(value);
   if (!Number.isFinite(dt.getTime())) {
@@ -42,6 +48,22 @@ function fmtReportTime(value) {
 function formatProfileLabel(marketProfileLabel, marketProfileMode) {
   const label = marketProfileLabel || "Auto";
   return marketProfileMode === "auto" ? `${label} (auto)` : label;
+}
+
+function formatRuntimeJobsLine(runtimeJobs = {}) {
+  if (!runtimeJobs || typeof runtimeJobs !== "object") return null;
+  const labels = [
+    ["main", "M"],
+    ["market", "Mk"],
+    ["hold", "H"],
+    ["reports", "R"],
+    ["rotation", "Ro"]
+  ];
+  const parts = labels.map(([key, label]) => {
+    const active = runtimeJobs[key] === true;
+    return `${label}:${active ? "on" : "off"}`;
+  });
+  return `Jobs: ${parts.join(" | ")}`;
 }
 
 function clamp(val, min, max) {
@@ -264,11 +286,12 @@ function buildHeartbeatReport(usdtFree, position, equity, realizedPnlPct, state,
   const dataStatus = dataFresh ? "fresh" : "stale";
   const signalTfLabel = stats.signalTimeframe || "3m";
   const trendTfLabel = stats.trendTimeframe || "15m";
+  const runtimeJobsLine = formatRuntimeJobsLine(stats.runtimeJobs);
   const fmtTs = (ts) => ts
     ? new Date(ts).toLocaleString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" })
     : "n/a";
 
-  return withFooterTime(
+  return withFooterMetaTime(
     "💡 BOT HEARTBEAT",
     `Entry style: ${stats.activeBotTypeLabel || "N/A"}
 Mode: ${stats.activeModeLabel || "N/A"}
@@ -281,6 +304,7 @@ Halted: ${state.haltedForDay ? state.haltReason : "no"}
 Data status: ${dataStatus}
 Last ${signalTfLabel} candle: ${fmtTs(last3mCandleTs)}
 Last ${trendTfLabel} candle: ${fmtTs(last15mCandleTs)}`,
+    runtimeJobsLine,
     timeStr
   );
 }

@@ -45,6 +45,17 @@ function readJsonBody(req) {
 }
 
 async function handleApi(req, res, rootDir, pathname) {
+  if (pathname === "/api/restart" && req.method === "POST") {
+    sendJson(res, 200, {
+      ok: true,
+      message: "Restart requested. Bot will shutdown safely and relaunch when run.bat/run.sh is supervising it."
+    });
+    setTimeout(() => {
+      process.emit("bot:restart-request", { source: "dashboard" });
+    }, 100);
+    return true;
+  }
+
   if (pathname === "/api/config" && req.method === "POST") {
     try {
       const body = await readJsonBody(req);

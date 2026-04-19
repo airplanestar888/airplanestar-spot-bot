@@ -56,8 +56,8 @@ function getRotationConfig(config) {
   const raw = isPlainObject(config.autoPairRotation) ? config.autoPairRotation : {};
   return {
     enabled: raw.enabled === true,
-    refreshIntervalHours: Math.max(1, Number(raw.refreshIntervalHours ?? defaults.refreshIntervalHours)),
-    topPairs: Math.max(1, Number(raw.topPairs ?? defaults.topPairs)),
+    refreshIntervalHours: Math.max(1, Math.min(12, Number.isFinite(Number(raw.refreshIntervalHours)) ? Number(raw.refreshIntervalHours) : defaults.refreshIntervalHours)),
+    topPairs: Math.max(5, Math.min(15, Number.isFinite(Number(raw.topPairs)) ? Number(raw.topPairs) : defaults.topPairs)),
     sortBy: ["volume", "momentum", "combined"].includes(raw.sortBy) ? raw.sortBy : defaults.sortBy,
     disableOnStopLoss: raw.disableOnStopLoss !== false,
     disableOnStaleTrade: raw.disableOnStaleTrade === true,

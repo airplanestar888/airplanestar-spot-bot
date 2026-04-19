@@ -1057,11 +1057,36 @@ let lastPriceFetchTime = 0;
 let cachedPrices = null;
 let position = state.position;
 let loopTimer = null;
+let holdLoopTimer = null;
 let loopInProgress = false;
+let holdLoopInProgress = false;
 let shutdownRequested = false;
 let shutdownInProgress = false;
+let shutdownExitCode = 0;
 const alertTimestamps = {};
 const unlistedCoinsCache = new Set();
+const jobLocks = {
+  market: false,
+  reports: false,
+  hold: false,
+  rotation: false
+};
+
+async function withJobLock(jobName, fn, busyMessage = null) {
+  if (jobLocks[jobName]) {
+    if (busyMessage) {
+      logEvent(LOG_FILE, "DEBUG", busyMessage);
+    }
+    return { skipped: true };
+  }
+  jobLocks[jobName] = true;
+  try {
+    const result = await fn();
+    return { skipped: false, result };
+  } finally {
+    jobLocks[jobName] = false;
+  }
+}
 
 async function reportCritical(key, message, cooldownMs = 15 * 60 * 1000) {
   const now = Date.now();
@@ -1087,6 +1112,10 @@ async function performSafeShutdown(source = "manual") {
     clearTimeout(loopTimer);
     loopTimer = null;
   }
+  if (holdLoopTimer) {
+    clearTimeout(holdLoopTimer);
+    holdLoopTimer = null;
+  }
 
   logEvent(LOG_FILE, "INFO", `Safe exit requested via ${source}`);
   cliOnly("INFO", `Safe exit requested via ${source}. Shutting down gracefully...`);
@@ -1102,16 +1131,23 @@ async function performSafeShutdown(source = "manual") {
   }
 
   cleanupKeyboardHooks();
-  process.exit(0);
+  process.exit(shutdownExitCode);
 }
 
-function requestSafeExit(source = "manual") {
+function requestSafeExit(source = "manual", exitCode = 0) {
+  if (Number.isInteger(exitCode) && exitCode !== 0) {
+    shutdownExitCode = exitCode;
+  }
   if (shutdownRequested) return;
   shutdownRequested = true;
 
   if (loopTimer) {
     clearInterval(loopTimer);
     loopTimer = null;
+  }
+  if (holdLoopTimer) {
+    clearTimeout(holdLoopTimer);
+    holdLoopTimer = null;
   }
 
   if (!loopInProgress) {
@@ -1677,8 +1713,8 @@ function getAutoPairRotationConfig() {
   return {
     enabled: raw.enabled === true,
     requireNoOpenPositions: raw.requireNoOpenPositions !== false,
-    refreshIntervalHours: Math.max(1, Number(raw.refreshIntervalHours ?? defaults.refreshIntervalHours)),
-    topPairs: Math.max(1, Number(raw.topPairs ?? defaults.topPairs)),
+    refreshIntervalHours: Math.max(1, Math.min(12, Number.isFinite(Number(raw.refreshIntervalHours)) ? Number(raw.refreshIntervalHours) : defaults.refreshIntervalHours)),
+    topPairs: Math.max(5, Math.min(15, Number.isFinite(Number(raw.topPairs)) ? Number(raw.topPairs) : defaults.topPairs)),
     disableOnStopLoss: raw.disableOnStopLoss !== false,
     disableOnStaleTrade: raw.disableOnStaleTrade === true,
     disableOnAnyLoss: raw.disableOnAnyLoss === true,
@@ -1765,7 +1801,17 @@ function setRuntimePairs(nextPairs = [], source = "manual") {
   return true;
 }
 
-async function maybeRotatePairUniverse({ now, state }) {
+function markAutoRotatePending(now, reason) {
+  config.lastAutoPairRotation = {
+    ...(config.lastAutoPairRotation || {}),
+    pending: true,
+    pendingAt: new Date(now).toISOString(),
+    pendingReason: reason
+  };
+  persistConfigSnapshot();
+}
+
+async function maybeRotatePairUniverseInner({ now, state, force = false }) {
   const rotationCfg = getAutoPairRotationConfig();
 
   if (!rotationCfg.enabled) {
@@ -1775,7 +1821,10 @@ async function maybeRotatePairUniverse({ now, state }) {
       config.lastAutoPairRotation = {
         at: new Date(now).toISOString(),
         enabled: false,
-        reason: "disabled"
+        reason: "disabled",
+        pending: false,
+        pendingAt: null,
+        pendingReason: null
       };
       persistConfigSnapshot();
       logEvent(LOG_FILE, "INFO", "Auto-rotate disabled, reverted to config pairSettings");
@@ -1787,13 +1836,14 @@ async function maybeRotatePairUniverse({ now, state }) {
   if (rotationCfg.requireNoOpenPositions) {
     const openCount = getOpenPositions(state).length;
     if (openCount > 0) {
-      logEvent(LOG_FILE, "INFO", `Auto-rotate skipped: ${openCount} open position(s) active`);
+      const pendingReason = `${openCount} open position(s)`;
+      logEvent(LOG_FILE, "INFO", `Auto-rotate pending: ${pendingReason} active`);
       config.lastAutoPairRotation = {
         ...(config.lastAutoPairRotation || {}),
         skippedAt: new Date(now).toISOString(),
-        skippedReason: `${openCount} open position(s)`
+        skippedReason: pendingReason
       };
-      persistConfigSnapshot();
+      markAutoRotatePending(now, pendingReason);
       return;
     }
   }
@@ -1824,18 +1874,20 @@ async function maybeRotatePairUniverse({ now, state }) {
   }
 
   if (recoverableSymbol) {
-    logEvent(LOG_FILE, "INFO", `Auto-rotate skipped: recoverable balance exists (${recoverableSymbol})`);
+    const pendingReason = `recoverable balance ${recoverableSymbol}`;
+    logEvent(LOG_FILE, "INFO", `Auto-rotate pending: ${pendingReason}`);
     config.lastAutoPairRotation = {
       ...(config.lastAutoPairRotation || {}),
       skippedAt: new Date(now).toISOString(),
-      skippedReason: `recoverable balance ${recoverableSymbol}`
+      skippedReason: pendingReason
     };
-    persistConfigSnapshot();
+    markAutoRotatePending(now, pendingReason);
     return;
   }
 
   const refreshMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
-  if (lastAutoPairRotationAt > 0 && (now - lastAutoPairRotationAt) < refreshMs) return;
+  const pendingRotation = config.lastAutoPairRotation?.pending === true;
+  if (!force && !pendingRotation && lastAutoPairRotationAt > 0 && (now - lastAutoPairRotationAt) < refreshMs) return;
 
   const { categories } = rotationCfg;
   const activeCategories = Object.entries(categories)
@@ -1931,7 +1983,10 @@ async function maybeRotatePairUniverse({ now, state }) {
       changed: false,
       reason: "no-candidates",
       activeCategories,
-      blacklistCount: stopLossBlacklist.size
+      blacklistCount: stopLossBlacklist.size,
+      pending: false,
+      pendingAt: null,
+      pendingReason: null
     };
     persistConfigSnapshot();
     logEvent(LOG_FILE, "WARN", "Auto-rotate found no eligible pair candidates");
@@ -1953,7 +2008,10 @@ async function maybeRotatePairUniverse({ now, state }) {
     topPairs: rotationCfg.topPairs,
     activePairs: config.pairs,
     activeCategories,
-    blacklistCount: stopLossBlacklist.size
+    blacklistCount: stopLossBlacklist.size,
+    pending: false,
+    pendingAt: null,
+    pendingReason: null
   };
   persistConfigSnapshot();
 
@@ -2000,6 +2058,14 @@ async function maybeRotatePairUniverse({ now, state }) {
   const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineTime + lineNext;
   await report(rotateMsg).catch(err =>
     logEvent(LOG_FILE, "ERROR", `Auto-rotate report failed: ${err.message}`)
+  );
+}
+
+async function maybeRotatePairUniverse(args) {
+  return withJobLock(
+    "rotation",
+    async () => maybeRotatePairUniverseInner(args),
+    "Skipping auto-rotate: previous rotation job still running"
   );
 }
 
@@ -2231,8 +2297,16 @@ async function runBot() {
     await reportCritical("kill-switch", "🚨 EXECUTION KILL SWITCH ACTIVE\nBot stopped opening new trades due to repeated execution failures.");
     return;
   }
+  if (jobLocks.rotation) {
+    logEvent(LOG_FILE, "DEBUG", "Skipping runtime loop: auto-rotate is active");
+    return;
+  }
   if (loopInProgress) {
     logEvent(LOG_FILE, "WARN", "Skipping loop: previous cycle still running");
+    return;
+  }
+  if (holdLoopInProgress) {
+    logEvent(LOG_FILE, "DEBUG", "Skipping runtime loop: hold manager is active");
     return;
   }
   loopInProgress = true;
@@ -2240,6 +2314,10 @@ async function runBot() {
     const loopStartedAt = Date.now();
     const now = Date.now();
     const today = jakartaDateKey(now);
+
+    if (config.lastAutoPairRotation?.pending === true && getOpenPositions(state).length === 0 && !state.position) {
+      await maybeRotatePairUniverse({ now, state, force: true });
+    }
 
     // ===== STEP 2: PORTFOLIO VALUATION =====
     let portfolio = await getPortfolioValue();
@@ -2563,11 +2641,27 @@ async function runBot() {
     }
 
     // ===== STEP 7: MARKET SCANNING =====
-    const baseScan = await scanMarket(config, getCandles, botLog);
-    const marketProfileKey = resolveMarketProfileKey(baseScan.marketMode);
-    const scanConfig = applyMarketProfile(config, marketProfileKey);
-    const scanResult = marketProfileKey ? await scanMarket(scanConfig, getCandles, botLog) : baseScan;
-    const { marketData, topScoring, watchlist, marketMode, volatilityState, entryCandidates } = scanResult;
+    let marketData = [];
+    let topScoring = null;
+    let watchlist = [];
+    let marketMode = "Unknown";
+    let volatilityState = "Unknown";
+    let entryCandidates = [];
+    let scanConfig = applyMarketProfile(config, resolveMarketProfileKey(null));
+    const marketJob = await withJobLock(
+      "market",
+      async () => {
+        const baseScan = await scanMarket(config, getCandles, botLog);
+        const marketProfileKey = resolveMarketProfileKey(baseScan.marketMode);
+        scanConfig = applyMarketProfile(config, marketProfileKey);
+        const scanResult = marketProfileKey ? await scanMarket(scanConfig, getCandles, botLog) : baseScan;
+        ({ marketData, topScoring, watchlist, marketMode, volatilityState, entryCandidates } = scanResult);
+      },
+      "Skipping market scan: previous market job still running"
+    );
+    if (marketJob.skipped) {
+      scanConfig = applyMarketProfile(config, resolveMarketProfileKey(null));
+    }
     const heldSymbols = new Set(getOpenPositions(state).map(pos => pos.symbol));
     const eligibleCandidates = scanConfig.marketEntriesEnabled === false
       ? []
@@ -2659,45 +2753,58 @@ async function runBot() {
     }
 
     // ===== STEP 9: REPORTS =====
-    ({
-      health,
-      lastHeartbeatTime,
-      lastMarketReportTime,
-      lastBalanceReportTime
-    } = await runScheduledReports({
-      config,
-      state,
-      health,
-      now,
-      dataFresh,
-      last3mCandleTs,
-      last15mCandleTs,
-      scanConfig,
-      marketMode,
-      volatilityState,
-      topScoring,
-      bestEligible,
-      watchlist,
-      marketData,
-      currentPositionPrice,
-      currentEquity,
-      usdtFree,
-      realizedPnlPct,
-      lastHeartbeatTime,
-      lastMarketReportTime,
-      lastBalanceReportTime,
-      cachedPrices,
-      shouldReport,
-      entryGateStatus,
-      report,
-      reporting,
-      logEvent,
-      LOG_FILE,
-      saveHealth,
-      HEALTH_PATH,
-      getPortfolioValue,
-      safeToFixed
-    }));
+    const reportsJob = await withJobLock(
+      "reports",
+      async () => {
+        ({
+          health,
+          lastHeartbeatTime,
+          lastMarketReportTime,
+          lastBalanceReportTime
+        } = await runScheduledReports({
+          config,
+          state,
+          health,
+          now,
+          dataFresh,
+          last3mCandleTs,
+          last15mCandleTs,
+          scanConfig,
+          marketMode,
+          volatilityState,
+          topScoring,
+          bestEligible,
+          watchlist,
+          marketData,
+          currentPositionPrice,
+          currentEquity,
+          usdtFree,
+          realizedPnlPct,
+          lastHeartbeatTime,
+          lastMarketReportTime,
+          lastBalanceReportTime,
+          cachedPrices,
+          shouldReport,
+          entryGateStatus,
+          report,
+          reporting,
+          logEvent,
+          LOG_FILE,
+          saveHealth,
+          HEALTH_PATH,
+          getPortfolioValue,
+          safeToFixed,
+          runtimeJobs: {
+            main: loopInProgress,
+            market: jobLocks.market,
+            hold: holdLoopInProgress,
+            reports: jobLocks.reports,
+            rotation: jobLocks.rotation
+          }
+        }));
+      },
+      "Skipping reports: previous report job still running"
+    );
 
     // ===== STEP 10: EXIT FLOW =====
     if (getOpenPositions(state).length > 0 || state.position) {
@@ -2769,7 +2876,8 @@ async function runBot() {
       reporting,
       logEvent,
       LOG_FILE,
-      safeToFixed
+      safeToFixed,
+      cachedPrices
     });
     if (Number.isFinite(entryFlowResult.currentPositionPrice)) {
       currentPositionPrice = entryFlowResult.currentPositionPrice;
@@ -2784,6 +2892,157 @@ async function runBot() {
     if (shutdownRequested) {
       await performSafeShutdown("queued-request");
     }
+  }
+}
+
+async function runHoldManagerCycle() {
+  if (shutdownRequested) return;
+  if (executionKillSwitch) return;
+  if (jobLocks.rotation) {
+    logEvent(LOG_FILE, "DEBUG", "Skipping hold manager: auto-rotate is active");
+    return;
+  }
+  if (holdLoopInProgress) {
+    logEvent(LOG_FILE, "DEBUG", "Skipping hold manager: previous hold job still running");
+    return;
+  }
+  if (loopInProgress) {
+    logEvent(LOG_FILE, "DEBUG", "Skipping hold manager: runtime cycle is active");
+    return;
+  }
+  const openPositions = getOpenPositions(state);
+  if (!openPositions.length && !state.position) {
+    return;
+  }
+
+  holdLoopInProgress = true;
+  try {
+    const now = Date.now();
+    const portfolio = await getPortfolioValue();
+    const balances = portfolio.balances;
+    const DUST_THRESHOLD_USDT = config.minManagedPositionUSDT ?? 3;
+    let positionsChanged = false;
+    let positionsRefreshed = false;
+    const nextPositions = [];
+    const marketData = [];
+
+    for (const openPosition of openPositions) {
+      const symbol = openPosition?.symbol;
+      if (!symbol) continue;
+      const coin = symbol.replace("USDT", "").toLowerCase();
+      const coinBal = balances[coin] || 0;
+
+      if (coinBal <= 0) {
+        logEvent(LOG_FILE, "INFO", `Hold manager removed vanished position ${symbol}`);
+        positionsChanged = true;
+        delete state.lastReportedPnlBySymbol[symbol];
+        continue;
+      }
+
+      let price = getPriceFromBreakdown(symbol, portfolio.balances, portfolio.breakdown);
+      if (!price || price <= 0) {
+        try {
+          const pCandles = await getCandles(symbol, config.signalTimeframe);
+          if (pCandles?.length) price = extractLastClosedPrice(pCandles);
+        } catch (err) {
+          logEvent(LOG_FILE, "WARN", `Hold manager fallback price failed for ${symbol}: ${err.message}`);
+        }
+      }
+      if (!price || price <= 0) {
+        logEvent(LOG_FILE, "WARN", `Hold manager skipping ${symbol}: no validated price`);
+        continue;
+      }
+
+      const value = coinBal * price;
+      if (value < DUST_THRESHOLD_USDT) {
+        logEvent(LOG_FILE, "INFO", `Hold manager removed ${symbol}: value below dust threshold`);
+        positionsChanged = true;
+        delete state.lastReportedPnlBySymbol[symbol];
+        continue;
+      }
+
+      const nextCurrentPrice = price;
+      const nextSizeUSDT = value;
+      if (
+        Math.abs((Number(openPosition.qty) || 0) - coinBal) > 1e-12 ||
+        Math.abs((Number(openPosition.sizeUSDT) || 0) - (Number(nextSizeUSDT) || 0)) > 1e-8 ||
+        Math.abs((Number(openPosition.currentPrice) || 0) - (Number(nextCurrentPrice) || 0)) > 1e-12
+      ) {
+        positionsRefreshed = true;
+      }
+
+      nextPositions.push({
+        ...openPosition,
+        qty: coinBal,
+        sizeUSDT: nextSizeUSDT,
+        currentPrice: nextCurrentPrice
+      });
+      marketData.push({
+        symbol,
+        price,
+        rsi: null
+      });
+    }
+
+    if (positionsChanged || positionsRefreshed || nextPositions.length !== openPositions.length) {
+      state.positions = nextPositions;
+      state.position = nextPositions[0] || null;
+      position = state.position;
+      saveState(STATE_PATH, state);
+    }
+
+    const activePositions = getOpenPositions(state);
+    if (!activePositions.length && !state.position) {
+      return;
+    }
+
+    const primarySymbol = state.position?.symbol || activePositions[0]?.symbol || null;
+    const currentPositionPrice = primarySymbol
+      ? (marketData.find(item => item.symbol === primarySymbol)?.price || 0)
+      : 0;
+
+    await withJobLock(
+      "hold",
+      async () => {
+        const exitFlowResult = await handleExitFlow({
+          config,
+          state,
+          balances,
+          currentPositionPrice,
+          marketData,
+          scanConfig: {
+            activeMarketProfile: config.selectedMarketProfile || null,
+            activeMarketProfileLabel: config.selectedMarketProfile || "Auto"
+          },
+          now,
+          lastHoldReportTime,
+          evaluateExit,
+          getCandles,
+          getCoinBalance,
+          safeExecute,
+          placeOrder,
+          normalizeOrderStatus,
+          getPortfolioValue,
+          estimateNetPnlPct,
+          shouldReport,
+          saveState,
+          STATE_PATH,
+          logTrade,
+          report,
+          reporting,
+          logEvent,
+          LOG_FILE,
+          safeToFixed
+        });
+        lastHoldReportTime = exitFlowResult.lastHoldReportTime;
+        position = state.position;
+      },
+      "Skipping hold manager: previous hold job still running"
+    );
+  } catch (err) {
+    logEvent(LOG_FILE, "ERROR", `runHoldManagerCycle: ${err.message}`);
+  } finally {
+    holdLoopInProgress = false;
   }
 }
 
@@ -2902,6 +3161,7 @@ async function startBot() {
   setupKeyboardShortcuts();
   process.on("SIGINT", () => requestSafeExit("signal:SIGINT"));
   process.on("SIGTERM", () => requestSafeExit("signal:SIGTERM"));
+  process.on("bot:restart-request", () => requestSafeExit("dashboard:restart", 42));
   const selectionValidation = validateConfig(config, {
     botTypeKey: selectedBotType,
     modeKey: selectedMode,
@@ -2948,18 +3208,20 @@ async function startBot() {
   printValidationPassed();
   await initScales();
 
+  // Startup auto-rotate should happen before the first market scan / buy cycle,
+  // while still honoring open-position and recovery guards.
+  const rotationCfg = getAutoPairRotationConfig();
+  if (rotationCfg.enabled) {
+    await maybeRotatePairUniverse({ now: Date.now(), state });
+  }
+
   await runBot();
 
   // ===== AUTO PAIR ROTATION SCHEDULER =====
   // Runs independently every 6 hours — decoupled from the main bot loop.
   // The rotation interval is read from config.autoPairRotation.refreshIntervalHours (default 6).
-  const rotationCfg = getAutoPairRotationConfig();
   if (rotationCfg.enabled) {
     const rotationIntervalMs = rotationCfg.refreshIntervalHours * 60 * 60 * 1000;
-    // First startup rotation only after one full bot cycle so recovery/validation gets priority
-    maybeRotatePairUniverse({ now: Date.now(), state }).catch(err =>
-      logEvent(LOG_FILE, "ERROR", `Auto-rotate startup run failed: ${err.message}`)
-    );
     setInterval(() => {
       if (shutdownRequested) return;
       maybeRotatePairUniverse({ now: Date.now(), state }).catch(err =>
@@ -2978,17 +3240,28 @@ async function startBot() {
       logEvent(LOG_FILE, "ERROR", `Error in runBot loop: ${err.message}`);
     } finally {
       if (!shutdownRequested) {
-        const hasOpenPos = getOpenPositions(state).length > 0;
-        const delayMs = hasOpenPos
-          ? (config.holdCheckIntervalMs || 30000)
-          : (config.loopIntervalMs || 60000);
+        const delayMs = config.loopIntervalMs || 60000;
         loopTimer = setTimeout(scheduleNextRun, delayMs);
+      }
+    }
+  }
+
+  async function scheduleHoldLoop() {
+    try {
+      await runHoldManagerCycle();
+    } catch (err) {
+      logEvent(LOG_FILE, "ERROR", `Error in hold manager loop: ${err.message}`);
+    } finally {
+      if (!shutdownRequested) {
+        const delayMs = config.holdCheckIntervalMs || 30000;
+        holdLoopTimer = setTimeout(scheduleHoldLoop, delayMs);
       }
     }
   }
 
   // Start the first loop
   scheduleNextRun();
+  scheduleHoldLoop();
 }
 
 startBot().catch(err => {

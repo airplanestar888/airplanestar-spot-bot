@@ -16,4 +16,12 @@ if errorlevel 1 (
   )
   echo [VALIDATION] dependencies installed.
 )
+:start_bot
 node app.js
+set EXIT_CODE=%ERRORLEVEL%
+if "%EXIT_CODE%"=="42" (
+  echo [BOOT] Restart requested from dashboard. Relaunching...
+  timeout /t 2 /nobreak >nul
+  goto start_bot
+)
+exit /b %EXIT_CODE%

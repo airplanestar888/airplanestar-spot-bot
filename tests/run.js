@@ -223,6 +223,58 @@ async function testDynamicTakeProfitFallbackExit() {
   assert.equal(result.reason, "DTP Fallback");
 }
 
+async function testTrailingIgnoresPreEntryCandleHigh() {
+  const now = Date.now();
+  const entryTime = now - 15_000;
+  const lastCloseTime = now - 30_000;
+  const start = lastCloseTime - 50 * 60_000;
+  const closes = Array.from({ length: 49 }, (_, i) => 100 + i * 0.01).concat([101.4]);
+  const candles = closes.map((close, index) => {
+    const open = index === 0 ? close : closes[index - 1];
+    const high = index === closes.length - 1 ? 103 : Math.max(open, close) + 0.05;
+    const low = Math.min(open, close) - 0.05;
+    return [start + index * 60_000, open, high, low, close, 120];
+  });
+  const getCandles = async () => candles;
+
+  const result = await evaluateExit(
+    {
+      symbol: "BTCUSDT",
+      entry: 100,
+      peak: 100,
+      trailingActive: false,
+      stopPct: -0.006,
+      entryTime
+    },
+    { btc: 1 },
+    {
+      exitTimeframe: "1min",
+      roundTripFeePct: 0,
+      slippageBufferPct: 0,
+      emergencyStopLossPct: -0.02,
+      takeProfitPct: 0.02,
+      trailingActivationPct: 0.008,
+      trailingDrawdownPct: 0.004,
+      trailingProtectionPct: 0.0025,
+      minTrailingAgeMs: 60000,
+      useDynamicTakeProfit: false,
+      enableCostGuard: false,
+      enableTimeStop: false,
+      enableStaleTrade: false,
+      minMomentumExitPct: 0.02,
+      exitRSIThreshold: 99,
+      selectedBotType: "custom",
+      activeBotType: "custom"
+    },
+    getCandles
+  );
+
+  assert.equal(result.exit, false);
+  assert.equal(result.diagnostics.trailingAgeReady, false);
+  assert.equal(result.diagnostics.candleClosedAfterEntry, false);
+  assert.equal(result.diagnostics.trailingExit, false);
+}
+
 async function testReportGating() {
   const sent = [];
   const report = async (msg) => {
@@ -335,6 +387,7 @@ async function main() {
   results.push(await run("breakout toggle", testBreakoutToggle));
   results.push(await run("dynamic take profit exit", testDynamicTakeProfitExit));
   results.push(await run("dynamic take profit fallback exit", testDynamicTakeProfitFallbackExit));
+  results.push(await run("trailing ignores pre-entry candle high", testTrailingIgnoresPreEntryCandleHigh));
   results.push(await run("report gating", testReportGating));
   results.push(await run("config validation", testConfigValidation));
 
