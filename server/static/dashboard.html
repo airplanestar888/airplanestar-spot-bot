@@ -451,8 +451,10 @@
 <div class="acc open" id="accAgentGeneral">
   <div class="acc-hd" onclick="toggleAcc('accAgentGeneral')"><h3>General</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
-    <div class="field-grid">
+    <div class="check-grid">
       <label class="check-item"><input id="aiAgentEnabled" type="checkbox"><span>Enable AI Agent</span></label>
+    </div>
+    <div class="field-grid">
       <div class="field"><label>AI Provider</label><select id="aiProviderEditor"><option value="openrouter">OpenRouter</option><option value="gemini">Gemini</option><option value="openai">OpenAI</option></select><div class="hint" style="margin-top:6px">Default: OpenRouter.</div></div>
       <div class="field"><label>Decision Cadence</label><select id="aiAgentDecisionInterval" disabled><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" style="margin-top:6px">Follows Auto Pair Rotation interval.</div></div>
     </div>
@@ -463,7 +465,7 @@
   <div class="acc-hd" onclick="toggleAcc('accAgentAllowed')"><h3>Allowed Decisions</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="check-grid">
-      <label class="check-item"><input id="aiAllowMarketProfile" type="checkbox" checked><span>Auto select Market Profile</span></label>
+      <label class="check-item"><input id="aiAllowMarketProfile" type="checkbox" checked><span>AI Agent Profile Update</span></label>
       <label class="check-item"><input id="aiAllowEntriesToggle" type="checkbox" checked><span>Allow Entries toggle</span></label>
       <label class="check-item"><input id="aiAllowMarketFilters" type="checkbox" checked><span>Tune Market Entry Filters</span></label>
       <label class="check-item"><input id="aiAllowQualityFilters" type="checkbox" checked><span>Tune Quality Filters</span></label>
@@ -476,7 +478,7 @@
   <div class="acc-hd" onclick="toggleAcc('accAgentSafety')"><h3>Safety &amp; Guardrails</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="check-grid">
-      <label class="check-item"><input id="aiFallbackRule" type="checkbox" checked><span>Fallback to rule-based if invalid</span></label>
+      <label class="check-item"><input id="aiFallbackRule" type="checkbox" checked><span>Fallback to custom profile if invalid</span></label>
       <label class="check-item"><input id="aiTelegramReport" type="checkbox" checked><span>Report applied changes to Telegram</span></label>
     </div>
     <div class="note" style="margin-top:10px">Tujuan tahap awal: AI Agent hanya jadi market interpreter. Dia boleh menyesuaikan Market Profile aktif, tetapi tidak boleh mengubah DNA strategi masuk atau risk engine bot.</div>

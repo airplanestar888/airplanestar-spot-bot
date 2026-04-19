@@ -896,6 +896,13 @@ function printValidationPassed() {
   console.log("");
 }
 
+function getStartupMarketProfileLabel() {
+  const profileKey = config.selectedMarketProfile || "auto";
+  if (profileKey === "auto") return "Auto";
+  const profile = config.marketProfiles?.[profileKey];
+  return profile?.label || profileKey;
+}
+
 function applySelectedBotType(botTypeKey) {
   const profiles = config.botTypeProfiles || {};
   const selectedProfile = profiles[botTypeKey];
@@ -934,6 +941,7 @@ function applySelectedMode(modeKey) {
     console.log(`Bot type   : ${config.activeBotTypeLabel}`);
   }
   console.log(`Mode aktif : ${config.activeModeLabel}`);
+  console.log(`Profile aktif: ${getStartupMarketProfileLabel()}`);
   if (config.activeModeDescription) {
     console.log(`Deskripsi  : ${config.activeModeDescription}`);
   }

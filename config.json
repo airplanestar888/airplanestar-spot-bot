@@ -3,22 +3,22 @@
   "selectedBotType": "custom",
   "selectedMode": "custom",
   "marketProfileMode": "auto",
-  "selectedMarketProfile": "bullish_slow",
+  "selectedMarketProfile": "ai_agent",
   "pairSettings": {
     "HYPEUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "SAPIENUSDT": {
       "enabled": true
     },
     "MONUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "USDCUSDT": {
       "enabled": true
     },
     "DOGEUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "ENAUSDT": {
       "enabled": false
@@ -27,19 +27,19 @@
       "enabled": false
     },
     "WLDUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BTCUSDT": {
       "enabled": true
     },
     "ADAUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ETHUSDT": {
       "enabled": true
     },
     "SOLUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "CRVUSDT": {
       "enabled": false
@@ -156,7 +156,7 @@
       "enabled": false
     },
     "LATUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "LDOUSDT": {
       "enabled": false
@@ -195,7 +195,7 @@
       "enabled": false
     },
     "PAXGUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "PENGUUSDT": {
       "enabled": false
@@ -207,7 +207,7 @@
       "enabled": false
     },
     "PRLUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "PUMPUSDT": {
       "enabled": false
@@ -267,7 +267,7 @@
       "enabled": false
     },
     "TRXUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "TURBOUSDT": {
       "enabled": false
@@ -291,7 +291,7 @@
       "enabled": false
     },
     "XAUTUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "XDCUSDT": {
       "enabled": false
@@ -312,7 +312,7 @@
       "enabled": false
     },
     "ZBTUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "ZECUSDT": {
       "enabled": false
@@ -321,6 +321,9 @@
       "enabled": false
     },
     "PNUTUSDT": {
+      "enabled": false
+    },
+    "BLESSUSDT": {
       "enabled": true
     }
   },
@@ -702,6 +705,35 @@
         "optimalAtrHigh": 0.012,
         "minEmaGapNeg": 0.0015
       }
+    },
+    "ai_agent": {
+      "label": "AI Agent Profile",
+      "description": "Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.",
+      "allowEntries": true,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0026,
+        "minVolumeRatio": 1.08,
+        "minTrendRsi": 39,
+        "minAtrPct": 0.0026,
+        "maxAtrPct": 0.02,
+        "maxEmaGapPct": 0.016,
+        "requireRsiMomentum": true,
+        "requireBreakout": true,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": true,
+        "rsiBandLower": 46,
+        "rsiBandUpper": 64,
+        "minCandleStrength": 0.35,
+        "optimalRsiLow": 49,
+        "optimalRsiHigh": 58,
+        "optimalAtrLow": 0.005,
+        "optimalAtrHigh": 0.012,
+        "minEmaGapNeg": 0.0015
+      }
     }
   },
   "modeProfiles": {
@@ -894,30 +926,30 @@
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-19T14:10:28.101Z",
+    "at": "2026-04-19T18:01:29.336Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 2,
     "topPairs": 15,
     "activePairs": [
-      "MORPHOUSDT",
       "SAPIENUSDT",
-      "PNUTUSDT",
-      "FARTCOINUSDT",
+      "ZBTUSDT",
       "BTCUSDT",
-      "MONUSDT",
       "ETHUSDT",
-      "NEARUSDT",
-      "XRPUSDT",
       "USDCUSDT",
-      "WLDUSDT",
-      "SOLUSDT",
-      "DOGEUSDT",
-      "PRLUSDT",
-      "HYPEUSDT"
+      "TRXUSDT",
+      "XRPUSDT",
+      "LATUSDT",
+      "MORPHOUSDT",
+      "BLESSUSDT",
+      "NEARUSDT",
+      "ADAUSDT",
+      "XAUTUSDT",
+      "PAXGUSDT",
+      "FARTCOINUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 15,
+    "blacklistCount": 16,
     "pending": false,
     "pendingAt": null,
     "pendingReason": null
@@ -935,9 +967,54 @@
     },
     "enabled": true,
     "lastDecision": {
-      "at": "2026-04-19T14:10:28.101Z",
-      "status": "error",
-      "reason": "invalid JSON decision"
+      "at": "2026-04-19T18:01:29.336Z",
+      "status": "applied",
+      "marketProfile": "ai_agent",
+      "sourceMarketProfile": "custom",
+      "allowEntries": true,
+      "entryOverrides": {
+        "minExpectedNetPct": 0.0026,
+        "minVolumeRatio": 1.08,
+        "requireRsiMomentum": true
+      },
+      "scopeSummary": {
+        "marketProfile": true,
+        "allowEntriesToggle": true,
+        "marketFilters": true,
+        "qualityFilters": true
+      },
+      "reason": "tighten risk on volatile momentum",
+      "before": {
+        "marketProfile": "custom",
+        "sourceMarketProfile": "custom",
+        "allowEntries": true,
+        "entryOverrides": {
+          "minExpectedNetPct": 0.0026,
+          "minVolumeRatio": 1.08,
+          "minTrendRsi": 40,
+          "minAtrPct": 0.0028,
+          "maxAtrPct": 0.02,
+          "maxEmaGapPct": 0.015,
+          "requireRsiMomentum": true,
+          "requireBreakout": true,
+          "enableRsiBandFilter": true,
+          "enableAtrFilter": true,
+          "enableVolumeFilter": true,
+          "enableCandleStrengthFilter": true,
+          "enablePriceExtensionFilter": true,
+          "enableRangeRecoveryFilter": true,
+          "rsiBandLower": 46,
+          "rsiBandUpper": 64,
+          "minCandleStrength": 0.35,
+          "optimalRsiLow": 49,
+          "optimalRsiHigh": 58,
+          "optimalAtrLow": 0.005,
+          "optimalAtrHigh": 0.012,
+          "minEmaGapNeg": 0.0015
+        }
+      },
+      "provider": "openrouter",
+      "model": "openrouter/elephant-alpha"
     }
   }
 }

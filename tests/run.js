@@ -6,6 +6,7 @@ const { scanMarket, evaluateExit } = require("../core/strategy");
 const { composeActiveConfig } = require("../core/configProfiles");
 const { runScheduledReports } = require("../core/runtime/reports");
 const { validateConfig } = require("../core/configValidation");
+const { validateDecision, applyDecision } = require("../core/aiAgent");
 
 function loadConfig() {
   const configPath = path.resolve(__dirname, "..", "config.json");
@@ -381,6 +382,56 @@ async function testConfigValidation() {
   assert.match(invalid.issues.join(" | "), /selectedBotType|minScalpTargetPct|heartbeatIntervalMs/);
 }
 
+async function testAiAgentFullMarketProfileFields() {
+  const rawDecision = {
+    marketProfile: "neutral",
+    allowEntries: true,
+    entryOverrides: {
+      minExpectedNetPct: 0.0027,
+      minVolumeRatio: 1.11,
+      minTrendRsi: 41,
+      minAtrPct: 0.003,
+      maxAtrPct: 0.021,
+      maxEmaGapPct: 0.017,
+      rsiBandLower: 44,
+      rsiBandUpper: 67,
+      minCandleStrength: 0.37,
+      minEmaGapNeg: 0.0017,
+      optimalRsiLow: 48,
+      optimalRsiHigh: 59,
+      optimalAtrLow: 0.0048,
+      optimalAtrHigh: 0.013,
+      requireRsiMomentum: true,
+      requireBreakout: false,
+      enableRsiBandFilter: true,
+      enableAtrFilter: true,
+      enableVolumeFilter: true,
+      enableCandleStrengthFilter: true,
+      enablePriceExtensionFilter: false,
+      enableRangeRecoveryFilter: true
+    },
+    reason: "full market profile test"
+  };
+  const settings = {
+    allowMarketProfile: true,
+    allowEntriesToggle: true,
+    allowMarketFilters: true,
+    allowQualityFilters: true
+  };
+
+  const decision = validateDecision(rawDecision, settings);
+  assert.deepEqual(Object.keys(decision.entryOverrides).sort(), Object.keys(rawDecision.entryOverrides).sort());
+
+  const config = loadConfig();
+  applyDecision(config, decision, Date.UTC(2026, 3, 19));
+
+  assert.equal(config.selectedMarketProfile, "ai_agent");
+  assert.equal(config.marketProfiles.ai_agent.allowEntries, true);
+  for (const [key, value] of Object.entries(rawDecision.entryOverrides)) {
+    assert.equal(config.marketProfiles.ai_agent.entryOverrides[key], value);
+  }
+}
+
 async function main() {
   const results = [];
   results.push(await run("config merge", testConfigMerge));
@@ -390,6 +441,7 @@ async function main() {
   results.push(await run("trailing ignores pre-entry candle high", testTrailingIgnoresPreEntryCandleHigh));
   results.push(await run("report gating", testReportGating));
   results.push(await run("config validation", testConfigValidation));
+  results.push(await run("AI agent full market profile fields", testAiAgentFullMarketProfileFields));
 
   if (results.every(Boolean)) {
     console.log("ALL TESTS PASSED");

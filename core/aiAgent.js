@@ -30,12 +30,20 @@ const QUALITY_FILTER_KEYS = new Set([
 const AI_AGENT_PROFILE_KEY = "ai_agent";
 
 const RANGES = {
-  minExpectedNetPct: [0.0015, 0.006],
-  minVolumeRatio: [1.0, 1.5],
-  minTrendRsi: [35, 55],
-  minAtrPct: [0.0015, 0.008],
-  maxAtrPct: [0.008, 0.035],
-  maxEmaGapPct: [0.006, 0.025]
+  minExpectedNetPct: [0, 0.05],
+  minVolumeRatio: [0, 50],
+  minTrendRsi: [0, 100],
+  minAtrPct: [0, 0.2],
+  maxAtrPct: [0, 0.2],
+  maxEmaGapPct: [0, 0.2],
+  rsiBandLower: [0, 100],
+  rsiBandUpper: [0, 100],
+  minCandleStrength: [0, 1],
+  minEmaGapNeg: [0, 0.2],
+  optimalRsiLow: [0, 100],
+  optimalRsiHigh: [0, 100],
+  optimalAtrLow: [0, 0.2],
+  optimalAtrHigh: [0, 0.2]
 };
 
 function isPlainObject(value) {
@@ -159,76 +167,78 @@ function parseJson(text) {
   return null;
 }
 
+function normalizeRotationCandidates(candidates) {
+  if (!Array.isArray(candidates)) return [];
+  return candidates
+    .filter((item) => isPlainObject(item) && typeof item.symbol === "string" && item.symbol)
+    .map((item) => ({
+      symbol: String(item.symbol).toUpperCase(),
+      score: Number(item.score),
+      quoteVol: Number(item.quoteVol),
+      changePct: Number(item.changePct),
+      rangePct: Number(item.rangePct),
+      last: Number(item.last)
+    }))
+    .filter((item) =>
+      Number.isFinite(item.score) &&
+      Number.isFinite(item.quoteVol) &&
+      Number.isFinite(item.changePct) &&
+      Number.isFinite(item.rangePct) &&
+      Number.isFinite(item.last)
+    );
+}
+
 function buildPrompt({ config, rotation, candidates }) {
-  const mkField = (value, example, meaning) => ({
-    type: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "string",
+  const mkField = (value, meaning) => ({
     value,
-    example,
     meaning
   });
-  const activePairSet = new Set(rotation?.activePairs || config.pairs || []);
-  const rankedCandidates = (candidates || []).slice(0, 20).map((item, index) => ({
+  const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
+  const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 20).map((item, index) => ({
     rank: index + 1,
     symbol: item.symbol,
     score: Number(item.score?.toFixed ? item.score.toFixed(4) : item.score),
-    quoteVol: item.quoteVol,
     changePct: item.changePct,
     rangePct: item.rangePct,
-    last: item.last,
     activeNow: activePairSet.has(item.symbol)
-  }));
-  const activePairs = rankedCandidates.filter((item) => item.activeNow).map((item) => ({
-    ...item,
-    status: "active"
   }));
   const marketProfiles = Object.fromEntries(
     Object.entries(config.marketProfiles || {}).map(([key, value]) => [key, {
-      allowEntries: mkField(value?.allowEntries !== false, !(value?.allowEntries !== false), "Whether entries are allowed in this profile"),
-      entryOverrides: Object.fromEntries(
-        Object.entries(value?.entryOverrides || {}).map(([field, fieldValue]) => [
-          field,
-          mkField(fieldValue, typeof fieldValue === "boolean" ? !fieldValue : fieldValue, field)
-        ])
-      )
+      allowEntries: value?.allowEntries !== false,
+      entryOverrides: { ...(value?.entryOverrides || {}) }
     }])
   );
   const richContext = {
     role: {
       persona: "Senior crypto spot trader in 2026",
-      objective: [
-        "Preserve capital first",
-        "Match market regime with active entry style",
-        "Allow entries only when market quality fits the bot",
-        "Avoid forcing trades in weak or overextended conditions"
-      ]
+      objective: "Preserve capital, tune market profile only, avoid weak or overextended entries."
     },
     botContext: {
-      selectedBotType: mkField(config.selectedBotType || "custom", "custom", "Active entry style used by the bot"),
-      selectedMode: mkField(config.selectedMode || "custom", "custom", "Active trade style / exit behavior"),
-      signalTimeframe: mkField(config.signalTimeframe, "5min", "Main signal timeframe for entries"),
-      trendTimeframe: mkField(config.trendTimeframe, "1h", "Trend confirmation timeframe"),
-      minScalpTargetPct: mkField(config.minScalpTargetPct, 0.008, "Minimum scalp target expected from a setup"),
-      maxScalpTargetPct: mkField(config.maxScalpTargetPct, 0.02, "Maximum scalp target expected from a setup"),
-      timeStopMinutes: mkField(config.timeStopMinutes, 15, "Trade should not stay alive too long without progress"),
-      maxHoldMinutes: mkField(config.maxHoldMinutes, 60, "Maximum acceptable hold duration"),
-      breakEvenMinutes: mkField(config.breakEvenMinutes, 12, "When break-even protection becomes relevant"),
-      minConfirmation: mkField(config.minConfirmation, 3, "Required confirmation count before entry"),
-      breakoutPct: mkField(config.breakoutPct, 0.002, "Breakout threshold used by the entry logic"),
-      requireEma21Rising: mkField(config.requireEma21Rising, false, "Require EMA21 to be rising"),
-      requireFastTrend: mkField(config.requireFastTrend, false, "Require fast trend alignment"),
-      requirePriceAboveEma9: mkField(config.requirePriceAboveEma9, false, "Require price above EMA9"),
-      requireEdge: mkField(config.requireEdge, false, "Require edge filter to confirm setup"),
-      requireRsiMomentum: mkField(config.requireRsiMomentum, false, "RSI momentum filter must confirm the setup"),
-      requireBreakout: mkField(config.requireBreakout, false, "Only allow entries when breakout confirmation is present"),
-      enableRsiBandFilter: mkField(config.enableRsiBandFilter, false, "RSI band filter is active"),
-      enableAtrFilter: mkField(config.enableAtrFilter, false, "ATR volatility filter is active"),
-      enableVolumeFilter: mkField(config.enableVolumeFilter, false, "Volume quality filter is active"),
-      enableCandleStrengthFilter: mkField(config.enableCandleStrengthFilter, false, "Candle strength filter is active"),
-      enablePriceExtensionFilter: mkField(config.enablePriceExtensionFilter, false, "Price extension filter is active"),
-      enableRangeRecoveryFilter: mkField(config.enableRangeRecoveryFilter, false, "Range recovery filter is active")
+      selectedBotType: mkField(config.selectedBotType || "custom", "entry style"),
+      selectedMode: mkField(config.selectedMode || "custom", "trade style"),
+      signalTimeframe: mkField(config.signalTimeframe, "entry timeframe"),
+      trendTimeframe: mkField(config.trendTimeframe, "trend timeframe"),
+      minScalpTargetPct: mkField(config.minScalpTargetPct, "min target"),
+      maxScalpTargetPct: mkField(config.maxScalpTargetPct, "max target"),
+      timeStopMinutes: mkField(config.timeStopMinutes, "time stop"),
+      maxHoldMinutes: mkField(config.maxHoldMinutes, "max hold"),
+      breakEvenMinutes: mkField(config.breakEvenMinutes, "break-even timing"),
+      minConfirmation: mkField(config.minConfirmation, "confirmations"),
+      breakoutPct: mkField(config.breakoutPct, "breakout threshold"),
+      requireEma21Rising: mkField(config.requireEma21Rising, "EMA21 rising"),
+      requireFastTrend: mkField(config.requireFastTrend, "fast trend"),
+      requirePriceAboveEma9: mkField(config.requirePriceAboveEma9, "price above EMA9"),
+      requireEdge: mkField(config.requireEdge, "edge filter"),
+      requireRsiMomentum: mkField(config.requireRsiMomentum, "RSI momentum"),
+      requireBreakout: mkField(config.requireBreakout, "breakout check"),
+      enableRsiBandFilter: mkField(config.enableRsiBandFilter, "RSI band"),
+      enableAtrFilter: mkField(config.enableAtrFilter, "ATR filter"),
+      enableVolumeFilter: mkField(config.enableVolumeFilter, "volume filter"),
+      enableCandleStrengthFilter: mkField(config.enableCandleStrengthFilter, "candle strength"),
+      enablePriceExtensionFilter: mkField(config.enablePriceExtensionFilter, "price extension"),
+      enableRangeRecoveryFilter: mkField(config.enableRangeRecoveryFilter, "range recovery")
     },
     marketProfiles,
-    activePairs,
     rankedCandidates,
     minimalGlobalContext: {
       candidateCount: candidates?.length || 0,
@@ -252,8 +262,22 @@ function buildPrompt({ config, rotation, candidates }) {
         minAtrPct: 0.0028,
         maxAtrPct: 0.02,
         maxEmaGapPct: 0.015,
+        rsiBandLower: 46,
+        rsiBandUpper: 64,
+        minCandleStrength: 0.35,
+        minEmaGapNeg: 0.0015,
+        optimalRsiLow: 49,
+        optimalRsiHigh: 58,
+        optimalAtrLow: 0.005,
+        optimalAtrHigh: 0.012,
         requireRsiMomentum: true,
-        requireBreakout: true
+        requireBreakout: true,
+        enableRsiBandFilter: true,
+        enableAtrFilter: true,
+        enableVolumeFilter: true,
+        enableCandleStrengthFilter: true,
+        enablePriceExtensionFilter: true,
+        enableRangeRecoveryFilter: true
       },
       reason: "short reason"
     }
@@ -395,6 +419,16 @@ function validateDecision(raw, settings) {
   return decision;
 }
 
+function summarizeDecisionScopes(decision) {
+  const overrideKeys = Object.keys(decision?.entryOverrides || {});
+  return {
+    marketProfile: Boolean(decision?.marketProfile),
+    allowEntriesToggle: typeof decision?.allowEntries === "boolean",
+    marketFilters: overrideKeys.some((key) => MARKET_FILTER_KEYS.has(key)),
+    qualityFilters: overrideKeys.some((key) => QUALITY_FILTER_KEYS.has(key))
+  };
+}
+
 function applyDecision(config, decision, now = Date.now()) {
   if (!isPlainObject(config.aiAgent)) config.aiAgent = {};
   if (!isPlainObject(config.marketProfiles)) config.marketProfiles = {};
@@ -446,6 +480,7 @@ function applyDecision(config, decision, now = Date.now()) {
 
   config.marketProfiles[AI_AGENT_PROFILE_KEY] = aiProfile;
   config.selectedMarketProfile = AI_AGENT_PROFILE_KEY;
+  const scopeSummary = summarizeDecisionScopes(decision);
   config.aiAgent.lastDecision = {
     at: new Date(now).toISOString(),
     status: "applied",
@@ -453,6 +488,7 @@ function applyDecision(config, decision, now = Date.now()) {
     sourceMarketProfile: requestedProfileKey,
     allowEntries: aiProfile.allowEntries !== false,
     entryOverrides: decision.entryOverrides,
+    scopeSummary,
     reason: decision.reason,
     before
   };
@@ -460,9 +496,8 @@ function applyDecision(config, decision, now = Date.now()) {
 }
 
 function buildReport(lastDecision) {
-  const changes = Object.entries(lastDecision.entryOverrides || {})
-    .map(([key, value]) => `- ${key}: ${value}`)
-    .join("\n") || "- no filter changes";
+  const summary = lastDecision.scopeSummary || {};
+  const statusLine = (label, passed) => `- ${label}: ${passed ? "PASS" : "SKIP"}`;
   return [
     "🤖 AI AGENT UPDATE",
     "--------------------",
@@ -470,7 +505,10 @@ function buildReport(lastDecision) {
     `Profile: ${lastDecision.marketProfile}`,
     `Allow entries: ${lastDecision.allowEntries ? "yes" : "no"}`,
     "Applied:",
-    changes,
+    statusLine("Market Recap", summary.marketProfile),
+    statusLine("Allow Entries toggle", summary.allowEntriesToggle),
+    statusLine("Tune Market Entry Filters", summary.marketFilters),
+    statusLine("Tune Quality Filters", summary.qualityFilters),
     `Reason: ${lastDecision.reason}`,
     "--------------------"
   ].join("\n");
@@ -480,6 +518,17 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
   if (!isPlainObject(config.aiAgent)) config.aiAgent = {};
   const settings = getAiAgentSettings(config);
   if (!settings.enabled) return { skipped: true, reason: "disabled" };
+  const rotationCandidates = normalizeRotationCandidates(candidates);
+  if (!rotationCandidates.length) {
+    const reason = "missing auto-rotate candidates";
+    config.aiAgent.lastDecision = {
+      at: new Date(now).toISOString(),
+      status: "skipped",
+      reason
+    };
+    log?.("WARN", `AI Agent skipped: ${reason}`);
+    return { skipped: true, reason };
+  }
 
   const apiKey =
     settings.provider === "gemini"
@@ -503,7 +552,7 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
   }
 
   try {
-    const prompt = buildPrompt({ config, rotation, candidates });
+    const prompt = buildPrompt({ config, rotation, candidates: rotationCandidates });
     let decision = null;
     let lastError = null;
 
