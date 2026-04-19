@@ -132,6 +132,7 @@
 <button class="tab-btn" data-tab="botTab">Bot Settings</button>
 <button class="tab-btn" data-tab="marketTab">Market Profile</button>
 <button class="tab-btn" data-tab="tradeTab">Trade Style</button>
+<button class="tab-btn" data-tab="agentTab">AI Agent</button>
 <button class="tab-btn" data-tab="readmeTab">README</button>
 </section>
 
@@ -178,7 +179,7 @@
 <section class="tab-panel" id="botTab">
 <section class="panel">
 <h2>Bot Settings</h2>
-<div class="note">Semua pengaturan global bot tetap ada di sini: bot flags, auto pair rotation, report interval, active pairs, exposure, recovery, dan runtime limits.</div>
+<div class="note">Tab ini khusus untuk pengaturan global bot: runtime, sizing, exposure, pair management, reporting, dan auto rotation. Struktur entry ada di Bot Type, sedangkan gaya risk/exit ada di tab Trade Style.</div>
 
 <div class="acc open" id="accFlags">
   <div class="acc-hd" onclick="toggleAcc('accFlags')"><h3>Bot Flags</h3><span class="acc-arrow">&#9660;</span></div>
@@ -195,35 +196,12 @@
   </div>
 </div>
 
-<div class="acc" id="accSizing">
-  <div class="acc-hd" onclick="toggleAcc('accSizing')"><h3>Sizing &amp; Limits</h3><span class="acc-arrow">&#9660;</span></div>
-  <div class="acc-body">
-    <div class="field-grid">
-      <div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
-      <div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
-      <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
-      <div class="field"><label>Managed Position Min USDT</label><input id="minManagedPositionUsdtEditor" type="number" step="0.1" min="0"></div>
-      <div class="field"><label>Recovery Min USDT</label><input id="minRecoverUsdtEditor" type="number" step="0.1" min="0"></div>
-      <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
-      <div class="field"><label>Exposure Cap %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
-      <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
-      <div class="field"><label>Daily Profit Target Pct</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
-      <div class="field"><label>Daily Loss Limit Pct</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
-      <div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
-      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ffb6a3">Assets below managed threshold stay out of trade management. Recovery only starts from the recovery threshold.</div></div>
-      <div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
-      <div class="field"><label>Cost Guard Arm Pct</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
-      <div class="field"><label>Cost Guard Floor Pct</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
-    </div>
-  </div>
-</div>
-
 <div class="acc" id="accEntry">
   <div class="acc-hd" onclick="toggleAcc('accEntry')"><h3>Bot Type</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="field"><label>Selected Bot Type</label><select id="selectedBotTypeEditor"></select></div>
     <div class="field"><label>Description</label><div class="info-box" id="activeBotTypeDescription">-</div></div>
-    <div class="note">Bagian ini mengatur cara bot berjalan: timeframe, tempo entry, hold time, dan struktur confirmation. Nilai yang Anda save akan ikut disinkronkan ke root config.</div>
+    <div class="note">Bot Type mengatur struktur entry engine: timeframe, tempo entry, hold window, dan confirmation core. Bagian ini tidak mengatur risk, sizing, atau hard stop. Filter kualitas setup lanjutan ditampilkan di tab Market Profile agar lebih enak dibaca, tetapi nilainya tetap tersimpan per Bot Type aktif.</div>
     <div class="check-grid">
       <label class="check-item"><input id="btReqEma21" type="checkbox"><span>Require EMA21 Rising</span></label>
       <label class="check-item"><input id="btReqFast" type="checkbox"><span>Require Fast Trend</span></label>
@@ -233,8 +211,8 @@
     <div class="field-grid" style="margin-top:10px">
       <div class="field"><label>Signal Timeframe</label><select id="btSignalTimeframe"><option value="1min">1min</option><option value="3min">3min</option><option value="5min">5min</option><option value="15min">15min</option><option value="1h">1h</option><option value="4h">4h</option></select></div>
       <div class="field"><label>Trend Timeframe</label><select id="btTrendTimeframe"><option value="5min">5min</option><option value="15min">15min</option><option value="30min">30min</option><option value="1h">1h</option><option value="4h">4h</option><option value="1day">1day</option></select></div>
-      <div class="field"><label>Min Scalp Target</label><input id="btMinTarget" type="number" step="0.0005" min="0"></div>
-      <div class="field"><label>Max Scalp Target</label><input id="btMaxTarget" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Min Target %</label><input id="btMinTarget" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Max Target %</label><input id="btMaxTarget" type="number" step="0.0005" min="0"></div>
       <div class="field"><label>Time Stop (min)</label><input id="btTimeStopMinutes" type="number" step="1" min="0"></div>
       <div class="field"><label>Stale After (min)</label><input id="btMaxHold" type="number" step="1" min="0"></div>
       <div class="field"><label>Break Even (min)</label><input id="btBreakEvenMinutes" type="number" step="1" min="0"></div>
@@ -244,28 +222,65 @@
   </div>
 </div>
 
-<div class="acc" id="accFilters">
-  <div class="acc-hd" onclick="toggleAcc('accFilters')"><h3>Bot Type Filters</h3><span class="acc-arrow">&#9660;</span></div>
+<div class="acc" id="accSizing">
+  <div class="acc-hd" onclick="toggleAcc('accSizing')"><h3>Sizing &amp; Limits</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Min Buy USDT</label><input id="minBuyUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Max Buy USDT</label><input id="maxBuyUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Reserve USDT</label><input id="reserveUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Min Managed Position (USDT)</label><input id="minManagedPositionUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Min Recovery Position (USDT)</label><input id="minRecoverUsdtEditor" type="number" step="0.1" min="0"></div>
+      <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
+      <div class="field"><label>Max Exposure %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
+      <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"></div>
+      <div class="field"><label>Daily Profit Target %</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
+      <div class="field"><label>Daily Loss Limit %</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
+      <div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
+      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ffb6a3">Assets below managed threshold stay out of trade management. Recovery only starts from the recovery threshold.</div></div>
+      <div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
+      <div class="field"><label>Cost Guard Arm %</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Cost Guard Floor %</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
+    </div>
+  </div>
+</div>
+
+<div class="acc" id="accTradeManagement" hidden>
+  <div class="acc-hd" onclick="toggleAcc('accTradeManagement')"><h3>Trade Management</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="note">Trade Management dipusatkan di Bot Settings karena saat ini bot belum punya library preset tradeModes yang benar-benar berbeda. Semua field di bawah ini adalah pengaturan style aktif bot saat ini.</div>
+
+    <div class="sec-hd"><h3>Risk &amp; Sizing</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>Risk Percent</label><select id="tRisk"><option value="0.05">0.05</option><option value="0.08">0.08</option><option value="0.09">0.09</option><option value="0.1">0.10</option><option value="0.12">0.12</option><option value="0.13">0.13</option><option value="0.14">0.14</option><option value="0.15">0.15</option><option value="0.16">0.16</option><option value="0.17">0.17</option><option value="0.18">0.18</option><option value="0.2">0.20</option><option value="0.22">0.22</option><option value="0.25">0.25</option></select></div>
+      <div class="field"><label>Cooldown (ms)</label><input id="tCooldown" type="number" step="1000" min="0"></div>
+    </div>
+
+    <div class="sec-hd"><h3>Exit Targets (TP / DTP)</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>Take Profit %</label><input id="tTP" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Trailing Activation %</label><input id="tTrailAct" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Trailing Drawdown</label><input id="tTrailDD" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Trailing Protection Floor</label><input id="tTrailProt" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Exit Candle Timeframe</label><select id="tExitTimeframe"><option value="1min">1min — real-time (default)</option><option value="3min">3min — signal TF</option><option value="5min">5min</option><option value="15min">15min — swing</option></select></div>
+    </div>
+
+    <div class="sec-hd"><h3>Soft Exits</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>Min Momentum Exit</label><input id="tMomentum" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Break Even Armed</label><input id="tBeArmed" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Break Even Floor</label><input id="tBeFloor" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
+    </div>
+
+    <div class="sec-hd"><h3>Time Limits</h3></div>
     <div class="check-grid">
-      <label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>RSI Momentum</span></label>
-      <label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Breakout Check</span></label>
-      <label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>RSI Band</span></label>
-      <label class="check-item"><input id="btEnableAtr" type="checkbox"><span>ATR Filter</span></label>
-      <label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Volume Filter</span></label>
-      <label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Candle Strength</span></label>
-      <label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Price Extension</span></label>
-      <label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Range Recovery</span></label>
+      <label class="check-item"><input id="tEnableTS" type="checkbox"><span>Enable Time Stop</span></label>
+      <label class="check-item"><input id="tEnableStale" type="checkbox"><span>Enable Stale Trade</span></label>
     </div>
     <div class="field-grid">
-      <div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
-      <div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
-      <div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
-      <div class="field"><label>EMA Gap Negative</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
-      <div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
-      <div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
-      <div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
-      <div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
+      <div class="field"><label>Time Stop Profit Pct</label><input id="tTsProfit" type="number" step="0.0005"></div>
+      <div class="field"><label>Min Hold PnL Pct</label><input id="tMinHoldPnl" type="number" step="0.0005"></div>
     </div>
   </div>
 </div>
@@ -285,18 +300,6 @@
   </div>
 </div>
 
-<div class="acc" id="accRotate">
-  <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
-  <div class="acc-body">
-    <div class="field-grid">
-      <div class="field"><label>Refresh Interval</label><select id="autoPairRotateHoursEditor"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select></div>
-      <div class="field"><label>Active Pairs (top N)</label><select id="autoPairRotateTopEditor"><option value="5">5 pairs - freshest</option><option value="8">8 pairs - fast</option><option value="10">10 pairs - balanced</option><option value="12">12 pairs - wider</option><option value="15">15 pairs - max safe</option></select></div>
-      <div class="field"><label>Flag Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
-      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0">Active pair lebih kecil = scan candle lebih cepat dan risiko sinyal basi lebih rendah. Untuk scalping, 8-10 biasanya paling aman.</div></div>
-    </div>
-  </div>
-</div>
-
 <div class="acc" id="accPairFlags">
   <div class="acc-hd" onclick="toggleAcc('accPairFlags')"><h3>Pair Flags</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
@@ -307,9 +310,21 @@
       <label class="check-item"><input id="pairReentryBlockEnabledEditor" type="checkbox"><span>Block Pair Reentry After Loss</span></label>
     </div>
     <div class="field-grid" style="margin-top:10px">
-      <div class="field"><label>Reentry Block Loss Pct</label><input id="pairReentryBlockLossPctEditor" type="number" step="0.001" min="0"></div>
+      <div class="field"><label>Reentry Block Loss %</label><input id="pairReentryBlockLossPctEditor" type="number" step="0.001" min="0"></div>
       <div class="field"><label>Reentry Block Minutes</label><input id="pairReentryBlockMinutesEditor" type="number" step="1" min="1"></div>
       <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ff8f8f">Flag pair dipakai oleh auto-rotate blacklist. Kamu bisa pilih hanya SL, tambah Stale Trade, atau semua loss. Reentry block tetap khusus untuk mencegah buy ulang cepat pada pair yang sama.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="acc" id="accRotate">
+  <div class="acc-hd" onclick="toggleAcc('accRotate')"><h3>Auto Pair Rotation</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Refresh Interval</label><select id="autoPairRotateHoursEditor"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" id="autoPairRotateHoursHint" style="margin-top:6px">Used by Auto Pair Rotation.</div></div>
+      <div class="field"><label>Active Pairs (top N)</label><select id="autoPairRotateTopEditor"><option value="5">5 pairs - freshest</option><option value="8">8 pairs - fast</option><option value="10">10 pairs - balanced</option><option value="12">12 pairs - wider</option><option value="15">15 pairs - max safe</option></select><div class="hint" style="margin-top:6px">Filtered and managed by the bot auto-rotate engine.</div></div>
+      <div class="field"><label>Blacklist Cooldown (hours)</label><input id="autoPairSlCooldownHoursEditor" type="number" step="1" min="1"></div>
+      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0">Active pair lebih kecil = scan candle lebih cepat dan risiko sinyal basi lebih rendah. Untuk scalping, 8-10 biasanya paling aman.</div></div>
     </div>
   </div>
 </div>
@@ -329,7 +344,7 @@
 <section class="tab-panel" id="marketTab">
 <section class="panel">
 <h2>Market Profile</h2>
-<div class="note">Market profile khusus untuk kualitas market: volume ratio, ATR band, RSI trend, EMA gap, dan toggle filter market. Nilai yang Anda save akan ikut disinkronkan ke root config untuk profile yang sedang dipilih.</div>
+<div class="note">Market Profile mengatur kualitas market dan filter entry: volume ratio, ATR band, RSI trend, EMA gap, quality filter, dan allow entries. Ini adalah layer yang paling cocok untuk tuning kondisi market atau AI agent nanti.</div>
 <div class="field-grid">
 <div class="field"><label>Market Profile Mode</label><select id="marketProfileModeEditor"><option value="auto">Auto</option><option value="manual">Manual</option></select></div>
 <div class="field"><label>Selected Market Profile</label><select id="selectedMarketProfileEditor"></select></div>
@@ -338,54 +353,154 @@
 <div class="check-grid"><label class="check-item"><input id="marketAllowEntriesEditor" type="checkbox"><span>Allow Entries</span></label></div>
 <h3>Entry Filters</h3>
 <div class="field-grid">
-<div class="field"><label>Min Expected Net Pct</label><input id="mMinExpNet" type="number" step="0.0001" min="0"></div>
+<div class="field"><label>Min Expected Net %</label><input id="mMinExpNet" type="number" step="0.0001" min="0"></div>
 <div class="field"><label>Min Volume Ratio</label><input id="mMinVol" type="number" step="0.01" min="0"></div>
 <div class="field"><label>Min Trend RSI</label><input id="mMinRsi" type="number" step="1" min="0"></div>
 <div class="field"><label>Min ATR Pct</label><input id="mMinAtr" type="number" step="0.0001" min="0"></div>
 <div class="field"><label>Max ATR Pct</label><input id="mMaxAtr" type="number" step="0.0001" min="0"></div>
 <div class="field"><label>Max EMA Gap Pct</label><input id="mMaxEma" type="number" step="0.0005" min="0"></div>
-</div></section></section>
+</div>
 
-<!-- TRADE SETTING -->
+<div class="acc" id="accFilters">
+  <div class="acc-hd" onclick="toggleAcc('accFilters')"><h3>Entry Quality Filters</h3><span class="acc-badge" id="entryQualityScopeBadge">Linked to Bot Type</span><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="note">Filter ini menentukan kualitas setup entry. Panelnya diletakkan di sini supaya dibaca berdekatan dengan Market Profile, tetapi save/load-nya tetap mengikuti Bot Type aktif agar runtime dan flow bot tidak berubah.</div>
+    <div class="hint" id="entryQualityScopeHint" style="margin-bottom:12px">Linked to bot type: -</div>
+    <div class="check-grid">
+      <label class="check-item"><input id="btReqRsiMomentum" type="checkbox"><span>RSI Momentum</span></label>
+      <label class="check-item"><input id="btReqBreakout" type="checkbox"><span>Breakout Check</span></label>
+      <label class="check-item"><input id="btEnableRsiBand" type="checkbox"><span>RSI Band</span></label>
+      <label class="check-item"><input id="btEnableAtr" type="checkbox"><span>ATR Filter</span></label>
+      <label class="check-item"><input id="btEnableVolume" type="checkbox"><span>Volume Filter</span></label>
+      <label class="check-item"><input id="btEnableCandleStrength" type="checkbox"><span>Candle Strength</span></label>
+      <label class="check-item"><input id="btEnablePriceExtension" type="checkbox"><span>Price Extension</span></label>
+      <label class="check-item"><input id="btEnableRangeRecovery" type="checkbox"><span>Range Recovery</span></label>
+    </div>
+    <div class="field-grid">
+      <div class="field"><label>RSI Band Lower</label><input id="tRsiLo" type="number" step="1" min="0"></div>
+      <div class="field"><label>RSI Band Upper</label><input id="tRsiHi" type="number" step="1" min="0"></div>
+      <div class="field"><label>Min Candle Strength</label><input id="tCandle" type="number" step="0.01" min="0"></div>
+      <div class="field"><label>EMA Gap Buffer</label><input id="tEmaNeg" type="number" step="0.0001" min="0"></div>
+      <div class="field"><label>Optimal RSI Low</label><input id="tOrsiLo" type="number" step="1" min="0"></div>
+      <div class="field"><label>Optimal RSI High</label><input id="tOrsiHi" type="number" step="1" min="0"></div>
+      <div class="field"><label>Optimal ATR Low</label><input id="tOatrLo" type="number" step="0.0001" min="0"></div>
+      <div class="field"><label>Optimal ATR High</label><input id="tOatrHi" type="number" step="0.0001" min="0"></div>
+    </div>
+  </div>
+</div>
+</section></section>
+
+<!-- TRADE STYLE -->
 <section class="tab-panel" id="tradeTab">
 <section class="panel">
 <h2>Trade Style</h2>
-<div class="note">Trade style mengatur TP, DTP, stale, stop, trailing, break-even, dan ritme proteksi profit. Nilai yang Anda save akan ikut disinkronkan ke root config untuk style yang sedang dipilih.</div>
-
-<div class="field"><label>Selected Trade Style</label><select id="selectedModeEditor"></select></div>
+<div class="note">Tab ini khusus untuk gaya trading aktif: risk, cooldown, target profit, trailing, hard stop, stale/setup invalidation, dan break-even. Nilai yang Anda save akan ikut disinkronkan ke mode yang sedang dipilih.</div>
+<div class="field-grid">
+  <div class="field"><label>Selected Mode</label><select id="selectedModeEditor"></select></div>
+</div>
 <div class="field"><label>Description</label><div class="info-box" id="activeModeDescription">-</div></div>
 
-<div class="sec-hd"><h3>Risk &amp; Sizing</h3></div>
-<div class="field-grid">
-<div class="field"><label>Risk Percent</label><input id="tRisk" type="number" step="0.001" min="0"></div>
-<div class="field"><label>Cooldown (ms)</label><input id="tCooldown" type="number" step="1000" min="0"></div>
+<div class="acc open" id="accTradeManagementTab">
+  <div class="acc-hd" onclick="toggleAcc('accTradeManagementTab')"><h3>Trade Management</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="sec-hd"><h3>Risk &amp; Sizing</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>Risk Percent</label><select id="tRisk"><option value="0.05">0.05</option><option value="0.08">0.08</option><option value="0.09">0.09</option><option value="0.10">0.10</option><option value="0.12">0.12</option><option value="0.13">0.13</option><option value="0.14">0.14</option><option value="0.15">0.15</option><option value="0.16">0.16</option><option value="0.17">0.17</option><option value="0.18">0.18</option><option value="0.20">0.20</option><option value="0.22">0.22</option><option value="0.25">0.25</option></select></div>
+      <div class="field"><label>Cooldown (ms)</label><input id="tCooldown" type="number" step="1000" min="0"></div>
+    </div>
+
+    <div class="sec-hd"><h3>Exit Targets (TP / DTP)</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>Take Profit Pct (target)</label><input id="tTP" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Trailing Activation (arm)</label><input id="tTrailAct" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Trailing Drawdown</label><input id="tTrailDD" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Trailing Protection %</label><input id="tTrailProt" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Exit Timeframe</label><select id="tExitTimeframe"></select></div>
+    </div>
+
+    <div class="sec-hd"><h3>Hard Stop Logic</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>ATR Stop Multiplier</label><input id="tAtrStopMultiplier" type="number" step="0.05" min="0"></div>
+      <div class="field"><label>Min Stop %</label><input id="tMinStopPct" type="number" step="0.0005"></div>
+      <div class="field"><label>Max Stop %</label><input id="tMaxStopPct" type="number" step="0.0005"></div>
+      <div class="field"><label>Emergency Stop %</label><input id="tEmergencyStopLossPct" type="number" step="0.0005"></div>
+    </div>
+
+    <div class="sec-hd"><h3>Soft Exits</h3></div>
+    <div class="field-grid">
+      <div class="field"><label>Min Momentum Exit</label><input id="tMomentum" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Break-Even Arm %</label><input id="tBeArmed" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Break-Even Floor %</label><input id="tBeFloor" type="number" step="0.0005" min="0"></div>
+      <div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
+    </div>
+
+    <div class="sec-hd"><h3>Time Limits</h3></div>
+    <div class="check-grid">
+      <label class="check-item"><input id="tEnableTS" type="checkbox"><span>Enable Time Stop</span></label>
+      <label class="check-item"><input id="tEnableStale" type="checkbox"><span>Enable Stale Trade</span></label>
+    </div>
+    <div class="field-grid">
+      <div class="field"><label>Time Stop Profit %</label><input id="tTsProfit" type="number" step="0.0005"></div>
+      <div class="field"><label>Min Hold PnL %</label><input id="tMinHoldPnl" type="number" step="0.0005"></div>
+    </div>
+  </div>
+</div>
+</section></section>
+
+<!-- AI AGENT -->
+<section class="tab-panel" id="agentTab">
+<section class="panel">
+<h2>AI Agent</h2>
+<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Arah desainnya: agent hanya boleh tuning entry filter dan market profile, tanpa menyentuh Bot Type, Sizing &amp; Limits, atau Trade Style.</div>
+
+<div class="acc open" id="accAgentGeneral">
+  <div class="acc-hd" onclick="toggleAcc('accAgentGeneral')"><h3>General</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="check-grid">
+      <label class="check-item"><input id="aiAgentEnabled" type="checkbox"><span>Enable AI Agent</span></label>
+    </div>
+    <div class="field-grid">
+      <div class="field"><label>Decision Cadence</label><select id="aiAgentDecisionInterval"><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" style="margin-top:6px">Uses the same refresh interval as Auto Pair Rotation.</div></div>
+    </div>
+  </div>
 </div>
 
-<div class="sec-hd"><h3>Exit Targets (TP / DTP)</h3></div>
-<div class="field-grid">
-<div class="field"><label>Take Profit Pct (target)</label><input id="tTP" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Trailing Activation (arm)</label><input id="tTrailAct" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Trailing Drawdown</label><input id="tTrailDD" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Trailing Protection Floor</label><input id="tTrailProt" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Exit Candle Timeframe</label><select id="tExitTimeframe"><option value="1min">1min — real-time (default)</option><option value="3min">3min — signal TF</option><option value="5min">5min</option><option value="15min">15min — swing</option></select></div>
+<div class="acc" id="accAgentAllowed">
+  <div class="acc-hd" onclick="toggleAcc('accAgentAllowed')"><h3>Allowed Decisions</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="check-grid">
+      <label class="check-item"><input id="aiAllowMarketProfile" type="checkbox" checked><span>Auto select Market Profile</span></label>
+      <label class="check-item"><input id="aiAllowMode" type="checkbox" checked><span>Auto select Mode</span></label>
+    </div>
+    <div class="field"><label>Locked Areas</label><div class="info-box">Bot Flags, Sizing &amp; Limits, Report Intervals, dan Pair Flags tetap dikunci oleh sistem dan tidak boleh disentuh AI Agent.</div></div>
+  </div>
 </div>
 
-<div class="sec-hd"><h3>Soft Exits</h3></div>
-<div class="field-grid">
-<div class="field"><label>Min Momentum Exit</label><input id="tMomentum" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Break Even Armed</label><input id="tBeArmed" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Break Even Floor</label><input id="tBeFloor" type="number" step="0.0005" min="0"></div>
-<div class="field"><label>Exit RSI Threshold</label><input id="tExitRsi" type="number" step="1" min="0"></div>
+<div class="acc" id="accAgentSafety">
+  <div class="acc-hd" onclick="toggleAcc('accAgentSafety')"><h3>Safety &amp; Guardrails</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="check-grid">
+      <label class="check-item"><input id="aiRequireShortlist" type="checkbox" checked><span>Require shortlist only</span></label>
+      <label class="check-item"><input id="aiFallbackRule" type="checkbox" checked><span>Fallback to rule-based if invalid</span></label>
+      <label class="check-item"><input id="aiMaxPairsLock" type="checkbox" checked><span>Respect max active pairs limit</span></label>
+      <label class="check-item"><input id="aiPresetOnly" type="checkbox" checked><span>Preset selector only</span></label>
+    </div>
+    <div class="note" style="margin-top:10px">Tujuan tahap awal: AI Agent hanya jadi selector pair + preset, bukan operator risiko atau eksekutor order.</div>
+  </div>
 </div>
 
-<div class="sec-hd"><h3>Time Limits</h3></div>
-<div class="check-grid">
-<label class="check-item"><input id="tEnableTS" type="checkbox"><span>Enable Time Stop</span></label>
-<label class="check-item"><input id="tEnableStale" type="checkbox"><span>Enable Stale Trade</span></label>
-</div>
-<div class="field-grid">
-<div class="field"><label>Time Stop Profit Pct</label><input id="tTsProfit" type="number" step="0.0005"></div>
-<div class="field"><label>Min Hold PnL Pct</label><input id="tMinHoldPnl" type="number" step="0.0005"></div>
+<div class="acc" id="accAgentDecision">
+  <div class="acc-hd" onclick="toggleAcc('accAgentDecision')"><h3>Last Agent Decision</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Last Market Profile</label><input id="aiLastMarketProfile" type="text" value="-" readonly></div>
+      <div class="field"><label>Last Mode</label><input id="aiLastMode" type="text" value="-" readonly></div>
+      <div class="field"><label>Status</label><input id="aiLastStatus" type="text" value="Not applied" readonly></div>
+    </div>
+    <div class="field"><label>Last Active Pairs</label><div class="info-box" id="aiLastPairs">-</div></div>
+    <div class="field"><label>Reason</label><div class="info-box" id="aiLastReason">Belum ada keputusan agent.</div></div>
+    <div class="field"><label>Timestamp</label><input id="aiLastTimestamp" type="text" value="-" readonly></div>
+  </div>
 </div>
 </section></section>
 
@@ -427,7 +542,7 @@ const BTYPE_MAP={signalTimeframe:'btSignalTimeframe',trendTimeframe:'btTrendTime
 const BTYPE_BOOL_KEYS=new Set(['requireEma21Rising','requireFastTrend','requirePriceAboveEma9','requireEdge','requireRsiMomentum','requireBreakout','enableRsiBandFilter','enableAtrFilter','enableVolumeFilter','enableCandleStrengthFilter','enablePriceExtensionFilter','enableRangeRecoveryFilter']);
 const BTYPE_STRING_KEYS=new Set(['signalTimeframe','trendTimeframe']);
 const MKT_MAP={minExpectedNetPct:'mMinExpNet',minVolumeRatio:'mMinVol',minTrendRsi:'mMinRsi',minAtrPct:'mMinAtr',maxAtrPct:'mMaxAtr',maxEmaGapPct:'mMaxEma'};
-const TRD_MAP={riskPercent:'tRisk',cooldownMs:'tCooldown',takeProfitPct:'tTP',trailingActivationPct:'tTrailAct',trailingDrawdownPct:'tTrailDD',trailingProtectionPct:'tTrailProt',minMomentumExitPct:'tMomentum',enableTimeStop:'tEnableTS',enableStaleTrade:'tEnableStale',timeStopProfitPct:'tTsProfit',minHoldPnlPct:'tMinHoldPnl',breakEvenArmedPct:'tBeArmed',breakEvenFloorPct:'tBeFloor',exitRSIThreshold:'tExitRsi',exitTimeframe:'tExitTimeframe'};
+const TRD_MAP={riskPercent:'tRisk',cooldownMs:'tCooldown',takeProfitPct:'tTP',trailingActivationPct:'tTrailAct',trailingDrawdownPct:'tTrailDD',trailingProtectionPct:'tTrailProt',atrStopMultiplier:'tAtrStopMultiplier',minStopPct:'tMinStopPct',maxStopPct:'tMaxStopPct',emergencyStopLossPct:'tEmergencyStopLossPct',minMomentumExitPct:'tMomentum',enableTimeStop:'tEnableTS',enableStaleTrade:'tEnableStale',timeStopProfitPct:'tTsProfit',minHoldPnlPct:'tMinHoldPnl',breakEvenArmedPct:'tBeArmed',breakEvenFloorPct:'tBeFloor',exitRSIThreshold:'tExitRsi',exitTimeframe:'tExitTimeframe'};
 
 function fmt(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d):'N/A'}
 function fmtP(v,d=2){const n=Number(v);return Number.isFinite(n)?n.toFixed(d)+'%':'N/A'}
@@ -457,6 +572,25 @@ function weightedPct(trades, usdtFn){
 }
 function gEv(id){const e=document.getElementById(id);if(!e)return null;return e.type==='checkbox'?e.checked:e.value}
 function sEv(id,v){const e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=Boolean(v);else e.value=v??''}
+function syncAiAgentCadenceUI(){
+  const aiEnabled=document.getElementById('aiAgentEnabled');
+  const aiCadence=document.getElementById('aiAgentDecisionInterval');
+  const rotateCadence=document.getElementById('autoPairRotateHoursEditor');
+  const rotateHint=document.getElementById('autoPairRotateHoursHint');
+  if(!aiCadence||!rotateCadence)return;
+  aiCadence.value=rotateCadence.value;
+  const locked=Boolean(aiEnabled?.checked);
+  rotateCadence.disabled=locked;
+  if(rotateHint) rotateHint.textContent=locked ? 'Managed by AI Agent cadence.' : 'Used by Auto Pair Rotation.';
+}
+function bindAiAgentCadenceUI(){
+  const aiEnabled=document.getElementById('aiAgentEnabled');
+  const aiCadence=document.getElementById('aiAgentDecisionInterval');
+  const rotateCadence=document.getElementById('autoPairRotateHoursEditor');
+  if(aiEnabled) aiEnabled.addEventListener('change',syncAiAgentCadenceUI);
+  if(aiCadence&&rotateCadence) aiCadence.addEventListener('change',()=>{ rotateCadence.value=aiCadence.value; syncAiAgentCadenceUI(); });
+  if(rotateCadence) rotateCadence.addEventListener('change',syncAiAgentCadenceUI);
+}
 async function rH(h){return(await h.getFile()).text()}
 async function wH(h,c){const w=await h.createWritable();await w.write(c);await w.close()}
 async function fJ(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`${url} -> ${r.status}`);return r.json()}
@@ -499,19 +633,39 @@ function updBotTypeDesc(){
   const s=document.getElementById('selectedBotTypeEditor');
   const p=currentConfig.botTypeProfiles?.[s.value];
   document.getElementById('activeBotTypeDescription').textContent=p?.description||'-';
+  updEntryQualityScope();
+}
+function updEntryQualityScope(){
+  const selected=document.getElementById('selectedBotTypeEditor')?.value||'-';
+  const profile=currentConfig?.botTypeProfiles?.[selected];
+  const label=profile?.label||selected;
+  const hint=document.getElementById('entryQualityScopeHint');
+  const badge=document.getElementById('entryQualityScopeBadge');
+  if(hint) hint.textContent=`Linked to bot type: ${label}`;
+  if(badge) badge.textContent='Bot Type-linked';
 }
 
 function popMode(){
   if(!currentConfig)return;
   const s=document.getElementById('selectedModeEditor');
   const e=Object.entries(currentConfig.modeProfiles||{});
+  if(!s)return;
   s.innerHTML=e.map(([k,v])=>`<option value="${k}">${v.label||k}</option>`).join('');
-  s.value=currentConfig.selectedMode||e[0]?.[0]||'';updModeDesc();
+  s.value=currentConfig.selectedMode||e[0]?.[0]||'';
+  syncMode();updModeDesc();
+}
+function syncMode(){
+  if(!currentConfig)return;
+  const s=document.getElementById('selectedModeEditor');
+  const p=currentConfig.modeProfiles?.[s.value]||{};
+  for(const[k,id]of Object.entries(TRD_MAP))sEv(id,p.overrides?.[k]!==undefined?p.overrides[k]:effVal(currentConfig,k));
 }
 function updModeDesc(){
   if(!currentConfig)return;
   const s=document.getElementById('selectedModeEditor');
-  document.getElementById('activeModeDescription').textContent=currentConfig.modeProfiles?.[s.value]?.description||'-';
+  const p=currentConfig.modeProfiles?.[s.value];
+  const base='Trade style mengatur risk, cooldown, target profit, trailing, dan stale/break-even profile aktif.';
+  document.getElementById('activeModeDescription').textContent=base+'\n\n'+(p?.description||'-');
 }
 function popMktProf(){
   if(!currentConfig)return;
@@ -934,13 +1088,21 @@ document.getElementById('restartBotBtn').addEventListener('click',async()=>{
   document.getElementById(id).addEventListener('change',()=>{if(journal.length)render()})
 });
 function toggleAcc(id){const el=document.getElementById(id);if(el)el.classList.toggle('open')}
+bindAiAgentCadenceUI();
+syncAiAgentCadenceUI();
+document.querySelector('#botTab #accTradeManagement')?.remove();
 initTheme();
 loadFolder();
 document.getElementById('selectedBotTypeEditor').addEventListener('change',()=>{
   if(!currentConfig)return;currentConfig.selectedBotType=document.getElementById('selectedBotTypeEditor').value;popCfg()
 });
 document.getElementById('selectedModeEditor').addEventListener('change',()=>{
-  if(!currentConfig)return;currentConfig.selectedMode=document.getElementById('selectedModeEditor').value;popCfg()
+  if(!currentConfig)return;
+  currentConfig.selectedMode=document.getElementById('selectedModeEditor').value;
+  syncMode();
+  updModeDesc();
+  document.getElementById('configStatus').textContent=`Config aktif — bot type: ${currentConfig.selectedBotType||'-'}, trade style: ${currentConfig.selectedMode||'-'}, market profile: ${currentConfig.selectedMarketProfile||'-'} (${currentConfig.marketProfileMode||'auto'})`;
+  renderReadmeTab();
 });
 document.getElementById('marketProfileModeEditor').addEventListener('change',()=>{
   if(!currentConfig)return;
