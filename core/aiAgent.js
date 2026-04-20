@@ -643,7 +643,7 @@ function buildReport(lastDecision) {
       })
     : "-";
   return [
-    "AI AGENT UPDATE",
+    "🤖 AI AGENT UPDATE",
     "--------------------",
     `Provider: ${lastDecision.provider || "openai"} / ${lastDecision.model || "-"}`,
     `Profile: ${lastDecision.marketProfile}`,
