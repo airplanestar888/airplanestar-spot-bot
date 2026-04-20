@@ -28,6 +28,13 @@ const QUALITY_FILTER_KEYS = new Set([
   "enableRangeRecoveryFilter"
 ]);
 const AI_AGENT_PROFILE_KEY = "ai_agent";
+const OPENROUTER_SYSTEM_PROMPT = "You are a conservative market-profile tuner for a spot crypto bot. Return one valid JSON object only, with no markdown and no extra text.";
+const DEFAULT_PROMPT_OVERRIDE = [
+  "Focus on market recap from rankedCandidates and minimalGlobalContext.",
+  "Update the ai_agent workspace profile only when market conditions justify it.",
+  "Prefer small, deliberate changes over broad rewrites.",
+  "If conditions are mixed or unclear, keep changes minimal and explain the reason briefly."
+].join("\n");
 
 const RANGES = {
   minExpectedNetPct: [0, 0.05],
@@ -193,9 +200,9 @@ function buildPrompt({ config, rotation, candidates }) {
     value,
     meaning
   });
-  const promptOverride = typeof config.aiAgent?.promptOverride === "string"
+  const promptOverride = typeof config.aiAgent?.promptOverride === "string" && config.aiAgent.promptOverride.trim()
     ? config.aiAgent.promptOverride.trim()
-    : "";
+    : DEFAULT_PROMPT_OVERRIDE;
   const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
   const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 20).map((item, index) => ({
     rank: index + 1,
@@ -368,7 +375,7 @@ async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
       messages: [
         {
           role: "system",
-          content: "You are a conservative market-profile tuner for a spot crypto bot. Return one valid JSON object only, with no markdown and no extra text."
+          content: OPENROUTER_SYSTEM_PROMPT
         },
         {
           role: "user",
@@ -564,6 +571,15 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
 
   try {
     const prompt = buildPrompt({ config, rotation, candidates: rotationCandidates });
+    config.aiAgent.lastSystemPrompt = settings.provider === "openrouter" ? OPENROUTER_SYSTEM_PROMPT : "";
+    config.aiAgent.lastPrompt = prompt;
+    config.aiAgent.lastPromptAt = new Date(now).toISOString();
+    config.aiAgent.lastPromptProvider = settings.provider;
+    config.aiAgent.lastPromptModel = settings.provider === "gemini"
+      ? settings.geminiModel
+      : settings.provider === "openrouter"
+        ? settings.openrouterModel
+        : settings.model;
     let decision = null;
     let lastError = null;
 
