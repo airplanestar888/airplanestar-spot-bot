@@ -1,6 +1,7 @@
+const fs = require("fs");
+const path = require("path");
 const axios = require("axios");
 
-const PROFILE_KEYS = new Set(["bullish", "bullish_slow", "neutral", "bearish", "choppy", "custom"]);
 const MARKET_FILTER_KEYS = new Set([
   "minExpectedNetPct",
   "minVolumeRatio",
@@ -28,13 +29,26 @@ const QUALITY_FILTER_KEYS = new Set([
   "enableRangeRecoveryFilter"
 ]);
 const AI_AGENT_PROFILE_KEY = "ai_agent";
-const OPENROUTER_SYSTEM_PROMPT = "You are a conservative market-profile tuner for a spot crypto bot. Return one valid JSON object only, with no markdown and no extra text.";
-const DEFAULT_PROMPT_OVERRIDE = [
+const DEFAULT_PROMPT_PERSONA = "Senior crypto spot trader in 2026";
+const DEFAULT_PROMPT_OBJECTIVE = "Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.";
+const DEFAULT_PROMPT_INSTRUCTIONS = [
   "Focus on market recap from rankedCandidates and minimalGlobalContext.",
   "Update the ai_agent workspace profile only when market conditions justify it.",
   "Prefer small, deliberate changes over broad rewrites.",
-  "If conditions are mixed or unclear, keep changes minimal and explain the reason briefly."
+  "If conditions are mixed or unclear, keep changes minimal and explain the reason briefly.",
+  "Always include a dedicated top-level reason field that explains why the entryOverrides were changed."
 ].join("\n");
+const RUNTIME_APPENDED_PROMPT_LINES = new Set([
+  "Focus on tuning entryOverrides for the next several trades. Do not change allowEntries. That toggle is controlled manually from the dashboard for ai_agent.",
+  "Return one valid JSON object only. No markdown. No extra text.",
+  "Your response must be a compact final decision object only. Do not repeat or echo the provided context.",
+  "The JSON must include a dedicated top-level reason field with a short human explanation of why the changes were made.",
+  "If you change only a few fields, that is fine. Delta-only entryOverrides are preferred.",
+  "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
+  "You are updating the ai_agent workspace profile only. Do not choose or switch market profiles.",
+  "Do not mirror the current AI workspace profile blindly. Change only fields that truly need adjustment.",
+  "In entryOverrides, include only fields you want to change. Omit unchanged fields."
+]);
 
 const RANGES = {
   minExpectedNetPct: [0, 0.05],
@@ -73,6 +87,41 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function sanitizePromptInstructions(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  let cleaned = raw;
+  const jsonMarkers = ['\n{\n  "role"', '\n{\r\n  "role"', '\n{\n  "botContext"', '\n{\r\n  "botContext"'];
+  let cutAt = -1;
+  for (const marker of jsonMarkers) {
+    const index = cleaned.indexOf(marker);
+    if (index >= 0 && (cutAt < 0 || index < cutAt)) cutAt = index;
+  }
+  if (cutAt >= 0) cleaned = cleaned.slice(0, cutAt).trim();
+  const filtered = cleaned
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => !RUNTIME_APPENDED_PROMPT_LINES.has(line.trim()))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return filtered;
+}
+
+function getPromptConfig(config) {
+  const raw = isPlainObject(config?.aiAgent?.promptConfig) ? config.aiAgent.promptConfig : {};
+  const legacyInstructions = typeof config?.aiAgent?.promptOverride === "string" && config.aiAgent.promptOverride.trim()
+    ? sanitizePromptInstructions(config.aiAgent.promptOverride)
+    : "";
+  return {
+    persona: typeof raw.persona === "string" && raw.persona.trim() ? raw.persona.trim() : DEFAULT_PROMPT_PERSONA,
+    objective: typeof raw.objective === "string" && raw.objective.trim() ? raw.objective.trim() : DEFAULT_PROMPT_OBJECTIVE,
+    instructions: typeof raw.instructions === "string" && raw.instructions.trim()
+      ? sanitizePromptInstructions(raw.instructions)
+      : (legacyInstructions || DEFAULT_PROMPT_INSTRUCTIONS)
+  };
+}
+
 function getAiAgentSettings(config) {
   const raw = isPlainObject(config.aiAgent) ? config.aiAgent : {};
   const allowed = isPlainObject(raw.allowedDecisions) ? raw.allowedDecisions : {};
@@ -85,8 +134,6 @@ function getAiAgentSettings(config) {
     openrouterModel: process.env.OPENROUTER_MODEL || raw.openrouterModel || "openai/gpt-5-mini",
     timeoutMs: Math.max(3000, Math.min(20000, Number(process.env.AI_AGENT_TIMEOUT_MS || raw.timeoutMs || 8000))),
     retryAttempts: Math.max(1, Math.min(3, Number(process.env.AI_AGENT_RETRY_ATTEMPTS || raw.retryAttempts || 3))),
-    allowMarketProfile: allowed.marketProfile !== false,
-    allowEntriesToggle: allowed.entriesToggle !== false,
     allowMarketFilters: allowed.marketFilters !== false,
     allowQualityFilters: allowed.qualityFilters !== false,
     fallbackRuleBased: safety.fallbackRuleBased !== false,
@@ -200,10 +247,7 @@ function buildPrompt({ config, rotation, candidates }) {
     value,
     meaning
   });
-  const userPromptOverride = typeof config.aiAgent?.promptOverride === "string" && config.aiAgent.promptOverride.trim()
-    ? config.aiAgent.promptOverride.trim()
-    : "";
-  const promptInstruction = userPromptOverride || DEFAULT_PROMPT_OVERRIDE;
+  const promptConfig = getPromptConfig(config);
   const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
   const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 20).map((item, index) => ({
     rank: index + 1,
@@ -218,8 +262,8 @@ function buildPrompt({ config, rotation, candidates }) {
     : {};
   const richContext = {
     role: {
-      persona: "Senior crypto spot trader in 2026",
-      objective: "Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window."
+      persona: promptConfig.persona,
+      objective: promptConfig.objective
     },
     botContext: {
       selectedBotType: mkField(config.selectedBotType || "custom", "entry style"),
@@ -292,9 +336,12 @@ function buildPrompt({ config, rotation, candidates }) {
   };
 
   const promptLines = [
-    promptInstruction,
+    promptConfig.instructions,
     "Focus on tuning entryOverrides for the next several trades. Do not change allowEntries. That toggle is controlled manually from the dashboard for ai_agent.",
     "Return one valid JSON object only. No markdown. No extra text.",
+    "Your response must be a compact final decision object only. Do not repeat or echo the provided context.",
+    "The JSON must include a dedicated top-level reason field with a short human explanation of why the changes were made.",
+    "If you change only a few fields, that is fine. Delta-only entryOverrides are preferred.",
     "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
     "You are updating the ai_agent workspace profile only. Do not choose or switch market profiles.",
     "Do not mirror the current AI workspace profile blindly. Change only fields that truly need adjustment.",
@@ -302,17 +349,22 @@ function buildPrompt({ config, rotation, candidates }) {
     JSON.stringify(richContext, null, 2)
   ];
 
-  return promptLines.join("\n\n");
+  return {
+    prompt: promptLines.join("\n\n"),
+    promptConfig,
+    rankedCandidates
+  };
 }
 
 async function askOpenAi({ apiKey, model, timeoutMs, prompt }) {
+  const payload = {
+    model,
+    input: prompt,
+    max_output_tokens: 10000
+  };
   const res = await axios.post(
     "https://api.openai.com/v1/responses",
-    {
-      model,
-      input: prompt,
-      max_output_tokens: 10000
-    },
+    payload,
     {
       timeout: timeoutMs,
       proxy: false,
@@ -337,19 +389,20 @@ function extractGeminiText(data) {
 
 async function askGemini({ apiKey, model, timeoutMs, prompt }) {
   const safeModel = String(model || "gemini-2.5-flash").replace(/^models\//, "");
+  const payload = {
+    contents: [
+      {
+        parts: [{ text: prompt }]
+      }
+    ],
+    generationConfig: {
+      responseMimeType: "application/json",
+      maxOutputTokens: 10000
+    }
+  };
   const res = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(safeModel)}:generateContent`,
-    {
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ],
-      generationConfig: {
-        responseMimeType: "application/json",
-        maxOutputTokens: 10000
-      }
-    },
+    payload,
     {
       timeout: timeoutMs,
       proxy: false,
@@ -363,24 +416,21 @@ async function askGemini({ apiKey, model, timeoutMs, prompt }) {
 }
 
 async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
+  const payload = {
+    model,
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    response_format: { type: "json_object" },
+    max_tokens: 10000,
+    temperature: 0.2
+  };
   const res = await axios.post(
     "https://openrouter.ai/api/v1/chat/completions",
-    {
-      model,
-      messages: [
-        {
-          role: "system",
-          content: OPENROUTER_SYSTEM_PROMPT
-        },
-        {
-          role: "user",
-          content: prompt
-        }
-      ],
-      response_format: { type: "json_object" },
-      max_tokens: 10000,
-      temperature: 0.2
-    },
+    payload,
     {
       timeout: timeoutMs,
       proxy: false,
@@ -395,26 +445,106 @@ async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
   return parseJson(res.data?.choices?.[0]?.message?.content || "");
 }
 
+function buildRequestPayload({ provider, model, geminiModel, openrouterModel, prompt }) {
+  if (provider === "gemini") {
+    return {
+      provider,
+      model: geminiModel,
+      endpoint: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(String(geminiModel || "gemini-2.5-flash").replace(/^models\//, ""))}:generateContent`,
+      body: {
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json",
+          maxOutputTokens: 10000
+        }
+      }
+    };
+  }
+  if (provider === "openrouter") {
+    return {
+      provider,
+      model: openrouterModel,
+      endpoint: "https://openrouter.ai/api/v1/chat/completions",
+      body: {
+        model: openrouterModel,
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        response_format: { type: "json_object" },
+        max_tokens: 10000,
+        temperature: 0.2
+      }
+    };
+  }
+  return {
+    provider,
+    model,
+    endpoint: "https://api.openai.com/v1/responses",
+    body: {
+      model,
+      input: prompt,
+      max_output_tokens: 10000
+    }
+  };
+}
+
+function pickDecisionReason(raw, payload) {
+  const candidates = [
+    payload?.reason,
+    raw?.reason,
+    payload?.summary,
+    raw?.summary,
+    payload?.rationale,
+    raw?.rationale,
+    payload?.note,
+    raw?.note
+  ];
+
+  for (const value of candidates) {
+    if (typeof value === "string") {
+      const trimmed = value.trim().replace(/\s+/g, " ");
+      if (trimmed) return trimmed.slice(0, 240);
+    }
+  }
+
+  return "AI market adjustment";
+}
+
+function looksLikePromptEcho(raw) {
+  if (!isPlainObject(raw)) return false;
+  return (
+    isPlainObject(raw.role) ||
+    isPlainObject(raw.botContext) ||
+    Array.isArray(raw.rankedCandidates) ||
+    isPlainObject(raw.minimalGlobalContext) ||
+    isPlainObject(raw.constraints) ||
+    isPlainObject(raw.expectedOutputSchema) ||
+    isPlainObject(raw.aiAgentWorkspaceProfile)
+  );
+}
+
 function validateDecision(raw, settings) {
   if (!isPlainObject(raw)) throw new Error("invalid JSON decision");
-  const payload = isPlainObject(raw.aiAgentWorkspaceProfile) ? raw.aiAgentWorkspaceProfile : raw;
-  const decision = {
-    marketProfile: null,
-    allowEntries: null,
-    entryOverrides: {},
-    reason: String(payload.reason || raw.reason || "AI market adjustment").slice(0, 240)
-  };
-
-  const requestedProfile = String(payload.marketProfile || raw.marketProfile || "");
-  if (settings.allowMarketProfile && PROFILE_KEYS.has(requestedProfile)) {
-    decision.marketProfile = requestedProfile;
+  if (looksLikePromptEcho(raw)) {
+    throw new Error("model echoed prompt context instead of returning a decision");
   }
-  const customTarget = decision.marketProfile === "custom";
+  const payload = raw;
+  const decision = {
+    entryOverrides: {},
+    reason: pickDecisionReason(raw, payload)
+  };
 
   const overrides = isPlainObject(payload.entryOverrides) ? payload.entryOverrides : {};
   for (const [key, value] of Object.entries(overrides)) {
     if (MARKET_FILTER_KEYS.has(key) && settings.allowMarketFilters) {
-      const normalized = customTarget ? normalizeCustomNumber(value) : clampNumber(key, value);
+      const normalized = normalizeCustomNumber(value);
       if (normalized != null) decision.entryOverrides[key] = normalized;
     }
     if (QUALITY_FILTER_KEYS.has(key) && settings.allowQualityFilters && typeof value === "boolean") {
@@ -422,7 +552,7 @@ function validateDecision(raw, settings) {
     }
   }
 
-  if (!decision.marketProfile && !Object.keys(decision.entryOverrides).length) {
+  if (!Object.keys(decision.entryOverrides).length) {
     throw new Error("decision has no allowed changes");
   }
 
@@ -460,26 +590,16 @@ function applyDecision(config, decision, now = Date.now()) {
 
   const aiProfile = config.marketProfiles[AI_AGENT_PROFILE_KEY];
   const preservedAllowEntries = aiProfile.allowEntries !== false;
-  const requestedProfileKey = decision.marketProfile || fallbackProfileKey;
-  const requestedProfile = config.marketProfiles?.[requestedProfileKey] || config.marketProfiles?.[fallbackProfileKey];
-  if (!requestedProfile) throw new Error(`market profile not found: ${requestedProfileKey}`);
 
   const before = {
     marketProfile: config.selectedMarketProfile,
-    sourceMarketProfile: requestedProfileKey,
     allowEntries: aiProfile.allowEntries !== false,
     entryOverrides: { ...(aiProfile.entryOverrides || {}) }
   };
 
   aiProfile.label = aiProfile.label || "AI Agent Profile";
   aiProfile.description = aiProfile.description || "Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.";
-
-  if (decision.marketProfile && decision.marketProfile !== AI_AGENT_PROFILE_KEY) {
-    aiProfile.entryOverrides = { ...(requestedProfile.entryOverrides || {}) };
-  } else {
-    aiProfile.entryOverrides = { ...(aiProfile.entryOverrides || {}) };
-  }
-
+  aiProfile.entryOverrides = { ...(aiProfile.entryOverrides || {}) };
   aiProfile.allowEntries = preservedAllowEntries;
   aiProfile.entryOverrides = {
     ...aiProfile.entryOverrides,
@@ -494,7 +614,6 @@ function applyDecision(config, decision, now = Date.now()) {
     at: new Date(now).toISOString(),
     status: "applied",
     marketProfile: AI_AGENT_PROFILE_KEY,
-    sourceMarketProfile: requestedProfileKey,
     allowEntries: dashboardAllowEntries,
     entryOverrides: decision.entryOverrides,
     scopeSummary,
@@ -502,6 +621,14 @@ function applyDecision(config, decision, now = Date.now()) {
     before
   };
   return config.aiAgent.lastDecision;
+}
+
+function appendAiAgentState(entry) {
+  try {
+    const filePath = path.join(__dirname, "..", "data", "ai_agent_state.jsonl");
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, "utf8");
+  } catch (_) {}
 }
 
 function buildReport(lastDecision) {
@@ -560,9 +687,20 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
   }
 
   try {
-    const prompt = buildPrompt({ config, rotation, candidates: rotationCandidates });
-    config.aiAgent.lastSystemPrompt = settings.provider === "openrouter" ? OPENROUTER_SYSTEM_PROMPT : "";
+    const builtPrompt = buildPrompt({ config, rotation, candidates: rotationCandidates });
+    const prompt = builtPrompt.prompt;
+    const requestPayload = buildRequestPayload({
+      provider: settings.provider,
+      model: settings.model,
+      geminiModel: settings.geminiModel,
+      openrouterModel: settings.openrouterModel,
+      prompt
+    });
+    config.aiAgent.lastSystemPrompt = "";
     config.aiAgent.lastPrompt = prompt;
+    config.aiAgent.lastRequestPayload = requestPayload;
+    config.aiAgent.lastPromptBlocks = builtPrompt.promptConfig;
+    config.aiAgent.lastRankedCandidates = builtPrompt.rankedCandidates;
     config.aiAgent.lastPromptAt = new Date(now).toISOString();
     config.aiAgent.lastPromptProvider = settings.provider;
     config.aiAgent.lastPromptModel = settings.provider === "gemini"
@@ -580,6 +718,7 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
           : settings.provider === "openrouter"
             ? await askOpenRouter({ apiKey, model: settings.openrouterModel, timeoutMs: settings.timeoutMs, prompt })
           : await askOpenAi({ apiKey, model: settings.model, timeoutMs: settings.timeoutMs, prompt });
+        config.aiAgent.lastRawResponse = raw;
         decision = validateDecision(raw, settings);
         lastError = null;
         break;
@@ -604,6 +743,16 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
         ? settings.openrouterModel
         : settings.model;
     log?.("INFO", `AI Agent applied market profile ${lastDecision.marketProfile} via ${lastDecision.provider}/${lastDecision.model}`);
+    appendAiAgentState({
+      at: new Date(now).toISOString(),
+      status: "applied",
+      provider: lastDecision.provider,
+      model: lastDecision.model,
+      prompt,
+      systemPrompt: config.aiAgent.lastSystemPrompt || "",
+      rawResponse: config.aiAgent.lastRawResponse || null,
+      decision: lastDecision
+    });
     try {
       if (settings.telegramReport && report) await report(buildReport(lastDecision));
     } catch (reportErr) {
@@ -620,6 +769,20 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
       fallbackProfile: fallbackProfileKey,
       attempts: settings.retryAttempts
     };
+    appendAiAgentState({
+      at: new Date(now).toISOString(),
+      status: "failed",
+      provider: settings.provider,
+      model: settings.provider === "gemini"
+        ? settings.geminiModel
+        : settings.provider === "openrouter"
+          ? settings.openrouterModel
+          : settings.model,
+      prompt: config.aiAgent.lastPrompt || "",
+      systemPrompt: config.aiAgent.lastSystemPrompt || "",
+      rawResponse: config.aiAgent.lastRawResponse || null,
+      decision: config.aiAgent.lastDecision
+    });
     log?.("WARN", `AI Agent failed after ${settings.retryAttempts} attempt(s): ${err.message}${fallbackProfileKey ? `, fallback to ${fallbackProfileKey}` : ""}`);
     return { skipped: true, reason: err.message, fallbackProfile: fallbackProfileKey };
   }

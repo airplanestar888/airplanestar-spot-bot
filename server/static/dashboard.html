@@ -467,12 +467,11 @@
   <div class="acc-hd" onclick="toggleAcc('accAgentAllowed')"><h3>Allowed Decisions</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="check-grid">
-      <label class="check-item"><input id="aiAllowMarketProfile" type="checkbox" checked><span>AI Agent Profile Update</span></label>
       <label class="check-item"><input id="aiAllowEntriesToggle" type="checkbox"><span>AI Agent Allow Entries</span></label>
       <label class="check-item"><input id="aiAllowMarketFilters" type="checkbox" checked><span>Tune Market Entry Filters</span></label>
       <label class="check-item"><input id="aiAllowQualityFilters" type="checkbox" checked><span>Tune Quality Filters</span></label>
     </div>
-    <div class="field"><label>Scope Summary</label><div class="info-box">AI Agent hanya boleh menyentuh layer Market Profile. Bot Type core, Trade Style, hard stop, TP, trailing, sizing, dan pair management tetap manual dan dikunci oleh sistem.</div></div>
+    <div class="field"><label>Scope Summary</label><div class="info-box">Dashboard menyimpan config AI Agent ke config.json. Config itu dikirim sebagai context ke LLM. Feedback LLM hanya masuk ke entryOverrides profile ai_agent. Allow Entries untuk ai_agent tetap manual dari dashboard.</div></div>
   </div>
 </div>
 
@@ -491,18 +490,32 @@
   <div class="acc-hd" onclick="toggleAcc('accAgentPrompt')"><h3>Prompt</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
     <div class="field">
-      <label>Prompt Override</label>
-      <textarea id="aiPromptEditor" rows="10" style="width:100%;resize:vertical"></textarea>
-      <div class="note" style="margin-top:10px">Hati-hati saat mengubah prompt. Perubahan prompt bisa mengubah kualitas keputusan AI Agent, dan prompt yang buruk bisa membuat output agent bias, terlalu mengikuti schema, atau gagal memberi feedback market yang berguna.</div>
+      <label>Config Persona</label>
+      <input id="aiPromptPersonaEditor" type="text">
     </div>
     <div class="field">
-      <label>System Prompt Used</label>
-      <div class="info-box" id="aiSystemPromptView">-</div>
+      <label>Config Objective</label>
+      <textarea id="aiPromptObjectiveEditor" rows="4" style="width:100%;resize:vertical"></textarea>
     </div>
     <div class="field">
-      <label>Last Raw Prompt Used</label>
-      <textarea id="aiRawPromptView" rows="18" style="width:100%;resize:vertical" readonly></textarea>
-      <div class="hint" style="margin-top:6px">Ini adalah prompt mentah terakhir yang benar-benar dipakai bot saat AI Agent jalan. Setelah Prompt Override di-save, isi ini baru berubah pada cycle AI Agent berikutnya.</div>
+      <label>Config Instructions</label>
+      <textarea id="aiPromptInstructionsEditor" rows="8" style="width:100%;resize:vertical"></textarea>
+      <div class="note" style="margin-top:10px">Bagian ini yang disimpan ke config. Backend tetap membungkusnya dengan candidates auto-rotate, constraints, schema output, dan wrapper provider. Hati-hati saat mengubah prompt config karena perubahan kecil bisa membuat AI Agent terlalu bias, terlalu kaku, atau malah echo context.</div>
+    </div>
+    <div class="field">
+      <label>Last Used Prompt Blocks</label>
+      <textarea id="aiLastPromptBlocksView" rows="10" style="width:100%;resize:vertical" readonly></textarea>
+      <div class="hint" style="margin-top:6px">Ini blok config prompt terakhir yang benar-benar dipakai backend saat cycle AI Agent jalan.</div>
+    </div>
+    <div class="field">
+      <label>Last Used Ranked Candidates</label>
+      <textarea id="aiLastCandidatesView" rows="16" style="width:100%;resize:vertical" readonly></textarea>
+      <div class="hint" style="margin-top:6px">Candidates ini sumber pair dari auto-rotate yang ikut dipakai saat request terakhir dikirim ke LLM.</div>
+    </div>
+    <div class="field">
+      <label>Exact Request Sent To LLM</label>
+      <textarea id="aiRequestPayloadView" rows="22" style="width:100%;resize:vertical" readonly></textarea>
+      <div class="hint" style="margin-top:6px">Ini payload request terakhir yang benar-benar dikirim ke provider LLM, termasuk endpoint, model, system prompt, dan user prompt.</div>
     </div>
   </div>
 </div>
@@ -548,12 +561,26 @@
 <script>
 let journal=[],currentConfig=null,folderHandle=null,configHandle=null,journalHandle=null,readmeHandle=null,marketSnapshotHandle=null,readmeText='',marketSnapshot=null;
 let toastTimer=null;
-const DEFAULT_AI_PROMPT_OVERRIDE=[
+const DEFAULT_AI_PROMPT_PERSONA='Senior crypto spot trader in 2026';
+const DEFAULT_AI_PROMPT_OBJECTIVE='Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.';
+const DEFAULT_AI_PROMPT_INSTRUCTIONS=[
   'Focus on market recap from rankedCandidates and minimalGlobalContext.',
   'Update the ai_agent workspace profile only when market conditions justify it.',
   'Prefer small, deliberate changes over broad rewrites.',
-  'If conditions are mixed or unclear, keep changes minimal and explain the reason briefly.'
+  'If conditions are mixed or unclear, keep changes minimal and explain the reason briefly.',
+  'Always include a dedicated top-level reason field that explains why the entryOverrides were changed.'
 ].join('\n');
+const AI_RUNTIME_APPENDED_LINES=new Set([
+  'Focus on tuning entryOverrides for the next several trades. Do not change allowEntries. That toggle is controlled manually from the dashboard for ai_agent.',
+  'Return one valid JSON object only. No markdown. No extra text.',
+  'Your response must be a compact final decision object only. Do not repeat or echo the provided context.',
+  'The JSON must include a dedicated top-level reason field with a short human explanation of why the changes were made.',
+  'If you change only a few fields, that is fine. Delta-only entryOverrides are preferred.',
+  'Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.',
+  'You are updating the ai_agent workspace profile only. Do not choose or switch market profiles.',
+  'Do not mirror the current AI workspace profile blindly. Change only fields that truly need adjustment.',
+  'In entryOverrides, include only fields you want to change. Omit unchanged fields.'
+]);
 
 /* --- Editor maps (STRICT layer separation) --- */
 const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',minManagedPositionUSDT:'minManagedPositionUsdtEditor',minRecoverUSDT:'minRecoverUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',usePairReentryBlock:'pairReentryBlockEnabledEditor',pairReentryBlockLossPct:'pairReentryBlockLossPctEditor',pairReentryBlockMinutes:'pairReentryBlockMinutesEditor',loopIntervalMs:'loopIntervalEditor',holdCheckIntervalMs:'holdCheckIntervalEditor'};
@@ -597,6 +624,19 @@ function weightedPct(trades, usdtFn){
 }
 function gEv(id){const e=document.getElementById(id);if(!e)return null;return e.type==='checkbox'?e.checked:e.value}
 function sEv(id,v){const e=document.getElementById(id);if(!e)return;if(e.type==='checkbox')e.checked=Boolean(v);else e.value=v??''}
+function sanitizeAiPromptInstructions(text){
+  let cleaned=String(text||'').trim();
+  if(!cleaned)return'';
+  const markers=['\n{\n  "role"','\n{\r\n  "role"','\n{\n  "botContext"','\n{\r\n  "botContext"'];
+  let cutAt=-1;
+  for(const marker of markers){
+    const idx=cleaned.indexOf(marker);
+    if(idx>=0&&(cutAt<0||idx<cutAt))cutAt=idx;
+  }
+  if(cutAt>=0)cleaned=cleaned.slice(0,cutAt).trim();
+  cleaned=cleaned.split(/\r?\n/).filter(line=>!AI_RUNTIME_APPENDED_LINES.has(line.trim())).join('\n').replace(/\n{3,}/g,'\n\n').trim();
+  return cleaned;
+}
 function syncAiAgentCadenceUI(){
   const aiCadence=document.getElementById('aiAgentDecisionInterval');
   const rotateCadence=document.getElementById('autoPairRotateHoursEditor');
@@ -619,13 +659,16 @@ function ensureAiAgentConfig(){
   const a=currentConfig.aiAgent;
   if(a.enabled==null)a.enabled=false;
   if(!a.provider)a.provider='openrouter';
-  if(a.allowedDecisions.marketProfile==null)a.allowedDecisions.marketProfile=true;
-  if(a.allowedDecisions.entriesToggle==null)a.allowedDecisions.entriesToggle=true;
   if(a.allowedDecisions.marketFilters==null)a.allowedDecisions.marketFilters=true;
   if(a.allowedDecisions.qualityFilters==null)a.allowedDecisions.qualityFilters=true;
   if(a.safety.fallbackRuleBased==null)a.safety.fallbackRuleBased=true;
   if(a.safety.telegramReport==null)a.safety.telegramReport=true;
-  if(typeof a.promptOverride!=='string'||!a.promptOverride.trim())a.promptOverride=DEFAULT_AI_PROMPT_OVERRIDE;
+  if(!a.promptConfig||typeof a.promptConfig!=='object')a.promptConfig={};
+  if(typeof a.promptConfig.persona!=='string'||!a.promptConfig.persona.trim())a.promptConfig.persona=DEFAULT_AI_PROMPT_PERSONA;
+  if(typeof a.promptConfig.objective!=='string'||!a.promptConfig.objective.trim())a.promptConfig.objective=DEFAULT_AI_PROMPT_OBJECTIVE;
+  const legacyPrompt=typeof a.promptOverride==='string'&&a.promptOverride.trim()?sanitizeAiPromptInstructions(a.promptOverride):'';
+  if(typeof a.promptConfig.instructions!=='string'||!a.promptConfig.instructions.trim())a.promptConfig.instructions=legacyPrompt||DEFAULT_AI_PROMPT_INSTRUCTIONS;
+  else a.promptConfig.instructions=sanitizeAiPromptInstructions(a.promptConfig.instructions)||DEFAULT_AI_PROMPT_INSTRUCTIONS;
 }
 function renderAiAgentConfig(){
   ensureAiAgentConfig();
@@ -633,15 +676,17 @@ function renderAiAgentConfig(){
   const aiProfile=currentConfig.marketProfiles?.ai_agent||{};
   sEv('aiAgentEnabled',a.enabled);
   sEv('aiProviderEditor',a.provider||'openrouter');
-  sEv('aiAllowMarketProfile',a.allowedDecisions.marketProfile);
   sEv('aiAllowEntriesToggle',aiProfile.allowEntries!==false);
   sEv('aiAllowMarketFilters',a.allowedDecisions.marketFilters);
   sEv('aiAllowQualityFilters',a.allowedDecisions.qualityFilters);
   sEv('aiFallbackRule',a.safety.fallbackRuleBased);
   sEv('aiTelegramReport',a.safety.telegramReport);
-  sEv('aiPromptEditor',a.promptOverride||'');
-  document.getElementById('aiSystemPromptView').textContent=a.lastSystemPrompt||'-';
-  sEv('aiRawPromptView',a.lastPrompt||'');
+  sEv('aiPromptPersonaEditor',a.promptConfig?.persona||'');
+  sEv('aiPromptObjectiveEditor',a.promptConfig?.objective||'');
+  sEv('aiPromptInstructionsEditor',a.promptConfig?.instructions||'');
+  sEv('aiLastPromptBlocksView',a.lastPromptBlocks?JSON.stringify(a.lastPromptBlocks,null,2):'');
+  sEv('aiLastCandidatesView',Array.isArray(a.lastRankedCandidates)?JSON.stringify(a.lastRankedCandidates,null,2):'');
+  sEv('aiRequestPayloadView',a.lastRequestPayload?JSON.stringify(a.lastRequestPayload,null,2):'');
   const d=a.lastDecision||{};
   sEv('aiLastMarketProfile',d.marketProfile||'-');
   sEv('aiLastAllowEntries',d.allowEntries==null?'-':(d.allowEntries?'yes':'no'));
@@ -915,13 +960,17 @@ function applyCfg(){
   if(!nc.marketProfiles||typeof nc.marketProfiles!=='object')nc.marketProfiles={};
   if(!nc.marketProfiles.ai_agent||typeof nc.marketProfiles.ai_agent!=='object')nc.marketProfiles.ai_agent={label:'AI Agent Profile',description:'Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.',entryOverrides:{}};
   nc.marketProfiles.ai_agent.allowEntries=Boolean(gEv('aiAllowEntriesToggle'));
-  nc.aiAgent.allowedDecisions.marketProfile=Boolean(gEv('aiAllowMarketProfile'));
-  nc.aiAgent.allowedDecisions.entriesToggle=true;
   nc.aiAgent.allowedDecisions.marketFilters=Boolean(gEv('aiAllowMarketFilters'));
   nc.aiAgent.allowedDecisions.qualityFilters=Boolean(gEv('aiAllowQualityFilters'));
+  delete nc.aiAgent.allowedDecisions.marketProfile;
+  delete nc.aiAgent.allowedDecisions.entriesToggle;
   nc.aiAgent.safety.fallbackRuleBased=Boolean(gEv('aiFallbackRule'));
   nc.aiAgent.safety.telegramReport=Boolean(gEv('aiTelegramReport'));
-  nc.aiAgent.promptOverride=String(gEv('aiPromptEditor')||'').trim();
+  if(!nc.aiAgent.promptConfig||typeof nc.aiAgent.promptConfig!=='object')nc.aiAgent.promptConfig={};
+  nc.aiAgent.promptConfig.persona=String(gEv('aiPromptPersonaEditor')||'').trim()||DEFAULT_AI_PROMPT_PERSONA;
+  nc.aiAgent.promptConfig.objective=String(gEv('aiPromptObjectiveEditor')||'').trim()||DEFAULT_AI_PROMPT_OBJECTIVE;
+  nc.aiAgent.promptConfig.instructions=String(gEv('aiPromptInstructionsEditor')||'').trim()||DEFAULT_AI_PROMPT_INSTRUCTIONS;
+  nc.aiAgent.promptOverride=nc.aiAgent.promptConfig.instructions;
   const ps={};
   for(const c of document.getElementById('pairEditor').querySelectorAll('[data-pe]')){
     const s=c.getAttribute('data-pe');
