@@ -282,6 +282,57 @@ Ringkasan layer dashboard:
 - `Market Profile` = filter market dan quality filter entry
 - `Trade Style` = risk, trailing, hard stop, stale, break-even, dan exit profile
 
+## AI Agent
+
+AI Agent bekerja sebagai tuner untuk workspace profile `ai_agent`.
+
+Prinsip utamanya:
+- AI Agent tidak mengganti preset market profile bawaan seperti `bullish`, `neutral`, atau `custom`
+- AI Agent hanya mengupdate `marketProfiles.ai_agent`
+- saat decision berhasil di-apply, bot memakai `selectedMarketProfile = ai_agent`
+- jika AI gagal, bot fallback ke `custom`
+
+Input AI Agent:
+- `botContext`
+- `aiAgentWorkspaceProfile`
+- `rankedCandidates` dari hasil auto rotate
+- `minimalGlobalContext`
+
+Output AI Agent yang diizinkan:
+- `allowEntries`
+- `entryOverrides`
+- `reason`
+
+Field `entryOverrides` yang bisa diisi AI:
+- `minExpectedNetPct`
+- `minVolumeRatio`
+- `minTrendRsi`
+- `minAtrPct`
+- `maxAtrPct`
+- `maxEmaGapPct`
+- `rsiBandLower`
+- `rsiBandUpper`
+- `minCandleStrength`
+- `minEmaGapNeg`
+- `optimalRsiLow`
+- `optimalRsiHigh`
+- `optimalAtrLow`
+- `optimalAtrHigh`
+- `requireRsiMomentum`
+- `requireBreakout`
+- `enableRsiBandFilter`
+- `enableAtrFilter`
+- `enableVolumeFilter`
+- `enableCandleStrengthFilter`
+- `enablePriceExtensionFilter`
+- `enableRangeRecoveryFilter`
+
+Catatan AI Agent:
+- pair context AI Agent hanya berasal dari hasil auto rotate
+- jika auto rotate tidak jalan, AI Agent juga tidak jalan
+- jika ada open position, auto rotate akan pending dan AI Agent tidak dipanggil ulang
+- report Telegram AI Agent hanya menampilkan ringkasan scope perubahan, bukan dump field mentah
+
 ## Entry Logic
 
 Scoring pair berbasis live market, bukan bobot pair manual.
@@ -365,6 +416,7 @@ Aturan auto rotate:
 3. jika ada balance recoverable `>= minRecoverUSDT`, auto rotate akan di-skip
 4. saat startup, bot menjalankan satu siklus `runBot()` dulu sebelum auto rotate pertama
 5. hasil rotate pair aktif akan langsung dipersist ke `config.json`, jadi dashboard dan runtime membaca sumber pair aktif yang sama
+6. AI Agent membaca kandidat pair dari hasil auto rotate yang sama, bukan dari sumber pair lain
 
 Pair flags untuk auto rotate:
 - `Disable Pair on SL`
