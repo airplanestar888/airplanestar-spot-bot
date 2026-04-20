@@ -485,6 +485,17 @@
   </div>
 </div>
 
+<div class="acc" id="accAgentPrompt">
+  <div class="acc-hd" onclick="toggleAcc('accAgentPrompt')"><h3>Prompt</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field">
+      <label>Prompt Override</label>
+      <textarea id="aiPromptEditor" rows="10" style="width:100%;resize:vertical"></textarea>
+      <div class="note" style="margin-top:10px">Hati-hati saat mengubah prompt. Perubahan prompt bisa mengubah kualitas keputusan AI Agent, dan prompt yang buruk bisa membuat output agent bias, terlalu mengikuti schema, atau gagal memberi feedback market yang berguna.</div>
+    </div>
+  </div>
+</div>
+
 <div class="acc" id="accAgentDecision">
   <div class="acc-hd" onclick="toggleAcc('accAgentDecision')"><h3>Last Agent Decision</h3><span class="acc-arrow">&#9660;</span></div>
   <div class="acc-body">
@@ -597,6 +608,7 @@ function ensureAiAgentConfig(){
   if(a.allowedDecisions.qualityFilters==null)a.allowedDecisions.qualityFilters=true;
   if(a.safety.fallbackRuleBased==null)a.safety.fallbackRuleBased=true;
   if(a.safety.telegramReport==null)a.safety.telegramReport=true;
+  if(typeof a.promptOverride!=='string')a.promptOverride='';
 }
 function renderAiAgentConfig(){
   ensureAiAgentConfig();
@@ -609,6 +621,7 @@ function renderAiAgentConfig(){
   sEv('aiAllowQualityFilters',a.allowedDecisions.qualityFilters);
   sEv('aiFallbackRule',a.safety.fallbackRuleBased);
   sEv('aiTelegramReport',a.safety.telegramReport);
+  sEv('aiPromptEditor',a.promptOverride||'');
   const d=a.lastDecision||{};
   sEv('aiLastMarketProfile',d.marketProfile||'-');
   sEv('aiLastAllowEntries',d.allowEntries==null?'-':(d.allowEntries?'yes':'no'));
@@ -867,6 +880,7 @@ function applyCfg(){
   nc.aiAgent.allowedDecisions.qualityFilters=Boolean(gEv('aiAllowQualityFilters'));
   nc.aiAgent.safety.fallbackRuleBased=Boolean(gEv('aiFallbackRule'));
   nc.aiAgent.safety.telegramReport=Boolean(gEv('aiTelegramReport'));
+  nc.aiAgent.promptOverride=String(gEv('aiPromptEditor')||'').trim();
   const ps={};
   for(const c of document.getElementById('pairEditor').querySelectorAll('[data-pe]')){
     const s=c.getAttribute('data-pe');

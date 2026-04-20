@@ -193,6 +193,9 @@ function buildPrompt({ config, rotation, candidates }) {
     value,
     meaning
   });
+  const promptOverride = typeof config.aiAgent?.promptOverride === "string"
+    ? config.aiAgent.promptOverride.trim()
+    : "";
   const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
   const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 20).map((item, index) => ({
     rank: index + 1,
@@ -282,7 +285,7 @@ function buildPrompt({ config, rotation, candidates }) {
     }
   };
 
-  return [
+  const promptLines = [
     "You are a senior crypto spot trader in 2026.",
     "Read the full structured trading context carefully. Understand the bot objective, bot type, trade style, market profile values, and pair candidates before deciding.",
     "Return one valid JSON object only. No markdown. No extra text.",
@@ -291,7 +294,13 @@ function buildPrompt({ config, rotation, candidates }) {
     "Do not mirror the current AI workspace profile blindly. Change only fields that truly need adjustment.",
     "In entryOverrides, include only fields you want to change. Omit unchanged fields.",
     JSON.stringify(richContext, null, 2)
-  ].join("\n\n");
+  ];
+
+  if (promptOverride) {
+    promptLines.splice(promptLines.length - 1, 0, promptOverride);
+  }
+
+  return promptLines.join("\n\n");
 }
 
 async function askOpenAi({ apiKey, model, timeoutMs, prompt }) {
