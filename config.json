@@ -6,10 +6,10 @@
   "selectedMarketProfile": "ai_agent",
   "pairSettings": {
     "HYPEUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "SAPIENUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "MONUSDT": {
       "enabled": false
@@ -45,7 +45,7 @@
       "enabled": false
     },
     "FARTCOINUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "BGBUSDT": {
       "enabled": false
@@ -81,7 +81,7 @@
       "enabled": false
     },
     "BNBUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "BONKUSDT": {
       "enabled": false
@@ -156,7 +156,7 @@
       "enabled": false
     },
     "LATUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "LDOUSDT": {
       "enabled": false
@@ -174,7 +174,7 @@
       "enabled": false
     },
     "MORPHOUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "MUSDT": {
       "enabled": false
@@ -219,7 +219,7 @@
       "enabled": false
     },
     "RENDERUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "RIVERUSDT": {
       "enabled": false
@@ -264,7 +264,7 @@
       "enabled": false
     },
     "TRUMPUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "TRXUSDT": {
       "enabled": true
@@ -285,7 +285,7 @@
       "enabled": false
     },
     "WBTCUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "WIFUSDT": {
       "enabled": false
@@ -303,7 +303,7 @@
       "enabled": false
     },
     "XPLUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "XRPUSDT": {
       "enabled": true
@@ -312,7 +312,7 @@
       "enabled": false
     },
     "ZBTUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "ZECUSDT": {
       "enabled": false
@@ -324,7 +324,7 @@
       "enabled": false
     },
     "BLESSUSDT": {
-      "enabled": true
+      "enabled": false
     }
   },
   "riskPercent": "0.15",
@@ -713,10 +713,10 @@
       "entryOverrides": {
         "minExpectedNetPct": 0.0026,
         "minVolumeRatio": 1.08,
-        "minTrendRsi": 39,
-        "minAtrPct": 0.0026,
+        "minTrendRsi": 40,
+        "minAtrPct": 0.0028,
         "maxAtrPct": 0.02,
-        "maxEmaGapPct": 0.016,
+        "maxEmaGapPct": 0.015,
         "requireRsiMomentum": true,
         "requireBreakout": true,
         "enableRsiBandFilter": true,
@@ -926,33 +926,35 @@
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-19T18:01:29.336Z",
+    "at": "2026-04-20T00:06:41.395Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 2,
     "topPairs": 15,
     "activePairs": [
-      "SAPIENUSDT",
-      "ZBTUSDT",
       "BTCUSDT",
       "ETHUSDT",
-      "USDCUSDT",
-      "TRXUSDT",
       "XRPUSDT",
-      "LATUSDT",
-      "MORPHOUSDT",
-      "BLESSUSDT",
-      "NEARUSDT",
+      "USDCUSDT",
+      "HYPEUSDT",
       "ADAUSDT",
       "XAUTUSDT",
+      "XPLUSDT",
+      "TRXUSDT",
+      "NEARUSDT",
       "PAXGUSDT",
-      "FARTCOINUSDT"
+      "WBTCUSDT",
+      "BNBUSDT",
+      "RENDERUSDT",
+      "TRUMPUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 16,
-    "pending": false,
-    "pendingAt": null,
-    "pendingReason": null
+    "blacklistCount": 12,
+    "pending": true,
+    "pendingAt": "2026-04-20T00:36:31.774Z",
+    "pendingReason": "1 open position(s)",
+    "skippedAt": "2026-04-20T00:36:31.774Z",
+    "skippedReason": "1 open position(s)"
   },
   "aiAgent": {
     "allowedDecisions": {
@@ -967,7 +969,7 @@
     },
     "enabled": true,
     "lastDecision": {
-      "at": "2026-04-19T18:01:29.336Z",
+      "at": "2026-04-20T00:06:41.395Z",
       "status": "applied",
       "marketProfile": "ai_agent",
       "sourceMarketProfile": "custom",
@@ -975,7 +977,26 @@
       "entryOverrides": {
         "minExpectedNetPct": 0.0026,
         "minVolumeRatio": 1.08,
-        "requireRsiMomentum": true
+        "minTrendRsi": 40,
+        "minAtrPct": 0.0028,
+        "maxAtrPct": 0.02,
+        "maxEmaGapPct": 0.015,
+        "rsiBandLower": 46,
+        "rsiBandUpper": 64,
+        "minCandleStrength": 0.35,
+        "minEmaGapNeg": 0.0015,
+        "optimalRsiLow": 49,
+        "optimalRsiHigh": 58,
+        "optimalAtrLow": 0.005,
+        "optimalAtrHigh": 0.012,
+        "requireRsiMomentum": true,
+        "requireBreakout": true,
+        "enableRsiBandFilter": true,
+        "enableAtrFilter": true,
+        "enableVolumeFilter": true,
+        "enableCandleStrengthFilter": true,
+        "enablePriceExtensionFilter": true,
+        "enableRangeRecoveryFilter": true
       },
       "scopeSummary": {
         "marketProfile": true,
@@ -983,7 +1004,7 @@
         "marketFilters": true,
         "qualityFilters": true
       },
-      "reason": "tighten risk on volatile momentum",
+      "reason": "tighten range filters",
       "before": {
         "marketProfile": "custom",
         "sourceMarketProfile": "custom",
@@ -991,10 +1012,10 @@
         "entryOverrides": {
           "minExpectedNetPct": 0.0026,
           "minVolumeRatio": 1.08,
-          "minTrendRsi": 40,
-          "minAtrPct": 0.0028,
+          "minTrendRsi": 39,
+          "minAtrPct": 0.0026,
           "maxAtrPct": 0.02,
-          "maxEmaGapPct": 0.015,
+          "maxEmaGapPct": 0.016,
           "requireRsiMomentum": true,
           "requireBreakout": true,
           "enableRsiBandFilter": true,
