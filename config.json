@@ -951,9 +951,9 @@
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
     "blacklistCount": 12,
     "pending": true,
-    "pendingAt": "2026-04-20T00:36:31.774Z",
+    "pendingAt": "2026-04-20T00:47:38.984Z",
     "pendingReason": "1 open position(s)",
-    "skippedAt": "2026-04-20T00:36:31.774Z",
+    "skippedAt": "2026-04-20T00:47:38.984Z",
     "skippedReason": "1 open position(s)"
   },
   "aiAgent": {
