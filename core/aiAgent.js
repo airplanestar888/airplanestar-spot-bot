@@ -202,16 +202,13 @@ function buildPrompt({ config, rotation, candidates }) {
     rangePct: item.rangePct,
     activeNow: activePairSet.has(item.symbol)
   }));
-  const marketProfiles = Object.fromEntries(
-    Object.entries(config.marketProfiles || {}).map(([key, value]) => [key, {
-      allowEntries: value?.allowEntries !== false,
-      entryOverrides: { ...(value?.entryOverrides || {}) }
-    }])
-  );
+  const aiAgentProfile = isPlainObject(config.marketProfiles?.[AI_AGENT_PROFILE_KEY])
+    ? config.marketProfiles[AI_AGENT_PROFILE_KEY]
+    : {};
   const richContext = {
     role: {
       persona: "Senior crypto spot trader in 2026",
-      objective: "Preserve capital, tune market profile only, avoid weak or overextended entries."
+      objective: "Preserve capital, tune the AI agent workspace profile only, avoid weak or overextended entries."
     },
     botContext: {
       selectedBotType: mkField(config.selectedBotType || "custom", "entry style"),
@@ -238,7 +235,10 @@ function buildPrompt({ config, rotation, candidates }) {
       enablePriceExtensionFilter: mkField(config.enablePriceExtensionFilter, "price extension"),
       enableRangeRecoveryFilter: mkField(config.enableRangeRecoveryFilter, "range recovery")
     },
-    marketProfiles,
+    aiAgentWorkspaceProfile: {
+      allowEntries: aiAgentProfile.allowEntries !== false,
+      entryOverrides: { ...(aiAgentProfile.entryOverrides || {}) }
+    },
     rankedCandidates,
     minimalGlobalContext: {
       candidateCount: candidates?.length || 0,
@@ -249,37 +249,36 @@ function buildPrompt({ config, rotation, candidates }) {
       rotationCategories: rotation?.activeCategories || "-"
     },
     constraints: {
-      allowedChanges: ["marketProfile", "allowEntries", "entryOverrides", "reason"],
+      allowedChanges: ["allowEntries", "entryOverrides", "reason"],
       forbiddenChanges: ["riskPercent", "sizing", "pair list", "bot type", "trade mode", "TP", "SL", "cooldown"]
     },
     expectedOutputSchema: {
-      marketProfile: "custom",
-      allowEntries: true,
+      allowEntries: "<boolean_if_you_want_to_change_it>",
       entryOverrides: {
-        minExpectedNetPct: 0.0026,
-        minVolumeRatio: 1.08,
-        minTrendRsi: 40,
-        minAtrPct: 0.0028,
-        maxAtrPct: 0.02,
-        maxEmaGapPct: 0.015,
-        rsiBandLower: 46,
-        rsiBandUpper: 64,
-        minCandleStrength: 0.35,
-        minEmaGapNeg: 0.0015,
-        optimalRsiLow: 49,
-        optimalRsiHigh: 58,
-        optimalAtrLow: 0.005,
-        optimalAtrHigh: 0.012,
-        requireRsiMomentum: true,
-        requireBreakout: true,
-        enableRsiBandFilter: true,
-        enableAtrFilter: true,
-        enableVolumeFilter: true,
-        enableCandleStrengthFilter: true,
-        enablePriceExtensionFilter: true,
-        enableRangeRecoveryFilter: true
+        minExpectedNetPct: "<number_if_changed>",
+        minVolumeRatio: "<number_if_changed>",
+        minTrendRsi: "<number_if_changed>",
+        minAtrPct: "<number_if_changed>",
+        maxAtrPct: "<number_if_changed>",
+        maxEmaGapPct: "<number_if_changed>",
+        rsiBandLower: "<number_if_changed>",
+        rsiBandUpper: "<number_if_changed>",
+        minCandleStrength: "<number_if_changed>",
+        minEmaGapNeg: "<number_if_changed>",
+        optimalRsiLow: "<number_if_changed>",
+        optimalRsiHigh: "<number_if_changed>",
+        optimalAtrLow: "<number_if_changed>",
+        optimalAtrHigh: "<number_if_changed>",
+        requireRsiMomentum: "<boolean_if_changed>",
+        requireBreakout: "<boolean_if_changed>",
+        enableRsiBandFilter: "<boolean_if_changed>",
+        enableAtrFilter: "<boolean_if_changed>",
+        enableVolumeFilter: "<boolean_if_changed>",
+        enableCandleStrengthFilter: "<boolean_if_changed>",
+        enablePriceExtensionFilter: "<boolean_if_changed>",
+        enableRangeRecoveryFilter: "<boolean_if_changed>"
       },
-      reason: "short reason"
+      reason: "<short reason>"
     }
   };
 
@@ -288,6 +287,9 @@ function buildPrompt({ config, rotation, candidates }) {
     "Read the full structured trading context carefully. Understand the bot objective, bot type, trade style, market profile values, and pair candidates before deciding.",
     "Return one valid JSON object only. No markdown. No extra text.",
     "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
+    "You are updating the ai_agent workspace profile only. Do not choose or switch market profiles.",
+    "Do not mirror the current AI workspace profile blindly. Change only fields that truly need adjustment.",
+    "In entryOverrides, include only fields you want to change. Omit unchanged fields.",
     JSON.stringify(richContext, null, 2)
   ].join("\n\n");
 }
@@ -422,7 +424,7 @@ function validateDecision(raw, settings) {
 function summarizeDecisionScopes(decision) {
   const overrideKeys = Object.keys(decision?.entryOverrides || {});
   return {
-    marketProfile: Boolean(decision?.marketProfile),
+    marketProfile: true,
     allowEntriesToggle: typeof decision?.allowEntries === "boolean",
     marketFilters: overrideKeys.some((key) => MARKET_FILTER_KEYS.has(key)),
     qualityFilters: overrideKeys.some((key) => QUALITY_FILTER_KEYS.has(key))
