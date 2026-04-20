@@ -79,7 +79,7 @@ function getAiAgentSettings(config) {
   const safety = isPlainObject(raw.safety) ? raw.safety : {};
   return {
     enabled: raw.enabled === true || process.env.AI_AGENT_ENABLED === "true",
-    provider: String(process.env.AI_PROVIDER || raw.provider || "openai").toLowerCase(),
+    provider: String(raw.provider || process.env.AI_PROVIDER || "openrouter").toLowerCase(),
     model: process.env.OPENAI_MODEL || raw.model || "gpt-5-mini",
     geminiModel: process.env.GEMINI_MODEL || raw.geminiModel || "gemini-2.5-flash",
     openrouterModel: process.env.OPENROUTER_MODEL || raw.openrouterModel || "openai/gpt-5-mini",
@@ -200,9 +200,10 @@ function buildPrompt({ config, rotation, candidates }) {
     value,
     meaning
   });
-  const promptOverride = typeof config.aiAgent?.promptOverride === "string" && config.aiAgent.promptOverride.trim()
+  const userPromptOverride = typeof config.aiAgent?.promptOverride === "string" && config.aiAgent.promptOverride.trim()
     ? config.aiAgent.promptOverride.trim()
-    : DEFAULT_PROMPT_OVERRIDE;
+    : "";
+  const promptInstruction = userPromptOverride || DEFAULT_PROMPT_OVERRIDE;
   const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
   const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 20).map((item, index) => ({
     rank: index + 1,
@@ -291,10 +292,7 @@ function buildPrompt({ config, rotation, candidates }) {
   };
 
   const promptLines = [
-    "Your job is to tune the bot for the next several trades over the next couple of hours.",
-    "These settings are temporary and should aim for the best overall trading result during that window.",
-    "Optimize for strong expectancy, healthy win rate, and enough opportunity capture across multiple trades, not just one trade.",
-    "Do not become overly restrictive unless market conditions are clearly poor.",
+    promptInstruction,
     "Focus on tuning entryOverrides for the next several trades. Do not change allowEntries. That toggle is controlled manually from the dashboard for ai_agent.",
     "Return one valid JSON object only. No markdown. No extra text.",
     "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
@@ -303,10 +301,6 @@ function buildPrompt({ config, rotation, candidates }) {
     "In entryOverrides, include only fields you want to change. Omit unchanged fields.",
     JSON.stringify(richContext, null, 2)
   ];
-
-  if (promptOverride) {
-    promptLines.splice(promptLines.length - 1, 0, promptOverride);
-  }
 
   return promptLines.join("\n\n");
 }
@@ -518,7 +512,7 @@ function buildReport(lastDecision) {
     "--------------------",
     `Provider: ${lastDecision.provider || "openai"} / ${lastDecision.model || "-"}`,
     `Profile: ${lastDecision.marketProfile}`,
-    `Allow entries (dashboard toggle): ${lastDecision.allowEntries ? "yes" : "no"}`,
+    `Allow entries: ${lastDecision.allowEntries ? "yes" : "no"}`,
     "Applied:",
     statusLine("Market Recap", summary.marketProfile),
     statusLine("Tune Market Entry Filters", summary.marketFilters),

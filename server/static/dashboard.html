@@ -26,6 +26,7 @@
     .panel{padding:18px}.panel>h2{margin:0 0 12px;font-size:17px;font-weight:700}
     .note{color:var(--muted);font-size:13px;line-height:1.5;margin-bottom:14px}
     .info-box{margin-top:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--soft);color:var(--text);line-height:1.5;min-height:48px;white-space:pre-wrap}
+    .info-box.left{white-space:pre-wrap;text-align:left;word-break:break-word}
     /* ─── Accordion ─── */
     .acc{border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden}
     .acc-hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;cursor:pointer;background:var(--soft);user-select:none;transition:background .15s}
@@ -355,6 +356,7 @@
 </div>
 <div class="field"><label>Description</label><div class="info-box" id="activeMarketDescription">-</div></div>
 <div class="check-grid"><label class="check-item"><input id="marketAllowEntriesEditor" type="checkbox"><span>Allow Entries</span></label></div>
+<div class="note" id="marketAllowEntriesHint">Untuk profile biasa, toggle ini aktif di tab Market Profile.</div>
 <h3>Entry Filters</h3>
 <div class="note">Semua filter di bawah ini sekarang tersimpan per Market Profile. Ganti profile akan langsung mengganti seluruh quality filter yang aktif, termasuk ATR band dan quality filter.</div>
 <div class="check-grid">
@@ -446,7 +448,7 @@
 <section class="tab-panel" id="agentTab">
 <section class="panel">
 <h2>AI Agent</h2>
-<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Agent mengikuti interval Auto Pair Rotation dan idealnya bekerja setelah auto-pair selesai. Agent hanya boleh override layer Market Profile: pilih profile market, atur allow entries, dan tuning filter entry market. Bot Type, Sizing &amp; Limits, dan Trade Style tetap manual.</div>
+<div class="note">Panel ini khusus untuk scope AI Agent yang aman. Agent mengikuti interval Auto Pair Rotation dan idealnya bekerja setelah auto-pair selesai. Agent hanya boleh override layer Market Profile dan tuning filter entry market. Allow Entries untuk profile ai_agent tetap dikontrol manual dari tab ini. Bot Type, Sizing &amp; Limits, dan Trade Style tetap manual.</div>
 
 <div class="acc open" id="accAgentGeneral">
   <div class="acc-hd" onclick="toggleAcc('accAgentGeneral')"><h3>General</h3><span class="acc-arrow">&#9660;</span></div>
@@ -466,7 +468,7 @@
   <div class="acc-body">
     <div class="check-grid">
       <label class="check-item"><input id="aiAllowMarketProfile" type="checkbox" checked><span>AI Agent Profile Update</span></label>
-      <label class="check-item"><input id="aiAllowEntriesToggle" type="checkbox" checked><span>Allow Entries toggle</span></label>
+      <label class="check-item"><input id="aiAllowEntriesToggle" type="checkbox"><span>AI Agent Allow Entries</span></label>
       <label class="check-item"><input id="aiAllowMarketFilters" type="checkbox" checked><span>Tune Market Entry Filters</span></label>
       <label class="check-item"><input id="aiAllowQualityFilters" type="checkbox" checked><span>Tune Quality Filters</span></label>
     </div>
@@ -498,9 +500,9 @@
       <div class="info-box" id="aiSystemPromptView">-</div>
     </div>
     <div class="field">
-      <label>Raw Prompt Used</label>
+      <label>Last Raw Prompt Used</label>
       <textarea id="aiRawPromptView" rows="18" style="width:100%;resize:vertical" readonly></textarea>
-      <div class="hint" style="margin-top:6px">Prompt mentah terakhir yang benar-benar dibangun bot saat AI Agent dipanggil.</div>
+      <div class="hint" style="margin-top:6px">Ini adalah prompt mentah terakhir yang benar-benar dipakai bot saat AI Agent jalan. Setelah Prompt Override di-save, isi ini baru berubah pada cycle AI Agent berikutnya.</div>
     </div>
   </div>
 </div>
@@ -514,7 +516,7 @@
       <div class="field"><label>Status</label><input id="aiLastStatus" type="text" value="Not applied" readonly></div>
     </div>
     <div class="field"><label>Applied Market Filters</label><div class="info-box" id="aiLastFilters">-</div></div>
-    <div class="field"><label>Reason</label><div class="info-box" id="aiLastReason">Belum ada keputusan agent.</div></div>
+    <div class="field"><label>Reason</label><div class="info-box left" id="aiLastReason">Belum ada keputusan agent.</div></div>
     <div class="field"><label>Timestamp</label><input id="aiLastTimestamp" type="text" value="-" readonly></div>
   </div>
 </div>
@@ -628,10 +630,11 @@ function ensureAiAgentConfig(){
 function renderAiAgentConfig(){
   ensureAiAgentConfig();
   const a=currentConfig.aiAgent;
+  const aiProfile=currentConfig.marketProfiles?.ai_agent||{};
   sEv('aiAgentEnabled',a.enabled);
   sEv('aiProviderEditor',a.provider||'openrouter');
   sEv('aiAllowMarketProfile',a.allowedDecisions.marketProfile);
-  sEv('aiAllowEntriesToggle',a.allowedDecisions.entriesToggle);
+  sEv('aiAllowEntriesToggle',aiProfile.allowEntries!==false);
   sEv('aiAllowMarketFilters',a.allowedDecisions.marketFilters);
   sEv('aiAllowQualityFilters',a.allowedDecisions.qualityFilters);
   sEv('aiFallbackRule',a.safety.fallbackRuleBased);
@@ -646,7 +649,18 @@ function renderAiAgentConfig(){
   document.getElementById('aiLastFilters').textContent=d.entryOverrides?JSON.stringify(d.entryOverrides,null,2):'-';
   document.getElementById('aiLastReason').textContent=d.reason||'Belum ada keputusan agent.';
   sEv('aiLastTimestamp',d.at||'-');
+  syncAiAgentAllowEntriesUI();
   syncAiAgentCadenceUI();
+}
+function syncAiAgentAllowEntriesUI(){
+  if(!currentConfig)return;
+  const checked=Boolean(gEv('aiAllowEntriesToggle'));
+  if(!currentConfig.marketProfiles||typeof currentConfig.marketProfiles!=='object')currentConfig.marketProfiles={};
+  if(!currentConfig.marketProfiles.ai_agent||typeof currentConfig.marketProfiles.ai_agent!=='object')currentConfig.marketProfiles.ai_agent={label:'AI Agent Profile',description:'Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.',entryOverrides:{}};
+  currentConfig.marketProfiles.ai_agent.allowEntries=checked;
+  const selected=document.getElementById('selectedMarketProfileEditor')?.value;
+  const marketAllow=document.getElementById('marketAllowEntriesEditor');
+  if(selected==='ai_agent'&&marketAllow)marketAllow.checked=checked;
 }
 async function rH(h){return(await h.getFile()).text()}
 async function wH(h,c){const w=await h.createWritable();await w.write(c);await w.close()}
@@ -729,7 +743,14 @@ function syncMktProf(){
   if(!currentConfig)return;
   const s=document.getElementById('selectedMarketProfileEditor');
   const p=currentConfig.marketProfiles?.[s.value]||{};
-  document.getElementById('marketAllowEntriesEditor').checked=p.allowEntries!==false;
+  const allowEditor=document.getElementById('marketAllowEntriesEditor');
+  const allowHint=document.getElementById('marketAllowEntriesHint');
+  allowEditor.checked=p.allowEntries!==false;
+  const aiWorkspace=s.value==='ai_agent';
+  allowEditor.disabled=aiWorkspace;
+  if(allowHint) allowHint.textContent=aiWorkspace
+    ? 'Profile ai_agent: Allow Entries dikontrol dari tab AI Agent.'
+    : 'Untuk profile biasa, toggle ini aktif di tab Market Profile.';
   for(const[k,id]of Object.entries(MKT_MAP)){
     const nextVal=p.entryOverrides?.[k]!==undefined?p.entryOverrides[k]:currentConfig[k];
     sEv(id,nextVal);
@@ -876,7 +897,7 @@ function applyCfg(){
   }
   if(nc.modeProfiles?.[nc.selectedMode])nc.modeProfiles[nc.selectedMode].overrides=mo;
   const mp=nc.marketProfiles?.[nc.selectedMarketProfile]||{};
-  mp.allowEntries=document.getElementById('marketAllowEntriesEditor').checked;
+  if(nc.selectedMarketProfile!=='ai_agent')mp.allowEntries=document.getElementById('marketAllowEntriesEditor').checked;
   const mpo=mp.entryOverrides||{};
   for(const[k,id]of Object.entries(MKT_MAP)){
     const raw=gEv(id);
@@ -891,8 +912,11 @@ function applyCfg(){
   if(!nc.aiAgent.safety||typeof nc.aiAgent.safety!=='object')nc.aiAgent.safety={};
   nc.aiAgent.enabled=Boolean(gEv('aiAgentEnabled'));
   nc.aiAgent.provider=String(gEv('aiProviderEditor')||'openrouter');
+  if(!nc.marketProfiles||typeof nc.marketProfiles!=='object')nc.marketProfiles={};
+  if(!nc.marketProfiles.ai_agent||typeof nc.marketProfiles.ai_agent!=='object')nc.marketProfiles.ai_agent={label:'AI Agent Profile',description:'Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.',entryOverrides:{}};
+  nc.marketProfiles.ai_agent.allowEntries=Boolean(gEv('aiAllowEntriesToggle'));
   nc.aiAgent.allowedDecisions.marketProfile=Boolean(gEv('aiAllowMarketProfile'));
-  nc.aiAgent.allowedDecisions.entriesToggle=Boolean(gEv('aiAllowEntriesToggle'));
+  nc.aiAgent.allowedDecisions.entriesToggle=true;
   nc.aiAgent.allowedDecisions.marketFilters=Boolean(gEv('aiAllowMarketFilters'));
   nc.aiAgent.allowedDecisions.qualityFilters=Boolean(gEv('aiAllowQualityFilters'));
   nc.aiAgent.safety.fallbackRuleBased=Boolean(gEv('aiFallbackRule'));
@@ -1155,6 +1179,7 @@ document.getElementById('restartBotBtn').addEventListener('click',async()=>{
 function toggleAcc(id){const el=document.getElementById(id);if(el)el.classList.toggle('open')}
 bindAiAgentCadenceUI();
 syncAiAgentCadenceUI();
+document.getElementById('aiAllowEntriesToggle').addEventListener('change',syncAiAgentAllowEntriesUI);
 document.querySelector('#botTab #accTradeManagement')?.remove();
 initTheme();
 loadFolder();
