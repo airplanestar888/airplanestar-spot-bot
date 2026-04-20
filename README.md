@@ -332,49 +332,16 @@ Prinsip utamanya:
 - AI Agent tidak mengganti preset market profile bawaan seperti `bullish`, `neutral`, atau `custom`
 - AI Agent hanya mengupdate `marketProfiles.ai_agent`
 - saat decision berhasil di-apply, bot memakai `selectedMarketProfile = ai_agent`
-- jika AI gagal, bot fallback ke `custom`
+- `allowEntries` untuk profile `ai_agent` dikontrol manual dari dashboard, bukan diputuskan AI
+- jika AI gagal, bot hanya fallback ke `custom` bila toggle `Fallback to custom profile if invalid` aktif
 
-Input AI Agent:
-- `botContext`
-- `aiAgentWorkspaceProfile`
-- `rankedCandidates` dari hasil auto rotate
-- `minimalGlobalContext`
-
-Output AI Agent yang diizinkan:
-- `entryOverrides`
-- `reason`
-
-Field `entryOverrides` yang bisa diisi AI:
-- `minExpectedNetPct`
-- `minVolumeRatio`
-- `minTrendRsi`
-- `minAtrPct`
-- `maxAtrPct`
-- `maxEmaGapPct`
-- `rsiBandLower`
-- `rsiBandUpper`
-- `minCandleStrength`
-- `minEmaGapNeg`
-- `optimalRsiLow`
-- `optimalRsiHigh`
-- `optimalAtrLow`
-- `optimalAtrHigh`
-- `requireRsiMomentum`
-- `requireBreakout`
-- `enableRsiBandFilter`
-- `enableAtrFilter`
-- `enableVolumeFilter`
-- `enableCandleStrengthFilter`
-- `enablePriceExtensionFilter`
-- `enableRangeRecoveryFilter`
-
-Catatan AI Agent:
+Yang perlu user tahu:
 - pair context AI Agent hanya berasal dari hasil auto rotate
 - jika auto rotate tidak jalan, AI Agent juga tidak jalan
 - jika ada open position, auto rotate akan pending dan AI Agent tidak dipanggil ulang
-- `allowEntries` untuk profile `ai_agent` dikontrol manual dari dashboard, bukan diputuskan AI
 - provider AI bisa dipilih dari dashboard: OpenRouter, Gemini, atau OpenAI
-- report Telegram AI Agent hanya menampilkan ringkasan scope perubahan, bukan dump field mentah
+- prompt AI Agent bisa diatur dari dashboard lewat `persona`, `objective`, dan `instructions`
+- dashboard juga menampilkan `Last Used Prompt Blocks`, `Last Used Ranked Candidates`, dan `Exact Request Sent To LLM` untuk validasi manual
 
 ## Entry Logic
 
