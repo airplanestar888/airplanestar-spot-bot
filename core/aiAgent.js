@@ -29,6 +29,7 @@ const QUALITY_FILTER_KEYS = new Set([
   "enableRangeRecoveryFilter"
 ]);
 const AI_AGENT_PROFILE_KEY = "ai_agent";
+const OPENROUTER_MAX_TOKENS = 9000;
 const DEFAULT_PROMPT_PERSONA = "Senior crypto spot trader in 2026";
 const DEFAULT_PROMPT_OBJECTIVE = "Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.";
 const DEFAULT_PROMPT_INSTRUCTIONS = [
@@ -425,7 +426,7 @@ async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
       }
     ],
     response_format: { type: "json_object" },
-    max_tokens: 10000,
+    max_tokens: OPENROUTER_MAX_TOKENS,
     temperature: 0.2
   };
   const res = await axios.post(
@@ -478,7 +479,7 @@ function buildRequestPayload({ provider, model, geminiModel, openrouterModel, pr
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 10000,
+        max_tokens: OPENROUTER_MAX_TOKENS,
         temperature: 0.2
       }
     };
@@ -510,7 +511,7 @@ function pickDecisionReason(raw, payload) {
   for (const value of candidates) {
     if (typeof value === "string") {
       const trimmed = value.trim().replace(/\s+/g, " ");
-      if (trimmed) return trimmed.slice(0, 240);
+      if (trimmed) return trimmed;
     }
   }
 
