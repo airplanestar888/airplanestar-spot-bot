@@ -218,7 +218,7 @@ function buildPrompt({ config, rotation, candidates }) {
   const richContext = {
     role: {
       persona: "Senior crypto spot trader in 2026",
-      objective: "Preserve capital, tune the AI agent workspace profile only, avoid weak or overextended entries."
+      objective: "Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window."
     },
     botContext: {
       selectedBotType: mkField(config.selectedBotType || "custom", "entry style"),
@@ -246,7 +246,6 @@ function buildPrompt({ config, rotation, candidates }) {
       enableRangeRecoveryFilter: mkField(config.enableRangeRecoveryFilter, "range recovery")
     },
     aiAgentWorkspaceProfile: {
-      allowEntries: aiAgentProfile.allowEntries !== false,
       entryOverrides: { ...(aiAgentProfile.entryOverrides || {}) }
     },
     rankedCandidates,
@@ -259,11 +258,10 @@ function buildPrompt({ config, rotation, candidates }) {
       rotationCategories: rotation?.activeCategories || "-"
     },
     constraints: {
-      allowedChanges: ["allowEntries", "entryOverrides", "reason"],
-      forbiddenChanges: ["riskPercent", "sizing", "pair list", "bot type", "trade mode", "TP", "SL", "cooldown"]
+      allowedChanges: ["entryOverrides", "reason"],
+      forbiddenChanges: ["allowEntries", "riskPercent", "sizing", "pair list", "bot type", "trade mode", "TP", "SL", "cooldown"]
     },
     expectedOutputSchema: {
-      allowEntries: "<boolean_if_you_want_to_change_it>",
       entryOverrides: {
         minExpectedNetPct: "<number_if_changed>",
         minVolumeRatio: "<number_if_changed>",
@@ -293,8 +291,11 @@ function buildPrompt({ config, rotation, candidates }) {
   };
 
   const promptLines = [
-    "You are a senior crypto spot trader in 2026.",
-    "Read the full structured trading context carefully. Understand the bot objective, bot type, trade style, market profile values, and pair candidates before deciding.",
+    "Your job is to tune the bot for the next several trades over the next couple of hours.",
+    "These settings are temporary and should aim for the best overall trading result during that window.",
+    "Optimize for strong expectancy, healthy win rate, and enough opportunity capture across multiple trades, not just one trade.",
+    "Do not become overly restrictive unless market conditions are clearly poor.",
+    "Focus on tuning entryOverrides for the next several trades. Do not change allowEntries. That toggle is controlled manually from the dashboard for ai_agent.",
     "Return one valid JSON object only. No markdown. No extra text.",
     "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
     "You are updating the ai_agent workspace profile only. Do not choose or switch market profiles.",
@@ -402,24 +403,21 @@ async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
 
 function validateDecision(raw, settings) {
   if (!isPlainObject(raw)) throw new Error("invalid JSON decision");
+  const payload = isPlainObject(raw.aiAgentWorkspaceProfile) ? raw.aiAgentWorkspaceProfile : raw;
   const decision = {
     marketProfile: null,
     allowEntries: null,
     entryOverrides: {},
-    reason: String(raw.reason || "AI market adjustment").slice(0, 240)
+    reason: String(payload.reason || raw.reason || "AI market adjustment").slice(0, 240)
   };
 
-  const requestedProfile = String(raw.marketProfile || "");
+  const requestedProfile = String(payload.marketProfile || raw.marketProfile || "");
   if (settings.allowMarketProfile && PROFILE_KEYS.has(requestedProfile)) {
     decision.marketProfile = requestedProfile;
   }
   const customTarget = decision.marketProfile === "custom";
 
-  if (settings.allowEntriesToggle && typeof raw.allowEntries === "boolean") {
-    decision.allowEntries = raw.allowEntries;
-  }
-
-  const overrides = isPlainObject(raw.entryOverrides) ? raw.entryOverrides : {};
+  const overrides = isPlainObject(payload.entryOverrides) ? payload.entryOverrides : {};
   for (const [key, value] of Object.entries(overrides)) {
     if (MARKET_FILTER_KEYS.has(key) && settings.allowMarketFilters) {
       const normalized = customTarget ? normalizeCustomNumber(value) : clampNumber(key, value);
@@ -430,7 +428,7 @@ function validateDecision(raw, settings) {
     }
   }
 
-  if (!decision.marketProfile && decision.allowEntries == null && !Object.keys(decision.entryOverrides).length) {
+  if (!decision.marketProfile && !Object.keys(decision.entryOverrides).length) {
     throw new Error("decision has no allowed changes");
   }
 
@@ -441,7 +439,6 @@ function summarizeDecisionScopes(decision) {
   const overrideKeys = Object.keys(decision?.entryOverrides || {});
   return {
     marketProfile: true,
-    allowEntriesToggle: typeof decision?.allowEntries === "boolean",
     marketFilters: overrideKeys.some((key) => MARKET_FILTER_KEYS.has(key)),
     qualityFilters: overrideKeys.some((key) => QUALITY_FILTER_KEYS.has(key))
   };
@@ -468,6 +465,7 @@ function applyDecision(config, decision, now = Date.now()) {
   }
 
   const aiProfile = config.marketProfiles[AI_AGENT_PROFILE_KEY];
+  const preservedAllowEntries = aiProfile.allowEntries !== false;
   const requestedProfileKey = decision.marketProfile || fallbackProfileKey;
   const requestedProfile = config.marketProfiles?.[requestedProfileKey] || config.marketProfiles?.[fallbackProfileKey];
   if (!requestedProfile) throw new Error(`market profile not found: ${requestedProfileKey}`);
@@ -483,14 +481,12 @@ function applyDecision(config, decision, now = Date.now()) {
   aiProfile.description = aiProfile.description || "Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.";
 
   if (decision.marketProfile && decision.marketProfile !== AI_AGENT_PROFILE_KEY) {
-    aiProfile.allowEntries = requestedProfile.allowEntries !== false;
     aiProfile.entryOverrides = { ...(requestedProfile.entryOverrides || {}) };
   } else {
-    aiProfile.allowEntries = aiProfile.allowEntries !== false;
     aiProfile.entryOverrides = { ...(aiProfile.entryOverrides || {}) };
   }
 
-  if (decision.allowEntries != null) aiProfile.allowEntries = decision.allowEntries;
+  aiProfile.allowEntries = preservedAllowEntries;
   aiProfile.entryOverrides = {
     ...aiProfile.entryOverrides,
     ...decision.entryOverrides
@@ -499,12 +495,13 @@ function applyDecision(config, decision, now = Date.now()) {
   config.marketProfiles[AI_AGENT_PROFILE_KEY] = aiProfile;
   config.selectedMarketProfile = AI_AGENT_PROFILE_KEY;
   const scopeSummary = summarizeDecisionScopes(decision);
+  const dashboardAllowEntries = aiProfile.allowEntries !== false;
   config.aiAgent.lastDecision = {
     at: new Date(now).toISOString(),
     status: "applied",
     marketProfile: AI_AGENT_PROFILE_KEY,
     sourceMarketProfile: requestedProfileKey,
-    allowEntries: aiProfile.allowEntries !== false,
+    allowEntries: dashboardAllowEntries,
     entryOverrides: decision.entryOverrides,
     scopeSummary,
     reason: decision.reason,
@@ -521,10 +518,9 @@ function buildReport(lastDecision) {
     "--------------------",
     `Provider: ${lastDecision.provider || "openai"} / ${lastDecision.model || "-"}`,
     `Profile: ${lastDecision.marketProfile}`,
-    `Allow entries: ${lastDecision.allowEntries ? "yes" : "no"}`,
+    `Allow entries (dashboard toggle): ${lastDecision.allowEntries ? "yes" : "no"}`,
     "Applied:",
     statusLine("Market Recap", summary.marketProfile),
-    statusLine("Allow Entries toggle", summary.allowEntriesToggle),
     statusLine("Tune Market Entry Filters", summary.marketFilters),
     statusLine("Tune Quality Filters", summary.qualityFilters),
     `Reason: ${lastDecision.reason}`,
