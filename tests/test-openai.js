@@ -2,7 +2,7 @@ require("dotenv").config();
 const axios = require("axios");
 
 async function main() {
-  const provider = String(process.env.AI_PROVIDER || "openai").toLowerCase();
+  const provider = String(process.env.AI_PROVIDER || "openrouter").toLowerCase();
   const apiKey = provider === "gemini"
     ? process.env.GEMINI_API_KEY
     : provider === "openrouter"

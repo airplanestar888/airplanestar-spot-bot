@@ -47,11 +47,32 @@ Copy-Item .env.example .env
 Isi `.env` dengan API key dan Telegram token milik sendiri:
 
 ```env
-BITGET_API_KEY=your_key
-BITGET_SECRET_KEY=your_secret
-BITGET_PASSPHRASE=your_passphrase
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
+# Bitget Exchange
+BITGET_API_KEY=your_bitget_api_key
+BITGET_SECRET_KEY=your_bitget_secret_key
+BITGET_PASSPHRASE=your_bitget_passphrase
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+
+# AI Agent
+AI_AGENT_ENABLED=false
+AI_PROVIDER=openrouter
+AI_AGENT_TIMEOUT_MS=8000
+AI_AGENT_RETRY_ATTEMPTS=3
+
+# OpenRouter
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openai/gpt-5-mini
+
+# Gemini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-5.4
 ```
 
 Sebelum trading live, jalankan dengan `dryRun: true` di `config.json`.
@@ -88,11 +109,32 @@ http://localhost:3841
 Isi `.env`:
 
 ```env
-BITGET_API_KEY=your_key
-BITGET_SECRET_KEY=your_secret
-BITGET_PASSPHRASE=your_passphrase
-TELEGRAM_BOT_TOKEN=your_bot_token
-TELEGRAM_CHAT_ID=your_chat_id
+# Bitget Exchange
+BITGET_API_KEY=your_bitget_api_key
+BITGET_SECRET_KEY=your_bitget_secret_key
+BITGET_PASSPHRASE=your_bitget_passphrase
+
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+
+# AI Agent
+AI_AGENT_ENABLED=false
+AI_PROVIDER=openrouter
+AI_AGENT_TIMEOUT_MS=8000
+AI_AGENT_RETRY_ATTEMPTS=3
+
+# OpenRouter
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=openai/gpt-5-mini
+
+# Gemini
+GEMINI_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.5-flash
+
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-5.4
 ```
 
 Lalu jalankan:
@@ -299,7 +341,6 @@ Input AI Agent:
 - `minimalGlobalContext`
 
 Output AI Agent yang diizinkan:
-- `allowEntries`
 - `entryOverrides`
 - `reason`
 
@@ -331,6 +372,8 @@ Catatan AI Agent:
 - pair context AI Agent hanya berasal dari hasil auto rotate
 - jika auto rotate tidak jalan, AI Agent juga tidak jalan
 - jika ada open position, auto rotate akan pending dan AI Agent tidak dipanggil ulang
+- `allowEntries` untuk profile `ai_agent` dikontrol manual dari dashboard, bukan diputuskan AI
+- provider AI bisa dipilih dari dashboard: OpenRouter, Gemini, atau OpenAI
 - report Telegram AI Agent hanya menampilkan ringkasan scope perubahan, bukan dump field mentah
 
 ## Entry Logic
