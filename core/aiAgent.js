@@ -709,11 +709,13 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
       : settings.provider === "openrouter"
         ? settings.openrouterModel
         : settings.model;
+    config.aiAgent.lastRawResponse = null;
     let decision = null;
     let lastError = null;
 
     for (let attempt = 1; attempt <= settings.retryAttempts; attempt += 1) {
       try {
+        config.aiAgent.lastRawResponse = null;
         const raw = settings.provider === "gemini"
           ? await askGemini({ apiKey, model: settings.geminiModel, timeoutMs: settings.timeoutMs, prompt })
           : settings.provider === "openrouter"
@@ -761,7 +763,9 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
     }
     return { applied: true, decision: lastDecision };
   } catch (err) {
-    const fallbackProfileKey = config.marketProfiles?.custom ? "custom" : (config.marketProfiles?.neutral ? "neutral" : null);
+    const fallbackProfileKey = settings.fallbackRuleBased
+      ? (config.marketProfiles?.custom ? "custom" : (config.marketProfiles?.neutral ? "neutral" : null))
+      : null;
     if (fallbackProfileKey) config.selectedMarketProfile = fallbackProfileKey;
     config.aiAgent.lastDecision = {
       at: new Date(now).toISOString(),
