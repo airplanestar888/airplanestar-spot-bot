@@ -634,22 +634,30 @@ function appendAiAgentState(entry) {
 
 function buildReport(lastDecision) {
   const summary = lastDecision.scopeSummary || {};
-  const statusLine = (label, passed) => `- ${label}: ${passed ? "PASS" : "SKIP"}`;
+  const changeLine = (label, applied) => `- ${label}: ${applied ? "YES" : "NO"}`;
+  const timeLabel = lastDecision.at
+    ? new Date(lastDecision.at).toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Asia/Jakarta"
+      })
+    : "-";
   return [
-    "🤖 AI AGENT UPDATE",
+    "AI AGENT UPDATE",
     "--------------------",
     `Provider: ${lastDecision.provider || "openai"} / ${lastDecision.model || "-"}`,
     `Profile: ${lastDecision.marketProfile}`,
     `Allow entries: ${lastDecision.allowEntries ? "yes" : "no"}`,
-    "Applied:",
-    statusLine("Market Recap", summary.marketProfile),
-    statusLine("Tune Market Entry Filters", summary.marketFilters),
-    statusLine("Tune Quality Filters", summary.qualityFilters),
+    "Input read:",
+    "- Market Recap: OK",
+    "Changes applied:",
+    changeLine("Market Entry Filters", summary.marketFilters),
+    changeLine("Quality Filters", summary.qualityFilters),
     `Reason: ${lastDecision.reason}`,
-    "--------------------"
+    "--------------------",
+    `Time: ${timeLabel}`
   ].join("\n");
 }
-
 async function runAiAgentAfterRotation({ config, rotation, candidates, now = Date.now(), report, log }) {
   if (!isPlainObject(config.aiAgent)) config.aiAgent = {};
   const settings = getAiAgentSettings(config);
