@@ -29,7 +29,7 @@ const QUALITY_FILTER_KEYS = new Set([
   "enableRangeRecoveryFilter"
 ]);
 const AI_AGENT_PROFILE_KEY = "ai_agent";
-const OPENROUTER_MAX_TOKENS = 9000;
+const OPENROUTER_MAX_TOKENS = 6000;
 const DEFAULT_PROMPT_PERSONA = "Senior crypto spot trader in 2026";
 const DEFAULT_PROMPT_OBJECTIVE = "Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.";
 const DEFAULT_PROMPT_INSTRUCTIONS = [
@@ -244,110 +244,77 @@ function normalizeRotationCandidates(candidates) {
 }
 
 function buildPrompt({ config, rotation, candidates }) {
-  const mkField = (value, meaning) => ({
-    value,
-    meaning
-  });
   const promptConfig = getPromptConfig(config);
   const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
-  const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 20).map((item, index) => ({
+  // Kurangi dari 20 ke 12 kandidat untuk hemat token
+  const rankedCandidates = normalizeRotationCandidates(candidates).slice(0, 12).map((item, index) => ({
     rank: index + 1,
     symbol: item.symbol,
-    score: Number(item.score?.toFixed ? item.score.toFixed(4) : item.score),
-    changePct: item.changePct,
-    rangePct: item.rangePct,
-    activeNow: activePairSet.has(item.symbol)
+    score: Number(item.score?.toFixed ? item.score.toFixed(3) : item.score),
+    chg: item.changePct,
+    rng: item.rangePct,
+    active: activePairSet.has(item.symbol)
   }));
   const aiAgentProfile = isPlainObject(config.marketProfiles?.[AI_AGENT_PROFILE_KEY])
     ? config.marketProfiles[AI_AGENT_PROFILE_KEY]
     : {};
+  // Kirim nilai langsung tanpa wrapper {value, meaning} untuk hemat token
   const richContext = {
     role: {
       persona: promptConfig.persona,
       objective: promptConfig.objective
     },
     botContext: {
-      selectedBotType: mkField(config.selectedBotType || "custom", "entry style"),
-      selectedMode: mkField(config.selectedMode || "custom", "trade style"),
-      signalTimeframe: mkField(config.signalTimeframe, "entry timeframe"),
-      trendTimeframe: mkField(config.trendTimeframe, "trend timeframe"),
-      minScalpTargetPct: mkField(config.minScalpTargetPct, "min target"),
-      maxScalpTargetPct: mkField(config.maxScalpTargetPct, "max target"),
-      timeStopMinutes: mkField(config.timeStopMinutes, "time stop"),
-      maxHoldMinutes: mkField(config.maxHoldMinutes, "max hold"),
-      breakEvenMinutes: mkField(config.breakEvenMinutes, "break-even timing"),
-      minConfirmation: mkField(config.minConfirmation, "confirmations"),
-      breakoutPct: mkField(config.breakoutPct, "breakout threshold"),
-      requireEma21Rising: mkField(config.requireEma21Rising, "EMA21 rising"),
-      requireFastTrend: mkField(config.requireFastTrend, "fast trend"),
-      requirePriceAboveEma9: mkField(config.requirePriceAboveEma9, "price above EMA9"),
-      requireEdge: mkField(config.requireEdge, "edge filter"),
-      requireRsiMomentum: mkField(config.requireRsiMomentum, "RSI momentum"),
-      requireBreakout: mkField(config.requireBreakout, "breakout check"),
-      enableRsiBandFilter: mkField(config.enableRsiBandFilter, "RSI band"),
-      enableAtrFilter: mkField(config.enableAtrFilter, "ATR filter"),
-      enableVolumeFilter: mkField(config.enableVolumeFilter, "volume filter"),
-      enableCandleStrengthFilter: mkField(config.enableCandleStrengthFilter, "candle strength"),
-      enablePriceExtensionFilter: mkField(config.enablePriceExtensionFilter, "price extension"),
-      enableRangeRecoveryFilter: mkField(config.enableRangeRecoveryFilter, "range recovery")
+      selectedBotType: config.selectedBotType || "custom",
+      selectedMode: config.selectedMode || "custom",
+      signalTimeframe: config.signalTimeframe,
+      trendTimeframe: config.trendTimeframe,
+      minScalpTargetPct: config.minScalpTargetPct,
+      maxScalpTargetPct: config.maxScalpTargetPct,
+      timeStopMinutes: config.timeStopMinutes,
+      maxHoldMinutes: config.maxHoldMinutes,
+      breakEvenMinutes: config.breakEvenMinutes,
+      minConfirmation: config.minConfirmation,
+      breakoutPct: config.breakoutPct,
+      requireEma21Rising: config.requireEma21Rising,
+      requireFastTrend: config.requireFastTrend,
+      requirePriceAboveEma9: config.requirePriceAboveEma9,
+      requireEdge: config.requireEdge,
+      requireRsiMomentum: config.requireRsiMomentum,
+      requireBreakout: config.requireBreakout,
+      enableRsiBandFilter: config.enableRsiBandFilter,
+      enableAtrFilter: config.enableAtrFilter,
+      enableVolumeFilter: config.enableVolumeFilter,
+      enableCandleStrengthFilter: config.enableCandleStrengthFilter,
+      enablePriceExtensionFilter: config.enablePriceExtensionFilter,
+      enableRangeRecoveryFilter: config.enableRangeRecoveryFilter
     },
-    aiAgentWorkspaceProfile: {
-      entryOverrides: { ...(aiAgentProfile.entryOverrides || {}) }
-    },
+    currentOverrides: { ...(aiAgentProfile.entryOverrides || {}) },
     rankedCandidates,
-    minimalGlobalContext: {
+    globalCtx: {
       candidateCount: candidates?.length || 0,
-      activePairCount: activePairSet.size,
-      averageCandidateChangePct: rankedCandidates.length ? Number((rankedCandidates.reduce((sum, item) => sum + (Number(item.changePct) || 0), 0) / rankedCandidates.length).toFixed(4)) : 0,
-      averageCandidateRangePct: rankedCandidates.length ? Number((rankedCandidates.reduce((sum, item) => sum + (Number(item.rangePct) || 0), 0) / rankedCandidates.length).toFixed(4)) : 0,
-      rotationTopPairs: rotation?.topPairs || null,
-      rotationCategories: rotation?.activeCategories || "-"
+      activePairs: activePairSet.size,
+      avgChgPct: rankedCandidates.length ? Number((rankedCandidates.reduce((s, i) => s + (Number(i.chg) || 0), 0) / rankedCandidates.length).toFixed(3)) : 0,
+      avgRngPct: rankedCandidates.length ? Number((rankedCandidates.reduce((s, i) => s + (Number(i.rng) || 0), 0) / rankedCandidates.length).toFixed(3)) : 0,
+      topPairs: rotation?.topPairs || null,
+      categories: rotation?.activeCategories || "-"
     },
     constraints: {
-      allowedChanges: ["entryOverrides", "reason"],
-      forbiddenChanges: ["allowEntries", "riskPercent", "sizing", "pair list", "bot type", "trade mode", "TP", "SL", "cooldown"]
-    },
-    expectedOutputSchema: {
-      entryOverrides: {
-        minExpectedNetPct: "<number_if_changed>",
-        minVolumeRatio: "<number_if_changed>",
-        minTrendRsi: "<number_if_changed>",
-        minAtrPct: "<number_if_changed>",
-        maxAtrPct: "<number_if_changed>",
-        maxEmaGapPct: "<number_if_changed>",
-        rsiBandLower: "<number_if_changed>",
-        rsiBandUpper: "<number_if_changed>",
-        minCandleStrength: "<number_if_changed>",
-        minEmaGapNeg: "<number_if_changed>",
-        optimalRsiLow: "<number_if_changed>",
-        optimalRsiHigh: "<number_if_changed>",
-        optimalAtrLow: "<number_if_changed>",
-        optimalAtrHigh: "<number_if_changed>",
-        requireRsiMomentum: "<boolean_if_changed>",
-        requireBreakout: "<boolean_if_changed>",
-        enableRsiBandFilter: "<boolean_if_changed>",
-        enableAtrFilter: "<boolean_if_changed>",
-        enableVolumeFilter: "<boolean_if_changed>",
-        enableCandleStrengthFilter: "<boolean_if_changed>",
-        enablePriceExtensionFilter: "<boolean_if_changed>",
-        enableRangeRecoveryFilter: "<boolean_if_changed>"
-      },
-      reason: "<short reason>"
+      allowed: ["entryOverrides", "reason"],
+      forbidden: ["allowEntries", "riskPercent", "sizing", "pairs", "botType", "TP", "SL", "cooldown"]
     }
   };
 
+  // Instruksi output diringkas jadi satu baris — hemat ~300 token dari expectedOutputSchema
+  const outputInstruction = "Return only: {\"entryOverrides\":{<changed_fields_only>},\"reason\":\"<short_reason>\"}. Numbers for MARKET_FILTER_KEYS, booleans for QUALITY_FILTER_KEYS. Omit unchanged fields.";
+
   const promptLines = [
     promptConfig.instructions,
-    "Focus on tuning entryOverrides for the next several trades. Do not change allowEntries. That toggle is controlled manually from the dashboard for ai_agent.",
-    "Return one valid JSON object only. No markdown. No extra text.",
-    "Your response must be a compact final decision object only. Do not repeat or echo the provided context.",
-    "The JSON must include a dedicated top-level reason field with a short human explanation of why the changes were made.",
-    "If you change only a few fields, that is fine. Delta-only entryOverrides are preferred.",
-    "Do not place orders. Do not change risk, sizing, pair list, bot type, trade mode, TP, SL, or cooldown.",
-    "You are updating the ai_agent workspace profile only. Do not choose or switch market profiles.",
-    "Do not mirror the current AI workspace profile blindly. Change only fields that truly need adjustment.",
-    "In entryOverrides, include only fields you want to change. Omit unchanged fields.",
-    JSON.stringify(richContext, null, 2)
+    "Tune entryOverrides only. Do not change allowEntries, risk, sizing, pairs, botType, TP, SL, cooldown.",
+    "Return one valid JSON object only. No markdown. No extra text. Do not echo context.",
+    outputInstruction,
+    // Compact JSON tanpa pretty-print untuk hemat ~25% token
+    JSON.stringify(richContext)
   ];
 
   return {
@@ -357,11 +324,12 @@ function buildPrompt({ config, rotation, candidates }) {
   };
 }
 
+
 async function askOpenAi({ apiKey, model, timeoutMs, prompt }) {
   const payload = {
     model,
     input: prompt,
-    max_output_tokens: 10000
+    max_output_tokens: 6000
   };
   const res = await axios.post(
     "https://api.openai.com/v1/responses",
@@ -398,7 +366,7 @@ async function askGemini({ apiKey, model, timeoutMs, prompt }) {
     ],
     generationConfig: {
       responseMimeType: "application/json",
-      maxOutputTokens: 10000
+      maxOutputTokens: 6000
     }
   };
   const res = await axios.post(
@@ -460,7 +428,7 @@ function buildRequestPayload({ provider, model, geminiModel, openrouterModel, pr
         ],
         generationConfig: {
           responseMimeType: "application/json",
-          maxOutputTokens: 10000
+          maxOutputTokens: 6000
         }
       }
     };
@@ -491,7 +459,7 @@ function buildRequestPayload({ provider, model, geminiModel, openrouterModel, pr
     body: {
       model,
       input: prompt,
-      max_output_tokens: 10000
+      max_output_tokens: 6000
     }
   };
 }
@@ -661,7 +629,15 @@ function buildReport(lastDecision) {
 async function runAiAgentAfterRotation({ config, rotation, candidates, now = Date.now(), report, log }) {
   if (!isPlainObject(config.aiAgent)) config.aiAgent = {};
   const settings = getAiAgentSettings(config);
-  if (!settings.enabled) return { skipped: true, reason: "disabled" };
+  if (!settings.enabled) {
+    const reason = "disabled";
+    config.aiAgent.lastDecision = {
+      at: new Date(now).toISOString(),
+      status: "skipped",
+      reason
+    };
+    return { skipped: true, reason };
+  }
   const rotationCandidates = normalizeRotationCandidates(candidates);
   if (!rotationCandidates.length) {
     const reason = "missing auto-rotate candidates";
@@ -692,6 +668,7 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
       status: "skipped",
       reason: missingKey
     };
+    log?.("WARN", `AI Agent skipped: ${missingKey}`);
     return { skipped: true, reason: missingKey };
   }
 
@@ -771,6 +748,7 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
     }
     return { applied: true, decision: lastDecision };
   } catch (err) {
+    const previousMarketProfile = config.selectedMarketProfile || null;
     const fallbackProfileKey = settings.fallbackRuleBased
       ? (config.marketProfiles?.custom ? "custom" : (config.marketProfiles?.neutral ? "neutral" : null))
       : null;
@@ -780,6 +758,8 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
       status: "failed",
       reason: err.message,
       fallbackProfile: fallbackProfileKey,
+      previousMarketProfile,
+      marketProfile: fallbackProfileKey || previousMarketProfile,
       attempts: settings.retryAttempts
     };
     appendAiAgentState({

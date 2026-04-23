@@ -43,6 +43,15 @@ const STATE_PATH = path.join(DATA_DIR, "state.json");
 const HEALTH_PATH = path.join(DATA_DIR, "health.json");
 const MARKET_SNAPSHOT_PATH = path.join(DATA_DIR, "market_snapshot.json");
 const LOG_FILE = path.join("logs", "bot.log");
+const PAPER_SIM_MIN_PAIR_SAMPLES = 3;
+const PAPER_SIM_MAX_HISTORY = 80;
+const PAPER_SIM_DEFAULT_FEE_RATE = 0.001;
+const PAPER_SIM_DEFAULT_BUY_SLIPPAGE_PCT = 0.0012;
+const PAPER_SIM_DEFAULT_SELL_SLIPPAGE_PCT = 0.0008;
+
+let paperSimStatsCache = null;
+let paperSimStatsCacheMtimeMs = 0;
+const DRY_RUN_INITIAL_USDT = 10000;
 
 // Track last candle timestamps per symbol (for heartbeat data freshness)
 let lastCandleData = {}; // { symbol: { closeTime, close } }
@@ -86,6 +95,163 @@ function log(level, message, meta = {}) {
 
 function cliOnly(level, message, meta = {}) {
   logEvent(null, level, message, meta);
+}
+
+function clampNumber(value, min, max) {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(max, Math.max(min, value));
+}
+
+function percentile(values, p) {
+  if (!Array.isArray(values) || values.length === 0) return null;
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return null;
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.floor((sorted.length - 1) * p)));
+  return sorted[idx];
+}
+
+function robustMean(values, { fallback = null, min = null, max = null } = {}) {
+  const nums = Array.isArray(values) ? values.filter(Number.isFinite) : [];
+  if (!nums.length) return fallback;
+  const low = percentile(nums, 0.1);
+  const high = percentile(nums, 0.9);
+  const trimmed = nums.filter((v) => (low == null || v >= low) && (high == null || v <= high));
+  const arr = trimmed.length ? trimmed : nums;
+  const mean = arr.reduce((sum, v) => sum + v, 0) / arr.length;
+  if (!Number.isFinite(mean)) return fallback;
+  if (Number.isFinite(min) || Number.isFinite(max)) {
+    return clampNumber(mean, Number.isFinite(min) ? min : mean, Number.isFinite(max) ? max : mean);
+  }
+  return mean;
+}
+
+function buildPaperExecutionStats() {
+  try {
+    const stat = fs.statSync(JOURNAL_PATH);
+    if (paperSimStatsCache && paperSimStatsCacheMtimeMs === stat.mtimeMs) {
+      return paperSimStatsCache;
+    }
+
+    const raw = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8"));
+    const trades = Array.isArray(raw) ? raw : raw?.trades || [];
+    const closed = trades.filter((t) => t && t.status === "closed").slice(-PAPER_SIM_MAX_HISTORY);
+
+    const global = {
+      buyFeeRates: [],
+      sellFeeRates: [],
+      buySlippage: [],
+      sellSlippage: []
+    };
+    const pairBuckets = new Map();
+
+    for (const trade of closed) {
+      const pair = String(trade.pair || "").toUpperCase();
+      if (!pair) continue;
+      const entry = trade.entry || {};
+      const exit = trade.exit || {};
+      if (!pairBuckets.has(pair)) {
+        pairBuckets.set(pair, {
+          buyFeeRates: [],
+          sellFeeRates: [],
+          buySlippage: [],
+          sellSlippage: []
+        });
+      }
+      const bucket = pairBuckets.get(pair);
+
+      const entryFeeRate = Number(entry.feeUSDT) > 0 && Number(entry.sizeUSDT) > 0
+        ? Number(entry.feeUSDT) / Number(entry.sizeUSDT)
+        : null;
+      const exitFeeRate = Number(exit.feeUSDT) > 0 && Number(exit.sizeUSDT) > 0
+        ? Number(exit.feeUSDT) / Number(exit.sizeUSDT)
+        : null;
+      const entrySlip = Number(entry.slippagePct);
+      const exitSlip = Number(exit.slippagePct);
+
+      if (Number.isFinite(entryFeeRate)) {
+        bucket.buyFeeRates.push(entryFeeRate);
+        global.buyFeeRates.push(entryFeeRate);
+      }
+      if (Number.isFinite(exitFeeRate)) {
+        bucket.sellFeeRates.push(exitFeeRate);
+        global.sellFeeRates.push(exitFeeRate);
+      }
+      if (Number.isFinite(entrySlip)) {
+        const normalized = Math.abs(entrySlip) / 100;
+        bucket.buySlippage.push(normalized);
+        global.buySlippage.push(normalized);
+      }
+      if (Number.isFinite(exitSlip)) {
+        const normalized = Math.abs(exitSlip) / 100;
+        bucket.sellSlippage.push(normalized);
+        global.sellSlippage.push(normalized);
+      }
+    }
+
+    const globalStats = {
+      buyFeeRate: robustMean(global.buyFeeRates, { fallback: PAPER_SIM_DEFAULT_FEE_RATE, min: 0, max: 0.005 }),
+      sellFeeRate: robustMean(global.sellFeeRates, { fallback: PAPER_SIM_DEFAULT_FEE_RATE, min: 0, max: 0.005 }),
+      buySlippagePct: robustMean(global.buySlippage, { fallback: PAPER_SIM_DEFAULT_BUY_SLIPPAGE_PCT, min: 0, max: 0.02 }),
+      sellSlippagePct: robustMean(global.sellSlippage, { fallback: PAPER_SIM_DEFAULT_SELL_SLIPPAGE_PCT, min: 0, max: 0.02 })
+    };
+
+    const pairStats = {};
+    for (const [pair, bucket] of pairBuckets.entries()) {
+      pairStats[pair] = {
+        sampleCount: Math.max(bucket.buyFeeRates.length, bucket.sellFeeRates.length, bucket.buySlippage.length, bucket.sellSlippage.length),
+        buyFeeRate: robustMean(bucket.buyFeeRates, { fallback: globalStats.buyFeeRate, min: 0, max: 0.005 }),
+        sellFeeRate: robustMean(bucket.sellFeeRates, { fallback: globalStats.sellFeeRate, min: 0, max: 0.005 }),
+        buySlippagePct: robustMean(bucket.buySlippage, { fallback: globalStats.buySlippagePct, min: 0, max: 0.02 }),
+        sellSlippagePct: robustMean(bucket.sellSlippage, { fallback: globalStats.sellSlippagePct, min: 0, max: 0.02 })
+      };
+    }
+
+    paperSimStatsCacheMtimeMs = stat.mtimeMs;
+    paperSimStatsCache = { global: globalStats, pairs: pairStats };
+    return paperSimStatsCache;
+  } catch (_err) {
+    return {
+      global: {
+        buyFeeRate: PAPER_SIM_DEFAULT_FEE_RATE,
+        sellFeeRate: PAPER_SIM_DEFAULT_FEE_RATE,
+        buySlippagePct: PAPER_SIM_DEFAULT_BUY_SLIPPAGE_PCT,
+        sellSlippagePct: PAPER_SIM_DEFAULT_SELL_SLIPPAGE_PCT
+      },
+      pairs: {}
+    };
+  }
+}
+
+function getPaperExecutionProfile(symbol) {
+  const stats = buildPaperExecutionStats();
+  const pairKey = String(symbol || "").toUpperCase();
+  const pairStats = stats.pairs?.[pairKey];
+  if (pairStats && Number(pairStats.sampleCount || 0) >= PAPER_SIM_MIN_PAIR_SAMPLES) {
+    return pairStats;
+  }
+  return stats.global;
+}
+
+function ensureDryRunPaperBalance(state) {
+  state.dryRunPaperBalance = state.dryRunPaperBalance || {};
+  const balances = state.dryRunPaperBalance.balances || {};
+  const usdt = Number.isFinite(Number(state.dryRunPaperBalance.usdt))
+    ? Number(state.dryRunPaperBalance.usdt)
+    : (Number.isFinite(Number(balances.usdt)) ? Number(balances.usdt) : DRY_RUN_INITIAL_USDT);
+  state.dryRunPaperBalance.usdt = usdt;
+  state.dryRunPaperBalance.balances = {
+    ...balances,
+    usdt
+  };
+  return state.dryRunPaperBalance;
+}
+
+function shouldRefreshDryRunStartOfDayEquity(state, today) {
+  if (!state || !today) return false;
+  if (state.date !== today) return true;
+  if (!Number.isFinite(Number(state.startOfDayEquity)) || Number(state.startOfDayEquity) <= 0) return true;
+  if (Number(state.startOfDayEquity) < DRY_RUN_INITIAL_USDT * 0.5) return true;
+  return false;
 }
 
 // Get latest candle timestamp among all pairs for a given timeframe
@@ -585,12 +751,6 @@ function normalizeConfig() {
   config.usePairReentryBlock = config.usePairReentryBlock !== false;
   config.pairReentryBlockLossPct = clampNum(config.pairReentryBlockLossPct, 0.001, 0.2, 0.01);
   config.pairReentryBlockMinutes = Math.max(1, Math.min(1440, Math.floor(Number(config.pairReentryBlockMinutes) || 10)));
-  config.usePairReentryBlock = config.usePairReentryBlock !== false;
-  config.pairReentryBlockLossPct = clampNum(config.pairReentryBlockLossPct, 0.001, 0.2, 0.01);
-  config.pairReentryBlockMinutes = Math.max(1, Math.min(1440, Math.floor(Number(config.pairReentryBlockMinutes) || 10)));
-  config.enableMultiTrade = config.enableMultiTrade === true;
-  config.maxOpenPositions = Math.max(1, Math.min(10, Math.floor(Number(config.maxOpenPositions) || 1)));
-  config.exposureCapPct = clampNum(config.exposureCapPct, 0.05, 1, 0.5);
 
   // 5. Mode profile semantics enforcement
   const mode = config.activeMode || config.selectedMode || 'normal';
@@ -1523,11 +1683,18 @@ async function getBalances() {
 
 async function getPortfolioValue() {
   const now = Date.now();
-  // Always fetch fresh data
-  const [balances, tickers] = await Promise.all([
-    getBalances(),
-    getTickers()
-  ]);
+  let balances;
+  let tickers;
+  if (config.dryRun) {
+    const paper = ensureDryRunPaperBalance(state);
+    balances = { ...paper.balances, usdt: paper.usdt };
+    tickers = await getTickers();
+  } else {
+    [balances, tickers] = await Promise.all([
+      getBalances(),
+      getTickers()
+    ]);
+  }
   cachedBalances = balances;
   lastBalanceFetchTime = now;
 
@@ -1798,6 +1965,36 @@ function getStopLossBlacklistSymbols(rotationCfg, now = Date.now()) {
   return symbols;
 }
 
+function summarizeRotationCandidatesForState(scored, limit) {
+  return (Array.isArray(scored) ? scored : [])
+    .slice(0, Math.max(0, Number(limit) || 0))
+    .map((item, index) => ({
+      rank: index + 1,
+      symbol: item.symbol,
+      score: Number(Number(item.score || 0).toFixed(4)),
+      quoteVol: Number(Number(item.quoteVol || 0).toFixed(2)),
+      changePct: Number(Number(item.changePct || 0).toFixed(4)),
+      rangePct: Number(Number(item.rangePct || 0).toFixed(4)),
+      last: Number(item.last || 0)
+    }));
+}
+
+function formatAiAgentRotationStatus(aiResult, lastDecision) {
+  const status = lastDecision?.status || (aiResult?.applied ? "applied" : (aiResult?.skipped ? "skipped" : "not-run"));
+  if (status === "applied") {
+    return `AI Agent: applied (${lastDecision?.marketProfile || "ai_agent"})`;
+  }
+  if (status === "failed") {
+    return lastDecision?.fallbackProfile
+      ? `AI Agent: failed, fallback ${lastDecision.fallbackProfile}`
+      : "AI Agent: failed, profile unchanged";
+  }
+  if (status === "skipped") {
+    return `AI Agent: skipped${lastDecision?.reason ? ` (${lastDecision.reason})` : ""}`;
+  }
+  return "AI Agent: not run";
+}
+
 function setRuntimePairs(nextPairs = [], source = "manual") {
   const unique = [];
   const seen = new Set();
@@ -2010,6 +2207,7 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
       reason: "no-candidates",
       activeCategories,
       blacklistCount: stopLossBlacklist.size,
+      candidates: [],
       pending: false,
       pendingAt: null,
       pendingReason: null
@@ -2023,6 +2221,7 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
   const signature = picked.join(",");
   const changed = signature !== lastAutoPairRotationSignature;
   const prevPairs = new Set(lastAutoPairRotationSignature ? lastAutoPairRotationSignature.split(",") : []);
+  const rotationCandidates = summarizeRotationCandidatesForState(scored, rotationCfg.topPairs);
   setRuntimePairs(picked, "auto-rotate");
   lastAutoPairRotationAt = now;
   lastAutoPairRotationSignature = signature;
@@ -2035,13 +2234,14 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     activePairs: config.pairs,
     activeCategories,
     blacklistCount: stopLossBlacklist.size,
+    candidates: rotationCandidates,
     pending: false,
     pendingAt: null,
     pendingReason: null
   };
   persistConfigSnapshot();
 
-  await runAiAgentAfterRotation({
+  const aiResult = await runAiAgentAfterRotation({
     config,
     rotation: config.lastAutoPairRotation,
     candidates: scored,
@@ -2049,7 +2249,15 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     report,
     log: (level, message, meta) => logEvent(LOG_FILE, level, message, meta)
   });
+  const aiRotationStatus = formatAiAgentRotationStatus(aiResult, config.aiAgent?.lastDecision);
+  config.lastAutoPairRotation.aiAgent = {
+    status: config.aiAgent?.lastDecision?.status || (aiResult?.applied ? "applied" : (aiResult?.skipped ? "skipped" : "not-run")),
+    reason: config.aiAgent?.lastDecision?.reason || aiResult?.reason || null,
+    marketProfile: config.aiAgent?.lastDecision?.marketProfile || null,
+    fallbackProfile: config.aiAgent?.lastDecision?.fallbackProfile || null
+  };
   persistConfigSnapshot();
+  logEvent(LOG_FILE, "INFO", `Auto-rotate AI status | ${aiRotationStatus}`);
 
   if (changed) {
     logEvent(LOG_FILE, "INFO", `Auto-rotate active pairs (${config.pairs.length}): ${config.pairs.join(",")}`);
@@ -2081,7 +2289,8 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
       .map(([k, v]) => '- ' + k + '(×' + v.weight + ')')
       .join(',\n');
       
-  const lineCategories = '\nCategories:\n' + activeCategoriesDisplay + '\n--------------------';
+  const lineCategories = '\nCategories:\n' + activeCategoriesDisplay + '\n';
+  const lineAi = '\n' + aiRotationStatus + '\n--------------------';
   
   const currentTime = new Date(now).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
   const lineTime = '\nTime: ' + currentTime;
@@ -2091,7 +2300,7 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     ? (prevPairs.size > 0 ? '💎 AUTO ROTATE SUCCESS (UPDATED)' : '💎 AUTO ROTATE SUCCESS (INITIAL)')
     : '📌 AUTO ROTATE SUCCESS (NO CHANGES)';
 
-  const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineTime + lineNext;
+  const rotateMsg = rotationStatus + '\n--------------------\n' + lineActive + lineChanges + lineCategories + lineAi + lineTime + lineNext;
   await report(rotateMsg).catch(err =>
     logEvent(LOG_FILE, "ERROR", `Auto-rotate report failed: ${err.message}`)
   );
@@ -2237,22 +2446,49 @@ async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPri
     // Keep dry-run fills aligned with the runtime decision price whenever
     // the caller already has a validated entry/exit price.
     const coinKey = symbol.replace(/USDT$/i, "").toLowerCase();
-    const simPrice = Number.isFinite(simulatedPrice) && Number(simulatedPrice) > 0
+    const basePrice = Number.isFinite(simulatedPrice) && Number(simulatedPrice) > 0
       ? Number(simulatedPrice)
-      : (cachedPrices?.[coinKey] ?? 0);
-    logEvent(LOG_FILE, "SIMULATE", `ORDER ${side} ${symbol} size=${sizeStr} simPrice=${simPrice}${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
+      : Number(cachedPrices?.[coinKey] ?? 0);
+    const execProfile = getPaperExecutionProfile(symbol);
+    const buySide = String(side).toLowerCase() === 'buy';
+    const slippagePct = buySide
+      ? Number(execProfile.buySlippagePct)
+      : Number(execProfile.sellSlippagePct);
+    const feeRate = buySide
+      ? Number(execProfile.buyFeeRate)
+      : Number(execProfile.sellFeeRate);
+    const simPrice = Number.isFinite(basePrice) && basePrice > 0
+      ? (buySide ? basePrice * (1 + slippagePct) : basePrice * (1 - slippagePct))
+      : basePrice;
+    const notional = buySide
+      ? sizeNum
+      : (Number.isFinite(simPrice) && simPrice > 0 ? simPrice * sizeNum : 0);
+    const feeUSDT = Number.isFinite(notional) && notional > 0 ? notional * feeRate : null;
+    const feeCoin = buySide ? symbol.replace(/USDT$/i, '') : 'USDT';
+    const feeAmount = Number.isFinite(feeUSDT) && Number.isFinite(simPrice) && simPrice > 0 && buySide
+      ? feeUSDT / simPrice
+      : feeUSDT;
+    const grossFilledSize = buySide && Number.isFinite(simPrice) && simPrice > 0
+      ? sizeNum / simPrice
+      : sizeNum;
+    const filledSize = buySide
+      ? Math.max(0, grossFilledSize - Number(feeAmount || 0))
+      : grossFilledSize;
+    logEvent(LOG_FILE, "SIMULATE", `ORDER ${side} ${symbol} size=${sizeStr} base=${basePrice} simPrice=${simPrice} fee=${safeToFixed(feeUSDT,6)} slip=${safeToFixed(slippagePct*100,4)}%${clientOrderId ? ` cid=${clientOrderId}` : ""}`);
     return {
       orderId: `SIM_${Date.now()}`,
       clientOrderId: clientOrderId || `SIM_${Date.now()}`,
       symbol,
       side,
       requestedSize: sizeNum,
-      filledSize: sizeNum,
+      filledSize,
       avgPrice: simPrice,
-      feeAmount: null,
-      feeCoin: null,
-      feeUSDT: null,
+      feeAmount,
+      feeCoin,
+      feeUSDT,
       status: "filled",
+      reconcileLatencyMs: 0,
+      fillsUsed: false,
       dryRun: true
     };
   }
@@ -2363,6 +2599,10 @@ async function runBot() {
     let currentPositionPrice = 0;
 
     // ===== STEP 3: DAILY RESET =====
+    if (config.dryRun) {
+      ensureDryRunPaperBalance(state);
+    }
+
     if (state.date !== today) {
       state.date = today;
       state.tradesToday = 0;
@@ -2376,6 +2616,9 @@ async function runBot() {
       state.lastReportedPnlBySymbol = {};
       state.entryBlockBySymbol = {};
       state.recentEntriesBySymbol = {};
+      saveState(STATE_PATH, state);
+    } else if (config.dryRun && shouldRefreshDryRunStartOfDayEquity(state, today)) {
+      state.startOfDayEquity = currentEquity;
       saveState(STATE_PATH, state);
     } else if (!state.startOfDayEquity || state.startOfDayEquity <= 0) {
       state.startOfDayEquity = currentEquity;
@@ -2747,9 +2990,11 @@ async function runBot() {
     });
 
     // ===== STEP 8: DATA FRESHNESS =====
+    // Candle cache sudah diisi oleh market scan (Step 7) untuk semua pair.
+    // primeSignalCandlesForAllPairs hanya diperlukan jika cache kosong atau stale —
+    // bukan setiap kali ada posisi terbuka (yang menyebabkan 22+ API call sia-sia per loop).
     const latestSignalCandleTs = getLatestCandleTs(config.signalTimeframe);
     if (
-      state.position ||
       !latestSignalCandleTs ||
       !isCandleTimestampFresh(latestSignalCandleTs, config.signalTimeframe, now)
     ) {
@@ -3250,8 +3495,6 @@ async function startBot() {
   if (rotationCfg.enabled) {
     await maybeRotatePairUniverse({ now: Date.now(), state });
   }
-
-  await runBot();
 
   // ===== AUTO PAIR ROTATION SCHEDULER =====
   // Runs independently every 6 hours — decoupled from the main bot loop.

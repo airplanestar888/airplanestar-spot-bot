@@ -192,6 +192,17 @@ async function handleEntryFlow({
       ? Number(orderResult.avgPrice)
       : bestEligible.price;
     const dryRunEntrySlippagePct = calcBuySlippagePct(bestEligible.price, dryRunEntryPrice);
+    const dryRunActualQty = Number.isFinite(Number(orderResult.filledSize)) && Number(orderResult.filledSize) > 0
+      ? Number(orderResult.filledSize)
+      : estimatedQty;
+    const dryRunActualSizeUSDT = dryRunActualQty > 0 && dryRunEntryPrice > 0
+      ? Number((dryRunActualQty * dryRunEntryPrice).toFixed(8))
+      : plannedSize;
+    const dryRunEntryFeeAmount = Number.isFinite(Number(orderResult.feeAmount)) ? Number(orderResult.feeAmount) : null;
+    const dryRunEntryFeeUSDT = Number.isFinite(Number(orderResult.feeUSDT)) ? Number(orderResult.feeUSDT) : null;
+    const dryRunSpendUSDT = Number.isFinite(Number(orderResult.requestedSize)) && Number(orderResult.requestedSize) > 0
+      ? Number(orderResult.requestedSize)
+      : Number(plannedSize || sizeCapped || 0);
     const dryRunPositionMeta = buildPositionMeta({
       bestEligible,
       marketMode,
@@ -200,11 +211,14 @@ async function handleEntryFlow({
       estimatedQty,
       now,
       entryPrice: dryRunEntryPrice,
-      actualQty: estimatedQty,
-      actualSizeUSDT: plannedSize,
+      actualQty: dryRunActualQty,
+      actualSizeUSDT: dryRunActualSizeUSDT,
       intendedEntryPrice: bestEligible.price,
       entryFillPrice: dryRunEntryPrice,
       entrySlippagePct: dryRunEntrySlippagePct,
+      entryFeeAmount: dryRunEntryFeeAmount,
+      entryFeeCoin: orderResult.feeCoin || null,
+      entryFeeUSDT: dryRunEntryFeeUSDT,
       takeProfitPct: positionTakeProfitPct,
       profitActivationPct,
       profitActivationFloorPct,
@@ -213,6 +227,15 @@ async function handleEntryFlow({
 
     state.positions = [...positions, dryRunPositionMeta];
     state.position = state.positions[0] || null;
+    let dryRunUsdtAfterBuy = usdtFree - plannedSize;
+    if (state.dryRunPaperBalance) {
+      state.dryRunPaperBalance.usdt = Math.max(0, Number(state.dryRunPaperBalance.usdt || 0) - dryRunSpendUSDT);
+      state.dryRunPaperBalance.balances = state.dryRunPaperBalance.balances || {};
+      const coin = String(bestEligible.symbol || '').replace(/USDT$/i, '').toLowerCase();
+      state.dryRunPaperBalance.balances.usdt = state.dryRunPaperBalance.usdt;
+      state.dryRunPaperBalance.balances[coin] = Number(state.dryRunPaperBalance.balances[coin] || 0) + Number(dryRunPositionMeta.qty || 0);
+      dryRunUsdtAfterBuy = state.dryRunPaperBalance.usdt;
+    }
     state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
     state.recentEntriesBySymbol[bestEligible.symbol] = {
       at: now,
@@ -230,7 +253,7 @@ async function handleEntryFlow({
       stopPct,
       config.emergencyStopLossPct,
       config.trailingActivationPct,
-      usdtFree - plannedSize,
+      dryRunUsdtAfterBuy,
       buyReasons,
       positionTakeProfitPct,
       profitActivationPct
@@ -248,8 +271,8 @@ async function handleEntryFlow({
       intendedPrice: bestEligible.price,
       fillPrice: dryRunEntryPrice,
       slippagePct: dryRunEntrySlippagePct != null ? dryRunEntrySlippagePct * 100 : null,
-      qty: estimatedQty,
-      sizeUSDT: plannedSize,
+      qty: dryRunActualQty,
+      sizeUSDT: dryRunActualSizeUSDT,
       reason: (dryRunPositionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
       entry_rsi: bestEligible.rsi,
       entry_atrPct: bestEligible.atrPct,

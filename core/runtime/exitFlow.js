@@ -112,8 +112,10 @@ async function handleExitFlow({
         `Exit order placed: ${orderResult.orderId} filled=${orderResult.filledSize} avg=${safeToFixed(orderResult.avgPrice, 6)} status=${orderResult.status}`
       );
 
-      const freshPortfolio = await getPortfolioValue();
-      const freshUsdtFree = freshPortfolio.usdtFree;
+      // For dry run: skip API call — dryRunPaperBalance will be updated below.
+      // For live: fetch fresh portfolio immediately after sell to get accurate balance.
+      const freshPortfolio = config.dryRun ? { usdtFree: 0, balances: {} } : await getPortfolioValue();
+      let freshUsdtFree = freshPortfolio.usdtFree;
       const exitRsi = marketRow ? marketRow.rsi : null;
       const peakPnlPct = Number.isFinite(exitEval.peakPnlPct) ? exitEval.peakPnlPct : null;
       const exitFillPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
@@ -152,6 +154,17 @@ async function handleExitFlow({
       const netPnlAbsolute = Number.isFinite(actualFeeUSDT)
         ? actualGrossPnlUSDT - actualFeeUSDT
         : entryCostUSDT * (netPnlPct / 100);
+      if (config.dryRun && state.dryRunPaperBalance) {
+        const coin = String(symbol || '').replace(/USDT$/i, '').toLowerCase();
+        state.dryRunPaperBalance.balances = state.dryRunPaperBalance.balances || {};
+        const exitFeeForWallet = Number.isFinite(exitFeeUSDT) ? exitFeeUSDT : 0;
+        state.dryRunPaperBalance.usdt = Number(state.dryRunPaperBalance.usdt || 0) + Number(exitValueUSDT || 0) - exitFeeForWallet;
+        state.dryRunPaperBalance.balances.usdt = state.dryRunPaperBalance.usdt;
+        state.dryRunPaperBalance.balances[coin] = Math.max(0, Number(state.dryRunPaperBalance.balances[coin] || 0) - Number(exitQty || 0));
+        freshUsdtFree = state.dryRunPaperBalance.usdt;
+        freshPortfolio.usdtFree = freshUsdtFree;
+        freshPortfolio.balances = state.dryRunPaperBalance.balances;
+      }
       const pnlFraction = actualGrossPnlFraction;
       const pnlAbsolute = actualGrossPnlUSDT;
       const reentryBlockLossPct = Number(config.pairReentryBlockLossPct || 0.01);
