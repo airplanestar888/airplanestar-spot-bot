@@ -95,25 +95,22 @@
     @media(max-width:720px){
       .filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr}
       .wrap{width:min(100% - 20px,100%)}
-      #tradeTable td,#tradeTable th{padding:9px 8px;font-size:11px;vertical-align:top}
+      .table-wrap{overflow-x:auto}
+      #tradeTable{min-width:560px}
+      #tradeTable td,#tradeTable th{padding:9px 8px;font-size:11px;vertical-align:top;white-space:normal;word-break:break-word}
       #tradeTable .pill{padding:3px 7px;font-size:10px}
-      #tradeTable td:nth-child(3),
-      #tradeTable th:nth-child(3),
-      #tradeTable td:nth-child(4),
-      #tradeTable th:nth-child(4),
-      #tradeTable td:nth-child(5),
-      #tradeTable th:nth-child(5),
-      #tradeTable td:nth-child(6),
-      #tradeTable th:nth-child(6),
-      #tradeTable td:nth-child(7),
-      #tradeTable th:nth-child(7),
-      #tradeTable td:nth-child(8),
-      #tradeTable th:nth-child(8),
-      #tradeTable td:nth-child(9),
-      #tradeTable th:nth-child(9){display:none}
-      #tradeTable td:nth-child(1){min-width:88px;font-weight:700}
-      #tradeTable td:nth-child(10){white-space:nowrap;font-weight:700}
-      #tradeTable td:nth-child(11){white-space:normal;line-height:1.25}
+      #tradeTable th{line-height:1.2}
+      #tradeTable th:nth-child(1),#tradeTable td:nth-child(1){min-width:88px}
+      #tradeTable th:nth-child(2),#tradeTable td:nth-child(2){min-width:72px}
+      #tradeTable th:nth-child(3),#tradeTable td:nth-child(3),
+      #tradeTable th:nth-child(4),#tradeTable td:nth-child(4){min-width:72px}
+      #tradeTable th:nth-child(5),#tradeTable td:nth-child(5),
+      #tradeTable th:nth-child(6),#tradeTable td:nth-child(6),
+      #tradeTable th:nth-child(7),#tradeTable td:nth-child(7){min-width:74px}
+      #tradeTable th:nth-child(8),#tradeTable td:nth-child(8),
+      #tradeTable th:nth-child(9),#tradeTable td:nth-child(9),
+      #tradeTable th:nth-child(10),#tradeTable td:nth-child(10){min-width:64px}
+      #tradeTable th:nth-child(11),#tradeTable td:nth-child(11){min-width:92px}
     }
   </style>
 </head>
@@ -198,6 +195,7 @@
       <label class="check-item"><input id="threeLossHaltEditor" type="checkbox"><span>3 Loss Halt</span></label>
       <label class="check-item"><input id="autoPairRotateEnabledEditor" type="checkbox"><span>Auto Rotate Pairs</span></label>
     </div>
+    <div class="note" id="dryRunPortfolioNote">Saat Dry Run aktif, bot memakai saldo paper trading (initial portfolio 10,000 USDT), bukan saldo real exchange.</div>
   </div>
 </div>
 
@@ -238,6 +236,7 @@
       <div class="field"><label>Min Recovery Position (USDT)</label><input id="minRecoverUsdtEditor" type="number" step="0.1" min="0"></div>
       <div class="field"><label>Max Open Positions</label><input id="maxOpenPositionsEditor" type="number" step="1" min="1"></div>
       <div class="field"><label>Max Exposure %</label><input id="exposureCapPctEditor" type="number" step="0.01" min="0.05" max="1"></div>
+      <div class="field"><label>Max Entry Drift %</label><input id="maxEntryPriceDriftPctEditor" type="number" step="0.001" min="0"></div>
       <div class="field"><label>Max Rounds Per Day</label><input id="maxTradesPerDayEditor" type="number" step="1" min="0"><div class="hint">Global bot limit. Tidak diubah oleh Trade Style.</div></div>
       <div class="field"><label>Daily Profit Target %</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
       <div class="field"><label>Daily Loss Limit %</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
@@ -583,7 +582,7 @@ const AI_RUNTIME_APPENDED_LINES=new Set([
 ]);
 
 /* --- Editor maps (STRICT layer separation) --- */
-const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',minManagedPositionUSDT:'minManagedPositionUsdtEditor',minRecoverUSDT:'minRecoverUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',usePairReentryBlock:'pairReentryBlockEnabledEditor',pairReentryBlockLossPct:'pairReentryBlockLossPctEditor',pairReentryBlockMinutes:'pairReentryBlockMinutesEditor',loopIntervalMs:'loopIntervalEditor',holdCheckIntervalMs:'holdCheckIntervalEditor'};
+const BOT_MAP={dryRun:'dryRunEditor',enableCostGuard:'enableCostGuardEditor',useDynamicTakeProfit:'useDynamicTpEditor',enableMultiTrade:'enableMultiTradeEditor',minBuyUSDT:'minBuyUsdtEditor',maxBuyUSDT:'maxBuyUsdtEditor',reserveUSDT:'reserveUsdtEditor',minManagedPositionUSDT:'minManagedPositionUsdtEditor',minRecoverUSDT:'minRecoverUsdtEditor',maxOpenPositions:'maxOpenPositionsEditor',exposureCapPct:'exposureCapPctEditor',maxEntryPriceDriftPct:'maxEntryPriceDriftPctEditor',dynamicTakeProfitAtrMultiplier:'dynamicTpMultiplierEditor',costGuardArmPct:'costGuardArmPctEditor',costGuardFloorPct:'costGuardFloorPctEditor',maxRoundsPerDay:'maxTradesPerDayEditor',stopAfterThreeConsecutiveLosses:'threeLossHaltEditor',lossStreakHaltThreshold:'lossStreakHaltEditor',dailyProfitTargetPct:'dailyProfitTargetEditor',dailyLossLimitPct:'dailyLossLimitEditor',usePairReentryBlock:'pairReentryBlockEnabledEditor',pairReentryBlockLossPct:'pairReentryBlockLossPctEditor',pairReentryBlockMinutes:'pairReentryBlockMinutesEditor',loopIntervalMs:'loopIntervalEditor',holdCheckIntervalMs:'holdCheckIntervalEditor'};
 const BOT_BOOL_KEYS=new Set(['dryRun','enableCostGuard','useDynamicTakeProfit','enableMultiTrade','stopAfterThreeConsecutiveLosses','usePairReentryBlock']);
 const BOT_NESTED_MAP={'telegram.enabled':'telegramEnabledEditor','report.heartbeatIntervalMs':'heartbeatIntervalEditor','report.marketReportIntervalMs':'marketIntervalEditor','report.balanceReportIntervalMs':'balanceIntervalEditor','report.holdReportIntervalMs':'holdIntervalEditor','report.noSignalReportIntervalMs':'noSignalIntervalEditor','autoPairRotation.enabled':'autoPairRotateEnabledEditor','autoPairRotation.refreshIntervalHours':'autoPairRotateHoursEditor','autoPairRotation.topPairs':'autoPairRotateTopEditor','autoPairRotation.disableOnStopLoss':'autoPairDisableSlEditor','autoPairRotation.disableOnStaleTrade':'autoPairDisableStaleEditor','autoPairRotation.disableOnAnyLoss':'autoPairDisableAnyLossEditor','autoPairRotation.stopLossCooldownHours':'autoPairSlCooldownHoursEditor'};
 const BOT_NESTED_BOOL_KEYS=new Set(['telegram.enabled','autoPairRotation.enabled','autoPairRotation.disableOnStopLoss','autoPairRotation.disableOnStaleTrade','autoPairRotation.disableOnAnyLoss']);

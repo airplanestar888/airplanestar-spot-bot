@@ -29,7 +29,11 @@ function loadState(statePath) {
       haltedForDay: false,
       haltReason: null,
       realizedPnlToday: 0,
-      realizedNetPnlToday: 0
+      realizedNetPnlToday: 0,
+      dryRunPaperBalance: {
+        usdt: 10000,
+        balances: { usdt: 10000 }
+      }
     };
   }
 }

@@ -69,7 +69,8 @@ async function runScheduledReports({
         signalTimeframe: config.signalTimeframe || "3min",
         trendTimeframe: config.trendTimeframe || "15min",
         entryGateStatus,
-        runtimeJobs
+        runtimeJobs,
+        dryRun: config.dryRun === true
       }
     ));
     logEvent(LOG_FILE, "DEBUG", `Heartbeat send | sent=${sent}`);
@@ -142,15 +143,6 @@ async function runScheduledReports({
       `Balance snapshot | usdt=${safeToFixed(freshUsdtFree, 2)} posValue=${safeToFixed(posValue, 2)} otherAssets=${safeToFixed(otherAssets, 2)}`
     );
 
-    for (const openPosition of openPositions) {
-      const coin = openPosition.symbol.replace("USDT", "").toLowerCase();
-      const bal = freshPortfolio.balances[coin] || 0;
-      const price = cachedPrices?.[coin] || 0;
-      if (bal > 0 && price <= 0) {
-        logEvent(LOG_FILE, "ERROR", `Value zero anomaly | ${coin} bal=${bal} price=${price}`);
-      }
-    }
-
     await report(reporting.buildBalanceReport(
       freshUsdtFree,
       freshEquity,
@@ -164,7 +156,8 @@ async function runScheduledReports({
       {
         activeBotTypeLabel,
         activeModeLabel,
-        reserveUSDT: config.reserveUSDT
+        reserveUSDT: config.reserveUSDT,
+        roundTripFeePct: config._effectiveRoundTripFeePct ?? config.roundTripFeePct ?? 0.004
       }
     ));
     lastBalanceReportTime = now;

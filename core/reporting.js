@@ -1,4 +1,4 @@
-﻿function fmtNum(val, dec = 2, fallback = "N/A") {
+function fmtNum(val, dec = 2, fallback = "N/A") {
   const n = Number(val);
   if (!isFinite(n) || isNaN(n)) return fallback;
   return n.toFixed(dec);
@@ -292,7 +292,7 @@ function buildHeartbeatReport(usdtFree, position, equity, realizedPnlPct, state,
     : "n/a";
 
   return withFooterMetaTime(
-    "💡 BOT HEARTBEAT",
+    stats.dryRun ? "💡 BOT HEARTBEAT [DRY RUN]" : "💡 BOT HEARTBEAT",
     `Entry style: ${stats.activeBotTypeLabel || "N/A"}
 Mode: ${stats.activeModeLabel || "N/A"}
 Profile: ${formatProfileLabel(stats.marketProfileLabel, stats.marketProfileMode)}
@@ -309,46 +309,6 @@ Last ${trendTfLabel} candle: ${fmtTs(last15mCandleTs)}`,
   );
 }
 
-function buildHoldReport(position, now, pnlPct, peakPnLPct, useTrailing, drawdownFromPeak, stopPct, ageMin, extra = {}) {
-  const status = useTrailing ? "Trailing Active" : "Building";
-  const trailingLine = useTrailing && isFinite(drawdownFromPeak)
-    ? `\nDrawdown from peak: ${(drawdownFromPeak * 100).toFixed(2)}%`
-    : "";
-  const tpMain = Number(position?.takeProfitPct);
-  const activation = Number(position?.profitActivationPct);
-  const tpLine = Number.isFinite(tpMain)
-    ? `\nTP: +${(tpMain * 100).toFixed(2)}%`
-    : "";
-  const activationLine = Number.isFinite(activation)
-    ? `\nDTP: +${(activation * 100).toFixed(2)}%`
-    : "";
-  const snapshot = buildPositionSnapshot({
-    currentPct: pnlPct,
-    peakPct: peakPnLPct,
-    activationPct: activation,
-    takeProfitPct: tpMain,
-    stopPct,
-    label: "Now"
-  });
-  const openPositionsLine = Number.isFinite(extra.openPositionsCount) && extra.openPositionsCount > 1
-    ? `\nOpen positions: ${extra.openPositionsCount} | ${extra.openPositionsText || "multi trade active"}`
-    : "";
-  const reportModeLine = extra.reportMode
-    ? `\nReport mode: ${extra.reportMode}`
-    : "";
-
-  return `🟡 HOLD UPDATE
-Pair: ${position?.symbol || "N/A"}
-Entry: ${fmtPrice(position?.entry)}
-Current: ${fmtPrice(position?.currentPrice)}
-PnL: ${isFinite(pnlPct) ? pnlPct.toFixed(2) : "N/A"}%
-Peak PnL: ${isFinite(peakPnLPct) ? peakPnLPct.toFixed(2) : "N/A"}%
-Trailing: ${useTrailing ? "active" : "inactive"}${trailingLine}${tpLine}${activationLine}
-Stop: ${isFinite(stopPct) ? (stopPct * 100).toFixed(2) : "N/A"}%
-Age: ${isFinite(ageMin) ? `${ageMin}m` : "N/A"}
-State: ${status}${openPositionsLine}${reportModeLine}
-${snapshot}`;
-}
 
 function buildHoldSummaryReport(positions, now, extra = {}) {
   const list = Array.isArray(positions) ? positions.filter(Boolean) : [];

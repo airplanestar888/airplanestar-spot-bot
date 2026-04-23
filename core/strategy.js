@@ -396,7 +396,10 @@ async function scanMarket(config, getCandles, logEvent) {
     if (enableCandleStrengthFilter && !candleStrong) failed.push("candle strength");
     if (enablePriceExtensionFilter && !priceNotExtended) failed.push("price extended");
     if (enableVolumeFilter && !volumeOk) failed.push(`volume ratio (${volumeRatio.toFixed(2)}x)`);
-    const rawScore = score * signalLiveWeight;
+    const rotationCandidates = Array.isArray(config.lastAutoPairRotation?.candidates) ? config.lastAutoPairRotation.candidates : [];
+    const rotationIndex = rotationCandidates.findIndex((item) => item?.symbol === symbol);
+    const rotationRankBoost = rotationIndex >= 0 ? Math.max(0.5, 2.5 - rotationIndex * 0.12) : 0;
+    const rawScore = (score * signalLiveWeight) + rotationRankBoost;
     let displayScore = rawScore;
     if (!eligible) {
       const confirmationRatio = clamp(confirmation / Math.max(1, minConf), 0.35, 1);

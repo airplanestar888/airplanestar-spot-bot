@@ -128,6 +128,7 @@ async function refresh() {
       ["Max rounds/day", String(config.maxRoundsPerDay ?? config.maxTradesPerDay ?? "-")],
       ["Multi trade", config.enableMultiTrade ? `on (${config.maxOpenPositions ?? 1} max)` : "off"],
       ["Exposure cap", fmtPct((config.exposureCapPct ?? 0) * 100)],
+      ["Max entry drift", fmtPct((config.maxEntryPriceDriftPct ?? 0) * 100)],
       ["Loss streak halt", `${config.stopAfterThreeConsecutiveLosses ? "on" : "off"} (${config.lossStreakHaltThreshold ?? "-"})`],
       ["Log file", config.logging?.logFile || "logs/bot.log"]
     ]);

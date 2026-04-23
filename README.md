@@ -448,11 +448,30 @@ File runtime penting:
 
 ## Kombinasi Umum
 
-- `scalp_trend + professional + bullish`
-- `day_trade + professional + bullish_slow`
-- `swing_trade + bigmoney + bullish`
-- `range_scalp + professional + choppy`
-- `custom + custom + custom`
+### `scalp_trend + professional + bullish`
+- **Entry core:** Trend 15m + trigger cepat 3m, breakout continuation, momentum RSI, volume, edge bersih.
+- **Exit core:** Take profit cepat, ATR stop, cost guard, trailing, stale invalidation cepat.
+- **Cocok untuk:** Bullish kuat dengan follow-through bersih dan continuation yang cepat dibaca.
+
+### `day_trade + professional + bullish_slow`
+- **Entry core:** Trend lebih besar, signal lebih sabar, confirmation lebih rapi, tetap continuation.
+- **Exit core:** Exit lebih tenang dari scalp, masih cost-aware, break-even dan stale lebih sabar.
+- **Cocok untuk:** Kondisi bullish_slow yang masih sehat tapi ritmenya tidak seagresif scalp_trend.
+
+### `swing_trade + bigmoney + bullish`
+- **Entry core:** Trend utama 1D, validasi 4H, breakout higher timeframe, bukan entry mikro.
+- **Exit core:** ATR stop dan structural invalidation lebih dominan, soft exit ala scalp dikurangi, cost guard tetap aktif.
+- **Cocok untuk:** Trend besar yang ingin diikuti lebih lama dengan eksposur yang lebih sabar.
+
+### `range_scalp + professional + choppy`
+- **Entry core:** Recovery atau range entry di area netral, tidak terlalu bergantung breakout.
+- **Exit core:** Cepat keluar jika recovery gagal, invalidation range, cost guard tetap ketat.
+- **Cocok untuk:** Market chop atau sideway yang masih punya pantulan teknikal pendek.
+
+### `custom + custom + custom`
+- **Entry core:** Semua field bisa disetel manual dari dashboard.
+- **Exit core:** Mengikuti kombinasi field bot type + trade style yang user simpan sendiri.
+- **Cocok untuk:** Workspace eksperimental atau setup pribadi.
 
 ## Runtime Notes
 
