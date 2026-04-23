@@ -20,6 +20,10 @@
     .btn.secondary{background:linear-gradient(180deg,#7ec7ff,#4ba7ff)}
     .btn.danger{background:linear-gradient(180deg,#ff8f70,#ff4f4f);color:#1a0707}
     .btn.theme{background:var(--softStrong);color:var(--text);border:1px solid var(--line)}
+    .danger-zone{border-color:rgba(255,110,110,0.28);background:linear-gradient(180deg,rgba(255,110,110,0.08),var(--soft))}
+    .danger-zone .acc-hd h3{color:var(--red)}
+    .clear-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end}
+    .clear-result{margin-top:10px;color:var(--muted);font-size:13px;white-space:pre-wrap}
     .hint{color:var(--muted);font-size:13px}
     /* ─── Panel / Card ─── */
     .panel,.card,.table-wrap{background:linear-gradient(180deg,var(--heroA),var(--heroB));border:1px solid var(--line);border-radius:18px;box-shadow:0 18px 48px rgba(0,0,0,0.18)}
@@ -60,7 +64,9 @@
     /* ─── Form fields ─── */
     .field-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
     .field{display:grid;gap:6px;margin-bottom:10px}.field label{color:var(--muted);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+    .field.full{grid-column:1/-1}
     .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--inputBg);color:var(--text);padding:9px 11px;font:inherit}
+    .note.warn{margin:0;color:#ffb6a3}
     .check-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
     .check-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
     .config-status{margin-top:10px;margin-bottom:12px;color:var(--muted);font-size:13px}
@@ -69,6 +75,13 @@
     .toast.success{border-color:rgba(65,217,142,0.35)}
     .toast.error{border-color:rgba(255,110,110,0.35)}
     .toast strong{display:block;margin-bottom:2px}
+    .web-dialog{position:fixed;inset:0;z-index:9998;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,0.52);backdrop-filter:blur(5px)}
+    .web-dialog[hidden]{display:none}
+    .dialog-card{width:min(460px,100%);border:1px solid var(--line);border-radius:18px;background:linear-gradient(180deg,var(--heroA),var(--heroB));box-shadow:0 26px 72px rgba(0,0,0,0.35);padding:18px}
+    .dialog-card h3{margin:0 0 10px;font-size:17px}
+    .dialog-card p{margin:0;color:var(--muted);line-height:1.55;white-space:pre-wrap}
+    .dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+    .btn.ghost{background:var(--softStrong);color:var(--text);border:1px solid var(--line)}
     /* ─── Pair list ─── */
     .pair-grid{display:grid;gap:8px}
     .pair-item{display:grid;grid-template-columns:auto minmax(0,1fr) 120px;gap:8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
@@ -93,7 +106,7 @@
     .sec-hd::after{content:"";flex:1;height:1px;background:var(--line)}
     @media(max-width:980px){.filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr 1fr}}
     @media(max-width:720px){
-      .filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid{grid-template-columns:1fr}
+      .filters,.grid,.two-col,.field-grid,.check-grid,.combo-grid,.clear-actions{grid-template-columns:1fr}
       .wrap{width:min(100% - 20px,100%)}
       .table-wrap{overflow-x:auto}
       #tradeTable{min-width:560px}
@@ -124,11 +137,22 @@
   <div class="hero-right">
     <button class="btn theme" id="themeToggleBtn" type="button">Night</button>
     <button class="btn danger" id="restartBotBtn" type="button">Restart Bot</button>
+    <button class="btn danger" id="clearDataOpenBtn" type="button">Clear Data</button>
     <button class="btn secondary" id="saveConfigBtn" type="button">Save Config</button>
     <span class="hint" id="statusText"> </span>
   </div>
 </section>
 <div id="toast" class="toast" aria-live="polite"></div>
+<div id="confirmDialog" class="web-dialog" hidden>
+  <div class="dialog-card" role="dialog" aria-modal="true" aria-labelledby="confirmDialogTitle">
+    <h3 id="confirmDialogTitle">Confirm Action</h3>
+    <p id="confirmDialogMessage"></p>
+    <div class="dialog-actions">
+      <button class="btn ghost" id="confirmDialogCancel" type="button">Cancel</button>
+      <button class="btn danger" id="confirmDialogOk" type="button">Continue</button>
+    </div>
+  </div>
+</div>
 <section class="tabs">
 <button class="tab-btn active" data-tab="reportTab">Report</button>
 <button class="tab-btn" data-tab="botTab">Bot Settings</button>
@@ -154,6 +178,22 @@
       <div class="filter"><label>Market Profile</label><select id="marketProfileFilter"><option value="all">All Profiles</option></select></div>
       <div class="filter"><label>Exit Reason</label><select id="reasonFilter"><option value="all">All Reasons</option></select></div>
     </section>
+  </div>
+</div>
+<div class="acc danger-zone" id="accClearData" style="margin-bottom:14px;">
+  <div class="acc-hd" onclick="toggleAcc('accClearData')">
+    <h3>Clear Log / Data</h3>
+    <span class="acc-arrow">&#9660;</span>
+  </div>
+  <div class="acc-body">
+    <div class="clear-actions">
+      <div class="field"><label>Target</label><select id="clearTarget"><option value="trades">Trade Journal</option><option value="logs">Bot Log</option><option value="ai">AI Agent State</option><option value="positions">Managed Positions</option><option value="runtime">Runtime Snapshots</option><option value="state">Bot State</option><option value="all">All Data + State</option></select></div>
+      <div class="field"><label>Scope</label><select id="clearScope"><option value="today">Today</option><option value="yesterday">Yesterday</option><option value="month">This Month</option><option value="all">All Time</option></select></div>
+      <div class="field"><label>Confirm</label><input id="clearConfirm" placeholder="type CLEAR"></div>
+      <div class="field"><button class="btn danger" id="clearDataBtn" type="button">Delete Selected</button></div>
+    </div>
+    <div class="note">Hapus data lokal dashboard tanpa menyentuh <strong>config.json</strong>. Scope waktu berlaku untuk Trade Journal, Bot Log, AI Agent State, Managed Positions, dan state harian bot. All Time akan reset state penuh. Setelah hapus sukses, bot akan restart.</div>
+    <div class="clear-result" id="clearDataResult">Pilih target dan scope, lalu ketik CLEAR.</div>
   </div>
 </div>
 <section class="grid">
@@ -241,7 +281,7 @@
       <div class="field"><label>Daily Profit Target %</label><input id="dailyProfitTargetEditor" type="number" step="0.001"></div>
       <div class="field"><label>Daily Loss Limit %</label><input id="dailyLossLimitEditor" type="number" step="0.001"></div>
       <div class="field"><label>Loss Streak Halt Threshold</label><input id="lossStreakHaltEditor" type="number" step="1" min="0"></div>
-      <div class="field" style="grid-column:1/-1"><div class="note" style="margin:0;color:#ffb6a3">Assets below managed threshold stay out of trade management. Recovery only starts from the recovery threshold.</div></div>
+      <div class="field full"><div class="note warn">Assets below managed threshold stay out of trade management. Recovery only starts from the recovery threshold.</div></div>
       <div class="field"><label>Dynamic TP ATR Multiplier</label><input id="dynamicTpMultiplierEditor" type="number" step="0.05" min="0"></div>
       <div class="field"><label>Cost Guard Arm %</label><input id="costGuardArmPctEditor" type="number" step="0.0005" min="0"></div>
       <div class="field"><label>Cost Guard Floor %</label><input id="costGuardFloorPctEditor" type="number" step="0.0005"></div>
@@ -1105,6 +1145,43 @@ function showToast(kind,title,message=''){
   requestAnimationFrame(()=>el.classList.add('show'));
   toastTimer=setTimeout(()=>el.classList.remove('show'),2600);
 }
+function askWebConfirm({title='Confirm Action',message='',confirmText='Continue'}={}){
+  return new Promise(resolve=>{
+    const dlg=document.getElementById('confirmDialog');
+    const titleEl=document.getElementById('confirmDialogTitle');
+    const msgEl=document.getElementById('confirmDialogMessage');
+    const okBtn=document.getElementById('confirmDialogOk');
+    const cancelBtn=document.getElementById('confirmDialogCancel');
+    if(!dlg||!titleEl||!msgEl||!okBtn||!cancelBtn){resolve(false);return}
+    titleEl.textContent=title;
+    msgEl.textContent=message;
+    okBtn.textContent=confirmText;
+    let done=false;
+    const close=(value)=>{
+      if(done)return;
+      done=true;
+      dlg.hidden=true;
+      okBtn.removeEventListener('click',onOk);
+      cancelBtn.removeEventListener('click',onCancel);
+      dlg.removeEventListener('click',onBackdrop);
+      document.removeEventListener('keydown',onKey);
+      resolve(value);
+    };
+    const onOk=()=>close(true);
+    const onCancel=()=>close(false);
+    const onBackdrop=(ev)=>{if(ev.target===dlg)close(false)};
+    const onKey=(ev)=>{if(ev.key==='Escape')close(false)};
+    okBtn.addEventListener('click',onOk);
+    cancelBtn.addEventListener('click',onCancel);
+    dlg.addEventListener('click',onBackdrop);
+    document.addEventListener('keydown',onKey);
+    dlg.hidden=false;
+    okBtn.focus();
+  });
+}
+function showProcessingToast(title='Processing',message='Mohon tunggu sebentar...'){
+  showToast('success',title,message);
+}
 function renderReadmeTab(){
   const quick=document.getElementById('quickGuideBox');
   const combo=document.getElementById('comboGuide');
@@ -1209,8 +1286,13 @@ document.getElementById('saveConfigBtn').addEventListener('click',async()=>{
   }
 });
 document.getElementById('restartBotBtn').addEventListener('click',async()=>{
-  const ok=confirm('Restart bot sekarang? Bot akan shutdown rapi lalu run.bat/run.sh menyalakan ulang.');
+  const ok=await askWebConfirm({
+    title:'Restart Bot?',
+    message:'Bot akan shutdown rapi lalu run.bat/run.sh menyalakan ulang.',
+    confirmText:'Restart Bot'
+  });
   if(!ok)return;
+  showProcessingToast('Restarting Bot','Request restart sedang dikirim...');
   const btn=document.getElementById('restartBotBtn');
   if(btn){btn.disabled=true;btn.textContent='Restarting...'}
   try{
@@ -1219,6 +1301,51 @@ document.getElementById('restartBotBtn').addEventListener('click',async()=>{
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='Restart Bot'}
     showToast('error','Restart Failed',e.message)
+  }
+});
+document.getElementById('clearDataOpenBtn').addEventListener('click',()=>{
+  const panel=document.getElementById('accClearData');
+  if(panel)panel.classList.add('open');
+  document.getElementById('clearDataResult').textContent='Pilih target dan scope, lalu ketik CLEAR.';
+  document.getElementById('clearConfirm').focus();
+});
+document.getElementById('clearDataBtn').addEventListener('click',async()=>{
+  const target=document.getElementById('clearTarget').value;
+  const scope=document.getElementById('clearScope').value;
+  const confirmToken=String(document.getElementById('clearConfirm').value||'').trim();
+  const targetLabel=document.getElementById('clearTarget').selectedOptions[0]?.textContent||target;
+  const scopeLabel=document.getElementById('clearScope').selectedOptions[0]?.textContent||scope;
+  if(confirmToken.toUpperCase()!=='CLEAR'){
+    showToast('error','Clear Blocked','Ketik CLEAR dulu untuk konfirmasi.');
+    return;
+  }
+  if(target==='runtime'&&scope!=='all'){
+    showToast('error','Scope Not Supported','Runtime snapshots hanya bisa All Time.');
+    return;
+  }
+  const stateWarning=(target==='positions'||target==='state'||target==='all')?'\n\nPERINGATAN: Managed position state bisa direset. Pastikan tidak ada posisi/open trade live yang perlu dikelola, atau bot bisa recover ulang dari saldo wallet.':'';
+  const ok=await askWebConfirm({
+    title:'Delete Selected Data?',
+    message:`Hapus ${targetLabel} untuk scope ${scopeLabel}?\n\nSetelah hapus sukses, bot akan restart otomatis.\nConfig.json tidak akan dihapus.${stateWarning}`,
+    confirmText:'Delete & Restart'
+  });
+  if(!ok)return;
+  showProcessingToast('Deleting Data','Data sedang dibersihkan lalu bot akan restart...');
+  const btn=document.getElementById('clearDataBtn');
+  btn.disabled=true;btn.textContent='Deleting...';
+  try{
+    const result=await pJ('/api/clear-data',{target,scope,confirm:'CLEAR'});
+    const lines=(result.results||[]).map(r=>`${r.target}: removed ${r.removed}, remaining ${r.remaining}${r.skipped?` (${r.skipped})`:''}`);
+    document.getElementById('clearDataResult').textContent=lines.join('\n')||'No data changed.';
+    document.getElementById('clearConfirm').value='';
+    document.getElementById('clearDataResult').textContent=(lines.join('\n')||'No data changed.')+'\nRestarting bot...';
+    showToast('success','Data Cleared','Bot restart diminta.');
+    await pJ('/api/restart',{source:'dashboard-clear-data'});
+  }catch(e){
+    document.getElementById('clearDataResult').textContent=`Gagal clear data: ${e.message}`;
+    showToast('error','Clear Failed',e.message);
+  }finally{
+    btn.disabled=false;btn.textContent='Delete Selected';
   }
 });
 ['scopeFilter','pairFilter','botTypeFilter','modeFilter','marketProfileFilter','reasonFilter'].forEach(id=>{
