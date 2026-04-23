@@ -908,6 +908,56 @@ function countClosedRoundsForDate(dateKey) {
   }
 }
 
+function journalHasOpenRecord(pair) {
+  try {
+    if (!pair || !fs.existsSync(JOURNAL_PATH)) return false;
+    const raw = fs.readFileSync(JOURNAL_PATH, "utf8").trim();
+    if (!raw) return false;
+    const journal = JSON.parse(raw);
+    if (!Array.isArray(journal)) return false;
+    return journal.some((trade) => trade?.pair === pair && trade.status === "open");
+  } catch {
+    return false;
+  }
+}
+
+function syncManagedPositionsToJournal(nextState, activeConfig) {
+  const positions = getOpenPositions(nextState);
+  for (const openPosition of positions) {
+    const symbol = openPosition?.symbol;
+    if (!symbol || journalHasOpenRecord(symbol)) continue;
+    const entryTime = Number(openPosition.entryTime);
+    const timestamp = Number.isFinite(entryTime)
+      ? new Date(entryTime).toISOString()
+      : new Date().toISOString();
+    const entryPrice = Number(openPosition.entry);
+    const currentPrice = Number(openPosition.currentPrice);
+    const qty = Number(openPosition.qty);
+    const sizeUSDT = Number(openPosition.sizeUSDT);
+
+    logTrade({
+      type: "entry",
+      source: openPosition.source || "managed_state",
+      botType: activeConfig.activeBotType || activeConfig.selectedBotType || "",
+      mode: activeConfig.activeMode || activeConfig.selectedMode || "",
+      marketProfile: activeConfig.selectedMarketProfile || "auto",
+      marketProfileMode: activeConfig.marketProfileMode || "",
+      pair: symbol,
+      side: "buy",
+      timestamp,
+      price: Number.isFinite(entryPrice) && entryPrice > 0 ? entryPrice : currentPrice,
+      qty: Number.isFinite(qty) ? qty : 0,
+      sizeUSDT: Number.isFinite(sizeUSDT) && sizeUSDT > 0
+        ? sizeUSDT
+        : (Number.isFinite(entryPrice) && Number.isFinite(qty) ? entryPrice * qty : 0),
+      reason: openPosition.source === "recovery"
+        ? "balance detection"
+        : (openPosition.entryReason?.notes || "managed position sync")
+    });
+    logEvent(LOG_FILE, "PASS", `Journal sync open position ${symbol}`);
+  }
+}
+
 function syncStatePositions(nextState) {
   if (!nextState || typeof nextState !== "object") return [];
   let positions = Array.isArray(nextState.positions) ? nextState.positions.filter(Boolean) : [];
@@ -2635,6 +2685,7 @@ async function runBot() {
       state.tradesToday = journalRoundsToday;
       saveState(STATE_PATH, state);
     }
+    syncManagedPositionsToJournal(state, config);
     const realizedPnlPct = state.startOfDayEquity > 0 ? state.realizedPnlToday / state.startOfDayEquity : 0;
     if (realizedPnlPct >= config.dailyProfitTargetPct) {
       state.haltedForDay = true;
@@ -2771,6 +2822,7 @@ async function runBot() {
         }
       }
     }
+    syncManagedPositionsToJournal(state, config);
 
     // ===== STEP 5: POSITION VALIDATION =====
     // Validate all currently tracked positions: update qty/price, drop vanished or dust positions

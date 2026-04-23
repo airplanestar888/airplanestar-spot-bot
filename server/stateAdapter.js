@@ -26,11 +26,20 @@ function syncDisplayedConfig(nextConfig) {
   return synced;
 }
 
+function getManagedPositions(state) {
+  if (Array.isArray(state.positions)) {
+    return state.positions.filter((position) => position && typeof position === "object");
+  }
+  if (state.position && typeof state.position === "object") return [state.position];
+  return [];
+}
+
 function buildRuntimeStatus(rootDir) {
   const config = readJsonSafe(path.join(rootDir, "config.json"), {});
   const state = readJsonSafe(dataPath(rootDir, "state.json"), {});
   const health = readJsonSafe(dataPath(rootDir, "health.json"), {});
   const trades = readJsonSafe(dataPath(rootDir, "trade_journal.json"), []);
+  const managedPositions = getManagedPositions(state);
 
   const closedTrades = Array.isArray(trades)
     ? trades.filter((trade) => trade && trade.status === "closed")
@@ -47,7 +56,9 @@ function buildRuntimeStatus(rootDir) {
     marketProfileMode: config.marketProfileMode || "auto",
     selectedMarketProfile: config.selectedMarketProfile || "N/A",
     halted: Boolean(state.halted),
-    position: state.position || null,
+    position: managedPositions[0] || null,
+    positions: managedPositions,
+    managedPositionCount: managedPositions.length,
     lossStreak: Number(state.lossStreak || 0),
     tradesToday: Number(state.tradesToday || 0),
     realizedPnlToday: Number(state.realizedPnlToday || 0),

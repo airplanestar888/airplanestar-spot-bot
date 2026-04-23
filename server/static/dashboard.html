@@ -1021,11 +1021,12 @@ function applyCfg(){
 
 /* --- Report rendering --- */
 function popFilters(){
-  const pairs=[...new Set(journal.map(t=>t.pair).filter(Boolean))].sort();
-  const botTypes=[...new Set(journal.map(t=>t.botType||'-').filter(Boolean))].sort();
-  const modes=[...new Set(journal.map(t=>t.mode||'-').filter(Boolean))].sort();
-  const profiles=[...new Set(journal.map(t=>t.marketProfile||'-').filter(Boolean))].sort();
-  const reasons=[...new Set(journal.map(t=>t.exit?.reason||'Open').filter(Boolean))].sort();
+  const trades=journal;
+  const pairs=[...new Set(trades.map(t=>t.pair).filter(Boolean))].sort();
+  const botTypes=[...new Set(trades.map(t=>t.botType||'-').filter(Boolean))].sort();
+  const modes=[...new Set(trades.map(t=>t.mode||'-').filter(Boolean))].sort();
+  const profiles=[...new Set(trades.map(t=>t.marketProfile||'-').filter(Boolean))].sort();
+  const reasons=[...new Set(trades.map(t=>t.exit?.reason||t.entry?.reason||'Open').filter(Boolean))].sort();
   const fill=(el,vals,all)=>{const cur=el.value||'all';el.innerHTML=[`<option value="all">${all}</option>`].concat(vals.map(v=>`<option value="${v}">${v}</option>`)).join('');el.value=vals.includes(cur)||cur==='all'?cur:'all'};
   fill(document.getElementById('pairFilter'),pairs,'All Pairs');
   fill(document.getElementById('botTypeFilter'),botTypes,'All Entry Styles');
@@ -1056,12 +1057,13 @@ function inCurrentJakartaMonth(v){
 function applyFilters(trades){
   const tk=relKey(0),yk=relKey(-1);
   return trades.filter(t=>{
-    const dk=tradeKey(t);const botType=t.botType||'-';const mode=t.mode||'-';const profile=t.marketProfile||'-';const reason=t.exit?.reason||'Open';
+    const dk=tradeKey(t);const botType=t.botType||'-';const mode=t.mode||'-';const profile=t.marketProfile||'-';const reason=t.exit?.reason||t.entry?.reason||'Open';
+    const isOpen=t.status==='open';
     const sf=document.getElementById('scopeFilter').value;
-    if((sf==='default'||sf==='today')&&dk!==tk)return false;
-    if(sf==='yesterday'&&dk!==yk)return false;
-    if(sf==='week'&&!inCurrentJakartaWeek(t.closedAt||t.openedAt))return false;
-    if(sf==='month'&&!inCurrentJakartaMonth(t.closedAt||t.openedAt))return false;
+    if(!isOpen&&(sf==='default'||sf==='today')&&dk!==tk)return false;
+    if(!isOpen&&sf==='yesterday'&&dk!==yk)return false;
+    if(!isOpen&&sf==='week'&&!inCurrentJakartaWeek(t.closedAt||t.openedAt))return false;
+    if(!isOpen&&sf==='month'&&!inCurrentJakartaMonth(t.closedAt||t.openedAt))return false;
     const pf=document.getElementById('pairFilter').value;
     if(pf!=='all'&&t.pair!==pf)return false;
     const btf=document.getElementById('botTypeFilter').value;
