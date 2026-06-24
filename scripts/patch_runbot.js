@@ -484,7 +484,9 @@ async function runBot() {
       reporting,
       logEvent,
       LOG_FILE,
-      safeToFixed
+      safeToFixed,
+      request,
+      futures
     });
     if (Number.isFinite(entryFlowResult.currentPositionPrice)) {
       currentPositionPrice = entryFlowResult.currentPositionPrice;

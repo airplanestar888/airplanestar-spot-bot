@@ -5,50 +5,56 @@
   "marketProfileMode": "auto",
   "selectedMarketProfile": "ai_agent",
   "pairSettings": {
-    "SUIUSDT": {
-      "enabled": false
-    },
-    "DOGEUSDT": {
-      "enabled": true
-    },
-    "SOLUSDT": {
-      "enabled": false
-    },
     "XAUTUSDT": {
       "enabled": false
     },
-    "MUSDT": {
+    "TRXUSDT": {
+      "enabled": true
+    },
+    "UMXMUSDT": {
+      "enabled": true
+    },
+    "BTCUSDT": {
+      "enabled": true
+    },
+    "DOGEUSDT": {
+      "enabled": false
+    },
+    "SOLUSDT": {
+      "enabled": true
+    },
+    "ETHUSDT": {
+      "enabled": true
+    },
+    "PIUSDT": {
       "enabled": false
     },
     "XRPUSDT": {
-      "enabled": true
-    },
-    "APRUSDT": {
-      "enabled": true
-    },
-    "BGBUSDT": {
-      "enabled": true
-    },
-    "HUSDT": {
-      "enabled": true
-    },
-    "TRXUSDT": {
       "enabled": false
     },
-    "LABUSDT": {
-      "enabled": true
-    },
-    "PRESPAXUSDT": {
+    "AEROUSDT": {
       "enabled": false
     },
-    "PENGUUSDT": {
-      "enabled": true
-    },
-    "RTXUSDT": {
+    "HYPEUSDT": {
       "enabled": false
     },
     "USDCUSDT": {
       "enabled": true
+    },
+    "BLENDUSDT": {
+      "enabled": false
+    },
+    "MAGMAUSDT": {
+      "enabled": false
+    },
+    "SLXUSDT": {
+      "enabled": false
+    },
+    "LTCUSDT": {
+      "enabled": false
+    },
+    "VIRTUALUSDT": {
+      "enabled": false
     },
     "AAVEUSDT": {
       "enabled": false
@@ -63,6 +69,9 @@
       "enabled": false
     },
     "AINUSDT": {
+      "enabled": false
+    },
+    "APRUSDT": {
       "enabled": false
     },
     "APTUSDT": {
@@ -89,6 +98,9 @@
     "BCHUSDT": {
       "enabled": false
     },
+    "BGBUSDT": {
+      "enabled": false
+    },
     "BLESSUSDT": {
       "enabled": false
     },
@@ -103,9 +115,6 @@
     },
     "BSBUSDT": {
       "enabled": false
-    },
-    "BTCUSDT": {
-      "enabled": true
     },
     "BTRUSDT": {
       "enabled": false
@@ -123,7 +132,7 @@
       "enabled": false
     },
     "CYSUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "DOTUSDT": {
       "enabled": false
@@ -146,9 +155,6 @@
     "ETHFIUSDT": {
       "enabled": false
     },
-    "ETHUSDT": {
-      "enabled": true
-    },
     "FARTCOINUSDT": {
       "enabled": false
     },
@@ -162,7 +168,7 @@
       "enabled": false
     },
     "GOMININGUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "GRASSUSDT": {
       "enabled": false
@@ -170,8 +176,8 @@
     "HUMAUSDT": {
       "enabled": false
     },
-    "HYPEUSDT": {
-      "enabled": true
+    "HUSDT": {
+      "enabled": false
     },
     "ICNTUSDT": {
       "enabled": false
@@ -195,10 +201,13 @@
       "enabled": false
     },
     "KATUSDT": {
-      "enabled": true
+      "enabled": false
     },
     "KITEUSDT": {
-      "enabled": true
+      "enabled": false
+    },
+    "LABUSDT": {
+      "enabled": false
     },
     "LATUSDT": {
       "enabled": false
@@ -207,12 +216,6 @@
       "enabled": false
     },
     "LINKUSDT": {
-      "enabled": false
-    },
-    "LTCUSDT": {
-      "enabled": false
-    },
-    "MAGMAUSDT": {
       "enabled": false
     },
     "MEMEUSDT": {
@@ -225,6 +228,9 @@
       "enabled": false
     },
     "MORPHOUSDT": {
+      "enabled": false
+    },
+    "MUSDT": {
       "enabled": false
     },
     "MYXUSDT": {
@@ -242,25 +248,52 @@
     "OPUSDT": {
       "enabled": false
     },
+    "ORDIUSDT": {
+      "enabled": false
+    },
     "PAXGUSDT": {
+      "enabled": false
+    },
+    "PENGUUSDT": {
       "enabled": false
     },
     "PEPEUSDT": {
       "enabled": false
     },
-    "PIUSDT": {
+    "PNUTUSDT": {
       "enabled": false
     },
-    "PNUTUSDT": {
+    "PRESPAXUSDT": {
       "enabled": false
     },
     "PRLUSDT": {
       "enabled": false
     },
     "PUMPUSDT": {
+      "enabled": true
+    },
+    "RAAPLUSDT": {
+      "enabled": false
+    },
+    "RAMDUSDT": {
+      "enabled": false
+    },
+    "RAMZNUSDT": {
       "enabled": false
     },
     "RAVEUSDT": {
+      "enabled": false
+    },
+    "RAVGOUSDT": {
+      "enabled": false
+    },
+    "RBUSDT": {
+      "enabled": false
+    },
+    "RCUSDT": {
+      "enabled": false
+    },
+    "RDUSDT": {
       "enabled": false
     },
     "REDUSDT": {
@@ -269,13 +302,67 @@
     "RENDERUSDT": {
       "enabled": false
     },
+    "RFUSDT": {
+      "enabled": false
+    },
+    "RGOOGLUSDT": {
+      "enabled": false
+    },
+    "RINTCUSDT": {
+      "enabled": false
+    },
     "RIVERUSDT": {
       "enabled": false
     },
     "RLUSDUSDT": {
       "enabled": false
     },
+    "RMETAUSDT": {
+      "enabled": false
+    },
+    "RMRVLUSDT": {
+      "enabled": false
+    },
+    "RMSFTUSDT": {
+      "enabled": false
+    },
+    "RMUUSDT": {
+      "enabled": false
+    },
+    "RNVDAUSDT": {
+      "enabled": false
+    },
     "ROBOUSDT": {
+      "enabled": false
+    },
+    "ROUSDT": {
+      "enabled": false
+    },
+    "RQQQUSDT": {
+      "enabled": false
+    },
+    "RSNDKUSDT": {
+      "enabled": false
+    },
+    "RSPCXUSDT": {
+      "enabled": false
+    },
+    "RSPYUSDT": {
+      "enabled": false
+    },
+    "RTSLAUSDT": {
+      "enabled": false
+    },
+    "RTUSDT": {
+      "enabled": false
+    },
+    "RTXUSDT": {
+      "enabled": false
+    },
+    "RUUSDT": {
+      "enabled": false
+    },
+    "RVUSDT": {
       "enabled": false
     },
     "SAPIENUSDT": {
@@ -284,7 +371,13 @@
     "SHIBUSDT": {
       "enabled": false
     },
+    "SKYAIUSDT": {
+      "enabled": false
+    },
     "SLVONUSDT": {
+      "enabled": false
+    },
+    "SUIUSDT": {
       "enabled": false
     },
     "SWARMSUSDT": {
@@ -294,7 +387,7 @@
       "enabled": false
     },
     "TAOUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "TIAUSDT": {
       "enabled": false
@@ -309,7 +402,7 @@
       "enabled": false
     },
     "TRUMPUSDT": {
-      "enabled": false
+      "enabled": true
     },
     "TURBOUSDT": {
       "enabled": false
@@ -321,9 +414,6 @@
       "enabled": false
     },
     "USDGOUSDT": {
-      "enabled": false
-    },
-    "VIRTUALUSDT": {
       "enabled": false
     },
     "WALUSDT": {
@@ -358,6 +448,30 @@
     },
     "ZECUSDT": {
       "enabled": false
+    },
+    "SOONUSDT": {
+      "enabled": true
+    },
+    "VELVETUSDT": {
+      "enabled": false
+    },
+    "IPUSDT": {
+      "enabled": false
+    },
+    "JTOUSDT": {
+      "enabled": true
+    },
+    "GRAMUSDT": {
+      "enabled": true
+    },
+    "AVVUSDT": {
+      "enabled": true
+    },
+    "JUPUSDT": {
+      "enabled": true
+    },
+    "EIGENUSDT": {
+      "enabled": true
     }
   },
   "riskPercent": "0.15",
@@ -398,14 +512,14 @@
   "requireFastTrend": true,
   "requirePriceAboveEma9": true,
   "requireEdge": false,
-  "requireRsiMomentum": false,
+  "requireRsiMomentum": true,
   "requireBreakout": true,
   "enableRsiBandFilter": true,
   "enableAtrFilter": true,
   "enableVolumeFilter": true,
-  "enableCandleStrengthFilter": true,
-  "enablePriceExtensionFilter": true,
-  "enableRangeRecoveryFilter": true,
+  "enableCandleStrengthFilter": false,
+  "enablePriceExtensionFilter": false,
+  "enableRangeRecoveryFilter": false,
   "enableTimeStop": false,
   "enableStaleTrade": true,
   "enableCostGuard": true,
@@ -413,14 +527,14 @@
   "costGuardFloorPct": 0.003,
   "roundTripFeePct": 0.004,
   "slippageBufferPct": 0.001,
-  "minExpectedNetPct": 0.004,
+  "minExpectedNetPct": 0.007,
   "minScalpTargetPct": 0.008,
   "maxScalpTargetPct": 0.012,
-  "minTrendRsi": 50,
-  "minAtrPct": 0.0015,
-  "maxAtrPct": 0.01,
-  "minVolumeRatio": 0.7,
-  "maxEmaGapPct": 0.01,
+  "minTrendRsi": 58,
+  "minAtrPct": 0.002,
+  "maxAtrPct": 0.007,
+  "minVolumeRatio": 0.8,
+  "maxEmaGapPct": 0.009,
   "maxEntryPriceDriftPct": 0.006,
   "minMomentumExitPct": 0.0045,
   "timeStopMinutes": 18,
@@ -440,15 +554,15 @@
   "lossStreakHaltThreshold": 10,
   "dailyProfitTargetPct": 0.05,
   "dailyLossLimitPct": -0.3,
-  "rsiBandLower": 32,
-  "rsiBandUpper": 75,
-  "minCandleStrength": 0.1,
+  "rsiBandLower": 35,
+  "rsiBandUpper": 72,
+  "minCandleStrength": 0.12,
   "minConfirmation": 3,
   "breakoutPct": 0.9985,
-  "optimalRsiLow": 40,
-  "optimalRsiHigh": 70,
-  "optimalAtrLow": 0.0008,
-  "optimalAtrHigh": 0.012,
+  "optimalRsiLow": 42,
+  "optimalRsiHigh": 68,
+  "optimalAtrLow": 0.0009,
+  "optimalAtrHigh": 0.013,
   "minEmaGapNeg": -0.004,
   "report": {
     "heartbeatIntervalMs": 600000,
@@ -744,27 +858,27 @@
       "description": "Profile kerja AI Agent. Diisi otomatis dari keputusan agent tanpa mengubah preset market profile bawaan.",
       "allowEntries": true,
       "entryOverrides": {
-        "minExpectedNetPct": 0.005,
-        "minVolumeRatio": 0.75,
-        "minTrendRsi": 55,
+        "minExpectedNetPct": 0.004,
+        "minVolumeRatio": 0.6,
+        "minTrendRsi": 48,
         "minAtrPct": 0.002,
-        "maxAtrPct": 0.008,
-        "maxEmaGapPct": 0.008,
-        "requireRsiMomentum": false,
+        "maxAtrPct": 0.015,
+        "maxEmaGapPct": 0.02,
+        "requireRsiMomentum": true,
         "requireBreakout": true,
-        "enableRsiBandFilter": false,
+        "enableRsiBandFilter": true,
         "enableAtrFilter": true,
         "enableVolumeFilter": true,
         "enableCandleStrengthFilter": false,
         "enablePriceExtensionFilter": false,
         "enableRangeRecoveryFilter": false,
-        "rsiBandLower": 32,
-        "rsiBandUpper": 75,
+        "rsiBandLower": 40,
+        "rsiBandUpper": 70,
         "minCandleStrength": 0.1,
-        "optimalRsiLow": 40,
-        "optimalRsiHigh": 70,
-        "optimalAtrLow": 0.0008,
-        "optimalAtrHigh": 0.012,
+        "optimalRsiLow": 45,
+        "optimalRsiHigh": 65,
+        "optimalAtrLow": 0.001,
+        "optimalAtrHigh": 0.02,
         "minEmaGapNeg": -0.004
       }
     }
@@ -951,7 +1065,7 @@
   "_effectiveCooldown": 600000,
   "_effectiveSlippageBufferPct": 0.001,
   "_effectiveRoundTripFeePct": 0.004,
-  "_effectiveMinExpectedNetPct": 0.004,
+  "_effectiveMinExpectedNetPct": 0.007,
   "_effectiveTakeProfitPct": 0.015,
   "_effectiveTrailingActivationPct": 0.008,
   "_effectiveBreakEvenArmedPct": 0.006,
@@ -959,165 +1073,165 @@
   "_effectiveMaxTrades": 9999,
   "_effectiveAllowEntries": true,
   "lastAutoPairRotation": {
-    "at": "2026-04-23T07:51:36.446Z",
+    "at": "2026-06-21T13:22:50.537Z",
     "enabled": true,
     "changed": true,
     "refreshIntervalHours": 2,
     "topPairs": 15,
     "activePairs": [
+      "JTOUSDT",
+      "TRUMPUSDT",
+      "GRAMUSDT",
+      "SOONUSDT",
+      "SOLUSDT",
+      "PUMPUSDT",
       "BTCUSDT",
-      "KATUSDT",
+      "UMXMUSDT",
+      "AVVUSDT",
       "ETHUSDT",
-      "PENGUUSDT",
-      "APRUSDT",
-      "LABUSDT",
-      "HYPEUSDT",
-      "GOMININGUSDT",
-      "USDCUSDT",
-      "DOGEUSDT",
-      "XRPUSDT",
-      "BGBUSDT",
-      "HUSDT",
-      "KITEUSDT",
-      "CYSUSDT"
+      "TAOUSDT",
+      "JUPUSDT",
+      "EIGENUSDT",
+      "TRXUSDT",
+      "USDCUSDT"
     ],
     "activeCategories": "bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)",
-    "blacklistCount": 2,
+    "blacklistCount": 0,
     "candidates": [
       {
         "rank": 1,
-        "symbol": "BTCUSDT",
-        "score": 14.697,
-        "quoteVol": 336903026.38,
-        "changePct": -0.15,
-        "rangePct": 2.5954,
-        "last": 78065.58
+        "symbol": "JTOUSDT",
+        "score": 15.1822,
+        "quoteVol": 2430840.88,
+        "changePct": 4.803,
+        "rangePct": 9.9206,
+        "last": 0.7005
       },
       {
         "rank": 2,
-        "symbol": "KATUSDT",
-        "score": 14.1077,
-        "quoteVol": 1057040.86,
-        "changePct": 8.53,
-        "rangePct": 18.5964,
-        "last": 0.010191
+        "symbol": "TRUMPUSDT",
+        "score": 15.0858,
+        "quoteVol": 1481375.55,
+        "changePct": 6.737,
+        "rangePct": 13.1535,
+        "last": 1.933
       },
       {
         "rank": 3,
-        "symbol": "ETHUSDT",
-        "score": 14.0592,
-        "quoteVol": 148881289.46,
-        "changePct": -1.034,
-        "rangePct": 3.9445,
-        "last": 2349.43
+        "symbol": "GRAMUSDT",
+        "score": 14.8006,
+        "quoteVol": 848131.56,
+        "changePct": 3.983,
+        "rangePct": 5.8531,
+        "last": 1.697
       },
       {
         "rank": 4,
-        "symbol": "PENGUUSDT",
-        "score": 13.9856,
-        "quoteVol": 2698944.05,
-        "changePct": 4.071,
-        "rangePct": 11.4734,
-        "last": 0.008563
+        "symbol": "SOONUSDT",
+        "score": 14.6961,
+        "quoteVol": 1223957.01,
+        "changePct": 8.629,
+        "rangePct": 16.1452,
+        "last": 0.1775
       },
       {
         "rank": 5,
-        "symbol": "APRUSDT",
-        "score": 13.8058,
-        "quoteVol": 692092.79,
-        "changePct": 2.872,
-        "rangePct": 7.4727,
-        "last": 0.173
+        "symbol": "SOLUSDT",
+        "score": 14.4801,
+        "quoteVol": 64084885.9,
+        "changePct": 0.765,
+        "rangePct": 5.5619,
+        "last": 73.79
       },
       {
         "rank": 6,
-        "symbol": "LABUSDT",
-        "score": 13.7196,
-        "quoteVol": 527322.95,
-        "changePct": 9.086,
-        "rangePct": 17.7222,
-        "last": 0.6213
+        "symbol": "PUMPUSDT",
+        "score": 14.4203,
+        "quoteVol": 793570.67,
+        "changePct": 6.206,
+        "rangePct": 12.9561,
+        "last": 0.001506
       },
       {
         "rank": 7,
-        "symbol": "HYPEUSDT",
-        "score": 13.583,
-        "quoteVol": 30747686.02,
-        "changePct": 0.122,
-        "rangePct": 3.4979,
-        "last": 41.2
+        "symbol": "BTCUSDT",
+        "score": 14.3451,
+        "quoteVol": 177028848.79,
+        "changePct": -0.219,
+        "rangePct": 2.224,
+        "last": 64156
       },
       {
         "rank": 8,
-        "symbol": "GOMININGUSDT",
-        "score": 13.4649,
-        "quoteVol": 1130834.19,
-        "changePct": 2.126,
-        "rangePct": 5.0572,
-        "last": 0.3026
+        "symbol": "UMXMUSDT",
+        "score": 14.2827,
+        "quoteVol": 10972032.04,
+        "changePct": 1.668,
+        "rangePct": 4.2102,
+        "last": 1.91107
       },
       {
         "rank": 9,
-        "symbol": "USDCUSDT",
-        "score": 13.3674,
-        "quoteVol": 24519493,
-        "changePct": 0,
-        "rangePct": 0.04,
-        "last": 0.9995
+        "symbol": "AVVUSDT",
+        "score": 14.1957,
+        "quoteVol": 1202839.08,
+        "changePct": 4.225,
+        "rangePct": 10.2879,
+        "last": 0.00597
       },
       {
         "rank": 10,
-        "symbol": "DOGEUSDT",
-        "score": 13.1163,
-        "quoteVol": 9975333.89,
-        "changePct": 0.272,
-        "rangePct": 3.4957,
-        "last": 0.0959
+        "symbol": "ETHUSDT",
+        "score": 13.9468,
+        "quoteVol": 111521726.84,
+        "changePct": -0.875,
+        "rangePct": 2.4207,
+        "last": 1725.74
       },
       {
         "rank": 11,
-        "symbol": "XRPUSDT",
-        "score": 13.0623,
-        "quoteVol": 17444907.1,
-        "changePct": -0.532,
-        "rangePct": 3.62,
-        "last": 1.4218
+        "symbol": "TAOUSDT",
+        "score": 13.3226,
+        "quoteVol": 2889712.97,
+        "changePct": 1.337,
+        "rangePct": 7.1713,
+        "last": 234.9
       },
       {
         "rank": 12,
-        "symbol": "BGBUSDT",
-        "score": 12.9842,
-        "quoteVol": 22137990.17,
-        "changePct": -1.375,
-        "rangePct": 3.2361,
-        "last": 1.915
+        "symbol": "JUPUSDT",
+        "score": 13.3094,
+        "quoteVol": 522260.63,
+        "changePct": 6.363,
+        "rangePct": 15.633,
+        "last": 0.224
       },
       {
         "rank": 13,
-        "symbol": "HUSDT",
-        "score": 12.9815,
-        "quoteVol": 2291450.1,
-        "changePct": 6.172,
-        "rangePct": 19.8368,
-        "last": 0.1373333
+        "symbol": "EIGENUSDT",
+        "score": 13.0058,
+        "quoteVol": 686426.92,
+        "changePct": 11.019,
+        "rangePct": 18.0688,
+        "last": 0.2801
       },
       {
         "rank": 14,
-        "symbol": "KITEUSDT",
-        "score": 12.6872,
-        "quoteVol": 516851.92,
-        "changePct": 1.664,
-        "rangePct": 3.8571,
-        "last": 0.15215
+        "symbol": "TRXUSDT",
+        "score": 12.9875,
+        "quoteVol": 11859817.66,
+        "changePct": -0.006,
+        "rangePct": 1.2739,
+        "last": 0.32662
       },
       {
         "rank": 15,
-        "symbol": "CYSUSDT",
-        "score": 12.6415,
-        "quoteVol": 1062030.8,
-        "changePct": 5.083,
-        "rangePct": 15.6944,
-        "last": 0.50922
+        "symbol": "USDCUSDT",
+        "score": 12.8846,
+        "quoteVol": 9708210.08,
+        "changePct": 0,
+        "rangePct": 0.04,
+        "last": 1.0009
       }
     ],
     "pending": false,
@@ -1125,7 +1239,7 @@
     "pendingReason": null,
     "aiAgent": {
       "status": "applied",
-      "reason": "Market shows mixed momentum with moderate upside; slightly raise thresholds and widen ATR band to improve entry quality while preserving multiple-trade opportunity capture.",
+      "reason": "High momentum in top candidates (JTO, TRUMP, SOON) suggests relaxing entry filters to capture multiple trade opportunities while maintaining a bullish bias.",
       "marketProfile": "ai_agent",
       "fallbackProfile": null
     }
@@ -1141,96 +1255,81 @@
     },
     "enabled": true,
     "lastDecision": {
-      "at": "2026-04-23T07:51:36.446Z",
+      "at": "2026-06-21T13:22:50.537Z",
       "status": "applied",
       "marketProfile": "ai_agent",
       "allowEntries": true,
       "entryOverrides": {
-        "minExpectedNetPct": 0.005,
-        "minVolumeRatio": 0.75,
-        "minTrendRsi": 55,
-        "minAtrPct": 0.002,
-        "maxAtrPct": 0.008,
-        "maxEmaGapPct": 0.008,
-        "enableRsiBandFilter": false,
-        "enableCandleStrengthFilter": false,
-        "enablePriceExtensionFilter": false,
-        "enableRangeRecoveryFilter": false
+        "minExpectedNetPct": 0.004,
+        "minVolumeRatio": 0.6,
+        "minTrendRsi": 48,
+        "maxAtrPct": 0.015
       },
       "scopeSummary": {
         "marketProfile": true,
         "marketFilters": true,
-        "qualityFilters": true
+        "qualityFilters": false
       },
-      "reason": "Market shows mixed momentum with moderate upside; slightly raise thresholds and widen ATR band to improve entry quality while preserving multiple-trade opportunity capture.",
+      "reason": "High momentum in top candidates (JTO, TRUMP, SOON) suggests relaxing entry filters to capture multiple trade opportunities while maintaining a bullish bias.",
       "before": {
         "marketProfile": "ai_agent",
         "allowEntries": true,
         "entryOverrides": {
-          "minExpectedNetPct": 0.004,
-          "minVolumeRatio": 0.7,
-          "minTrendRsi": 50,
-          "minAtrPct": 0.0015,
-          "maxAtrPct": 0.01,
-          "maxEmaGapPct": 0.01,
-          "requireRsiMomentum": false,
+          "minExpectedNetPct": 0.005,
+          "minVolumeRatio": 0.65,
+          "minTrendRsi": 46,
+          "minAtrPct": 0.002,
+          "maxAtrPct": 0.018,
+          "maxEmaGapPct": 0.02,
+          "requireRsiMomentum": true,
           "requireBreakout": true,
           "enableRsiBandFilter": true,
           "enableAtrFilter": true,
           "enableVolumeFilter": true,
-          "enableCandleStrengthFilter": true,
-          "enablePriceExtensionFilter": true,
-          "enableRangeRecoveryFilter": true,
-          "rsiBandLower": 32,
-          "rsiBandUpper": 75,
+          "enableCandleStrengthFilter": false,
+          "enablePriceExtensionFilter": false,
+          "enableRangeRecoveryFilter": false,
+          "rsiBandLower": 40,
+          "rsiBandUpper": 70,
           "minCandleStrength": 0.1,
-          "optimalRsiLow": 40,
-          "optimalRsiHigh": 70,
-          "optimalAtrLow": 0.0008,
-          "optimalAtrHigh": 0.012,
+          "optimalRsiLow": 45,
+          "optimalRsiHigh": 65,
+          "optimalAtrLow": 0.001,
+          "optimalAtrHigh": 0.02,
           "minEmaGapNeg": -0.004
         }
       },
-      "provider": "openrouter",
-      "model": "inclusionai/ling-2.6-flash:free"
+      "provider": "nvidia",
+      "model": "gpt-5.4"
     },
     "lastSystemPrompt": "",
-    "lastPrompt": "Your role is top global spot trading to tune the bot for the next several trades over the next couple of hours.\n\nThese settings should aim for the best overall trading result during that window.\n\nOptimize for easy entry with healthy win rate, and enough opportunity capture across multiple trades, not just one trade.\n\nDo not become overly restrictive unless market conditions are clearly poor.\n\nFocus on market recap from rankedCandidates and minimalGlobalContext\n\nPrefer smart, deliberate changes over broad rewrites.\n\nIf conditions are mixed or unclear, keep changes minimal and explain the reason briefly.\n\nTune entryOverrides only. Do not change allowEntries, risk, sizing, pairs, botType, TP, SL, cooldown.\n\nReturn one valid JSON object only. No markdown. No extra text. Do not echo context.\n\nReturn only: {\"entryOverrides\":{<changed_fields_only>},\"reason\":\"<short_reason>\"}. Numbers for MARKET_FILTER_KEYS, booleans for QUALITY_FILTER_KEYS. Omit unchanged fields.\n\n{\"role\":{\"persona\":\"Senior crypto spot trader in 2026\",\"objective\":\"Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.\"},\"botContext\":{\"selectedBotType\":\"custom\",\"selectedMode\":\"custom\",\"signalTimeframe\":\"3min\",\"trendTimeframe\":\"15min\",\"minScalpTargetPct\":0.008,\"maxScalpTargetPct\":0.012,\"timeStopMinutes\":18,\"maxHoldMinutes\":30,\"breakEvenMinutes\":9,\"minConfirmation\":3,\"breakoutPct\":0.9985,\"requireEma21Rising\":true,\"requireFastTrend\":true,\"requirePriceAboveEma9\":true,\"requireEdge\":false,\"requireRsiMomentum\":false,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":true,\"enablePriceExtensionFilter\":true,\"enableRangeRecoveryFilter\":true},\"currentOverrides\":{\"minExpectedNetPct\":0.004,\"minVolumeRatio\":0.7,\"minTrendRsi\":50,\"minAtrPct\":0.0015,\"maxAtrPct\":0.01,\"maxEmaGapPct\":0.01,\"requireRsiMomentum\":false,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":true,\"enablePriceExtensionFilter\":true,\"enableRangeRecoveryFilter\":true,\"rsiBandLower\":32,\"rsiBandUpper\":75,\"minCandleStrength\":0.1,\"optimalRsiLow\":40,\"optimalRsiHigh\":70,\"optimalAtrLow\":0.0008,\"optimalAtrHigh\":0.012,\"minEmaGapNeg\":-0.004},\"rankedCandidates\":[{\"rank\":1,\"symbol\":\"BTCUSDT\",\"score\":14.697,\"chg\":-0.15,\"rng\":2.5953699800729533,\"active\":true},{\"rank\":2,\"symbol\":\"KATUSDT\",\"score\":14.108,\"chg\":8.53,\"rng\":18.596377749029763,\"active\":true},{\"rank\":3,\"symbol\":\"ETHUSDT\",\"score\":14.059,\"chg\":-1.034,\"rng\":3.9445354652210196,\"active\":true},{\"rank\":4,\"symbol\":\"PENGUUSDT\",\"score\":13.986,\"chg\":4.071000000000001,\"rng\":11.473385204396681,\"active\":true},{\"rank\":5,\"symbol\":\"APRUSDT\",\"score\":13.806,\"chg\":2.872,\"rng\":7.47273702401527,\"active\":true},{\"rank\":6,\"symbol\":\"LABUSDT\",\"score\":13.72,\"chg\":9.086,\"rng\":17.722233724191156,\"active\":true},{\"rank\":7,\"symbol\":\"HYPEUSDT\",\"score\":13.583,\"chg\":0.122,\"rng\":3.497891342098726,\"active\":true},{\"rank\":8,\"symbol\":\"GOMININGUSDT\",\"score\":13.465,\"chg\":2.1260000000000003,\"rng\":5.05715275372359,\"active\":true},{\"rank\":9,\"symbol\":\"USDCUSDT\",\"score\":13.367,\"chg\":0,\"rng\":0.040024014408651894,\"active\":true},{\"rank\":10,\"symbol\":\"DOGEUSDT\",\"score\":13.116,\"chg\":0.272,\"rng\":3.495695989922318,\"active\":true},{\"rank\":11,\"symbol\":\"XRPUSDT\",\"score\":13.062,\"chg\":-0.532,\"rng\":3.62000566732785,\"active\":true},{\"rank\":12,\"symbol\":\"BGBUSDT\",\"score\":12.984,\"chg\":-1.375,\"rng\":3.236127137312486,\"active\":true}],\"globalCtx\":{\"candidateCount\":82,\"activePairs\":15,\"avgChgPct\":1.999,\"avgRngPct\":6.729,\"topPairs\":15,\"categories\":\"bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)\"},\"constraints\":{\"allowed\":[\"entryOverrides\",\"reason\"],\"forbidden\":[\"allowEntries\",\"riskPercent\",\"sizing\",\"pairs\",\"botType\",\"TP\",\"SL\",\"cooldown\"]}}",
-    "lastPromptAt": "2026-04-23T07:51:36.446Z",
-    "lastPromptProvider": "openrouter",
-    "lastPromptModel": "inclusionai/ling-2.6-flash:free",
-    "provider": "openrouter",
+    "lastPrompt": "Your role is top global spot trading to tune the bot for the next several trades over the next couple of hours.\n\nThese settings should aim for the best overall trading result during that window.\n\nOptimize for easy entry with healthy win rate, and enough opportunity capture across multiple trades, not just one trade.\n\nDo not become overly restrictive unless market conditions are clearly poor.\n\nFocus on market recap from rankedCandidates and minimalGlobalContext\n\nPrefer smart, deliberate changes over broad rewrites.\n\nIf conditions are mixed or unclear, keep changes minimal and explain the reason briefly.\n\nTune entryOverrides only. Do not change allowEntries, risk, sizing, pairs, botType, TP, SL, cooldown.\n\nReturn one valid JSON object only. No markdown. No extra text. Do not echo context.\n\nReturn only: {\"entryOverrides\":{<changed_fields_only>},\"reason\":\"<short_reason>\"}. Numbers for MARKET_FILTER_KEYS, booleans for QUALITY_FILTER_KEYS. Omit unchanged fields.\n\n{\"role\":{\"persona\":\"Senior crypto spot trader in 2026\",\"objective\":\"Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.\"},\"botContext\":{\"selectedBotType\":\"custom\",\"selectedMode\":\"custom\",\"signalTimeframe\":\"3min\",\"trendTimeframe\":\"15min\",\"minScalpTargetPct\":0.008,\"maxScalpTargetPct\":0.012,\"timeStopMinutes\":18,\"maxHoldMinutes\":30,\"breakEvenMinutes\":9,\"minConfirmation\":3,\"breakoutPct\":0.9985,\"requireEma21Rising\":true,\"requireFastTrend\":true,\"requirePriceAboveEma9\":true,\"requireEdge\":false,\"requireRsiMomentum\":true,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":false,\"enablePriceExtensionFilter\":false,\"enableRangeRecoveryFilter\":false},\"currentOverrides\":{\"minExpectedNetPct\":0.005,\"minVolumeRatio\":0.65,\"minTrendRsi\":46,\"minAtrPct\":0.002,\"maxAtrPct\":0.018,\"maxEmaGapPct\":0.02,\"requireRsiMomentum\":true,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":false,\"enablePriceExtensionFilter\":false,\"enableRangeRecoveryFilter\":false,\"rsiBandLower\":40,\"rsiBandUpper\":70,\"minCandleStrength\":0.1,\"optimalRsiLow\":45,\"optimalRsiHigh\":65,\"optimalAtrLow\":0.001,\"optimalAtrHigh\":0.02,\"minEmaGapNeg\":-0.004},\"rankedCandidates\":[{\"rank\":1,\"symbol\":\"JTOUSDT\",\"score\":15.182,\"chg\":4.803,\"rng\":9.920575453319353,\"active\":true},{\"rank\":2,\"symbol\":\"TRUMPUSDT\",\"score\":15.086,\"chg\":6.737,\"rng\":13.15345699831366,\"active\":true},{\"rank\":3,\"symbol\":\"GRAMUSDT\",\"score\":14.801,\"chg\":3.9829999999999997,\"rng\":5.853051058530501,\"active\":true},{\"rank\":4,\"symbol\":\"SOONUSDT\",\"score\":14.696,\"chg\":8.629000000000001,\"rng\":16.14518147684605,\"active\":true},{\"rank\":5,\"symbol\":\"SOLUSDT\",\"score\":14.48,\"chg\":0.765,\"rng\":5.561861520998867,\"active\":true},{\"rank\":6,\"symbol\":\"PUMPUSDT\",\"score\":14.42,\"chg\":6.2059999999999995,\"rng\":12.956068503350698,\"active\":true},{\"rank\":7,\"symbol\":\"BTCUSDT\",\"score\":14.345,\"chg\":-0.219,\"rng\":2.223968774763672,\"active\":true},{\"rank\":8,\"symbol\":\"UMXMUSDT\",\"score\":14.283,\"chg\":1.6680000000000001,\"rng\":4.21024505687457,\"active\":true},{\"rank\":9,\"symbol\":\"AVVUSDT\",\"score\":14.196,\"chg\":4.2250000000000005,\"rng\":10.287921348314617,\"active\":true},{\"rank\":10,\"symbol\":\"ETHUSDT\",\"score\":13.947,\"chg\":-0.8750000000000001,\"rng\":2.4206909067492437,\"active\":true},{\"rank\":11,\"symbol\":\"TAOUSDT\",\"score\":13.323,\"chg\":1.337,\"rng\":7.171314741035852,\"active\":true},{\"rank\":12,\"symbol\":\"JUPUSDT\",\"score\":13.309,\"chg\":6.363,\"rng\":15.633008713480267,\"active\":true}],\"globalCtx\":{\"candidateCount\":63,\"activePairs\":15,\"avgChgPct\":3.635,\"avgRngPct\":8.795,\"topPairs\":15,\"categories\":\"bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)\"},\"constraints\":{\"allowed\":[\"entryOverrides\",\"reason\"],\"forbidden\":[\"allowEntries\",\"riskPercent\",\"sizing\",\"pairs\",\"botType\",\"TP\",\"SL\",\"cooldown\"]},\"portfolio\":{\"openPositions\":0,\"maxPositions\":10,\"exposurePct\":0,\"unrealizedPnlPct\":null},\"tradeFeedback\":{\"sample\":20,\"winRate\":0.35,\"wins\":7,\"losses\":13,\"stopLosses\":2,\"staleTrades\":11,\"avgWinPct\":0.363,\"avgLossPct\":-0.244,\"totalNetPnlPct\":-4.654,\"aiProfile\":{\"sample\":20,\"winRate\":0.35,\"avgPnlPct\":-0.031}},\"decisionHistory\":[{\"at\":\"2026-06-19T17:37:01.235Z\",\"status\":\"applied\",\"changes\":{\"minExpectedNetPct\":0.007,\"minVolumeRatio\":0.75,\"minTrendRsi\":55,\"maxAtrPct\":0.008},\"reason\":\"Market shows high volatility in top candidates (AERO, HYPE); slightly relaxing RSI and ATR constraints to capture more entries while maintaining momentum bias.\"},{\"at\":\"2026-06-19T23:34:00.972Z\",\"status\":\"applied\",\"changes\":{\"minExpectedNetPct\":0.006,\"minVolumeRatio\":0.7,\"minTrendRsi\":52,\"minCandleStrength\":0.1},\"reason\":\"High volatility in top candidates (SLX, MYX, AERO) suggests relaxing entry requirements slightly to ensure capture of multiple momentum shifts during this active window.\"},{\"at\":\"2026-06-20T16:23:58.982Z\",\"status\":\"applied\",\"changes\":{\"minExpectedNetPct\":0.005,\"minVolumeRatio\":0.65,\"minTrendRsi\":50,\"maxAtrPct\":0.01},\"reason\":\"Market is active with multiple candidates like SOL and GOMINING showing healthy range; relaxing volume and RSI thresholds slightly to increase entry frequency across the window.\"}]}",
+    "lastPromptAt": "2026-06-21T13:22:50.537Z",
+    "lastPromptProvider": "nvidia",
+    "lastPromptModel": "google/diffusiongemma-26b-a4b-it",
+    "provider": "nvidia",
     "promptOverride": "Your role is top global spot trading to tune the bot for the next several trades over the next couple of hours.\n\nThese settings should aim for the best overall trading result during that window.\n\nOptimize for easy entry with healthy win rate, and enough opportunity capture across multiple trades, not just one trade.\n\nDo not become overly restrictive unless market conditions are clearly poor.\n\nFocus on market recap from rankedCandidates and minimalGlobalContext\n\nPrefer smart, deliberate changes over broad rewrites.\n\nIf conditions are mixed or unclear, keep changes minimal and explain the reason briefly.",
     "lastRawResponse": {
       "entryOverrides": {
-        "minExpectedNetPct": 0.005,
-        "minVolumeRatio": 0.75,
-        "minTrendRsi": 55,
-        "minAtrPct": 0.002,
-        "maxAtrPct": 0.008,
-        "maxEmaGapPct": 0.008,
-        "enableRsiBandFilter": false,
-        "enableCandleStrengthFilter": false,
-        "enablePriceExtensionFilter": false,
-        "enableRangeRecoveryFilter": false
+        "minExpectedNetPct": 0.004,
+        "minVolumeRatio": 0.6,
+        "minTrendRsi": 48,
+        "maxAtrPct": 0.015
       },
-      "reason": "Market shows mixed momentum with moderate upside; slightly raise thresholds and widen ATR band to improve entry quality while preserving multiple-trade opportunity capture."
+      "reason": "High momentum in top candidates (JTO, TRUMP, SOON) suggests relaxing entry filters to capture multiple trade opportunities while maintaining a bullish bias."
     },
     "lastRequestPayload": {
-      "provider": "openrouter",
-      "model": "inclusionai/ling-2.6-flash:free",
-      "endpoint": "https://openrouter.ai/api/v1/chat/completions",
+      "provider": "nvidia",
+      "model": "google/diffusiongemma-26b-a4b-it",
+      "endpoint": "https://integrate.api.nvidia.com/v1/chat/completions",
       "body": {
-        "model": "inclusionai/ling-2.6-flash:free",
+        "model": "google/diffusiongemma-26b-a4b-it",
         "messages": [
           {
             "role": "user",
-            "content": "Your role is top global spot trading to tune the bot for the next several trades over the next couple of hours.\n\nThese settings should aim for the best overall trading result during that window.\n\nOptimize for easy entry with healthy win rate, and enough opportunity capture across multiple trades, not just one trade.\n\nDo not become overly restrictive unless market conditions are clearly poor.\n\nFocus on market recap from rankedCandidates and minimalGlobalContext\n\nPrefer smart, deliberate changes over broad rewrites.\n\nIf conditions are mixed or unclear, keep changes minimal and explain the reason briefly.\n\nTune entryOverrides only. Do not change allowEntries, risk, sizing, pairs, botType, TP, SL, cooldown.\n\nReturn one valid JSON object only. No markdown. No extra text. Do not echo context.\n\nReturn only: {\"entryOverrides\":{<changed_fields_only>},\"reason\":\"<short_reason>\"}. Numbers for MARKET_FILTER_KEYS, booleans for QUALITY_FILTER_KEYS. Omit unchanged fields.\n\n{\"role\":{\"persona\":\"Senior crypto spot trader in 2026\",\"objective\":\"Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.\"},\"botContext\":{\"selectedBotType\":\"custom\",\"selectedMode\":\"custom\",\"signalTimeframe\":\"3min\",\"trendTimeframe\":\"15min\",\"minScalpTargetPct\":0.008,\"maxScalpTargetPct\":0.012,\"timeStopMinutes\":18,\"maxHoldMinutes\":30,\"breakEvenMinutes\":9,\"minConfirmation\":3,\"breakoutPct\":0.9985,\"requireEma21Rising\":true,\"requireFastTrend\":true,\"requirePriceAboveEma9\":true,\"requireEdge\":false,\"requireRsiMomentum\":false,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":true,\"enablePriceExtensionFilter\":true,\"enableRangeRecoveryFilter\":true},\"currentOverrides\":{\"minExpectedNetPct\":0.004,\"minVolumeRatio\":0.7,\"minTrendRsi\":50,\"minAtrPct\":0.0015,\"maxAtrPct\":0.01,\"maxEmaGapPct\":0.01,\"requireRsiMomentum\":false,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":true,\"enablePriceExtensionFilter\":true,\"enableRangeRecoveryFilter\":true,\"rsiBandLower\":32,\"rsiBandUpper\":75,\"minCandleStrength\":0.1,\"optimalRsiLow\":40,\"optimalRsiHigh\":70,\"optimalAtrLow\":0.0008,\"optimalAtrHigh\":0.012,\"minEmaGapNeg\":-0.004},\"rankedCandidates\":[{\"rank\":1,\"symbol\":\"BTCUSDT\",\"score\":14.697,\"chg\":-0.15,\"rng\":2.5953699800729533,\"active\":true},{\"rank\":2,\"symbol\":\"KATUSDT\",\"score\":14.108,\"chg\":8.53,\"rng\":18.596377749029763,\"active\":true},{\"rank\":3,\"symbol\":\"ETHUSDT\",\"score\":14.059,\"chg\":-1.034,\"rng\":3.9445354652210196,\"active\":true},{\"rank\":4,\"symbol\":\"PENGUUSDT\",\"score\":13.986,\"chg\":4.071000000000001,\"rng\":11.473385204396681,\"active\":true},{\"rank\":5,\"symbol\":\"APRUSDT\",\"score\":13.806,\"chg\":2.872,\"rng\":7.47273702401527,\"active\":true},{\"rank\":6,\"symbol\":\"LABUSDT\",\"score\":13.72,\"chg\":9.086,\"rng\":17.722233724191156,\"active\":true},{\"rank\":7,\"symbol\":\"HYPEUSDT\",\"score\":13.583,\"chg\":0.122,\"rng\":3.497891342098726,\"active\":true},{\"rank\":8,\"symbol\":\"GOMININGUSDT\",\"score\":13.465,\"chg\":2.1260000000000003,\"rng\":5.05715275372359,\"active\":true},{\"rank\":9,\"symbol\":\"USDCUSDT\",\"score\":13.367,\"chg\":0,\"rng\":0.040024014408651894,\"active\":true},{\"rank\":10,\"symbol\":\"DOGEUSDT\",\"score\":13.116,\"chg\":0.272,\"rng\":3.495695989922318,\"active\":true},{\"rank\":11,\"symbol\":\"XRPUSDT\",\"score\":13.062,\"chg\":-0.532,\"rng\":3.62000566732785,\"active\":true},{\"rank\":12,\"symbol\":\"BGBUSDT\",\"score\":12.984,\"chg\":-1.375,\"rng\":3.236127137312486,\"active\":true}],\"globalCtx\":{\"candidateCount\":82,\"activePairs\":15,\"avgChgPct\":1.999,\"avgRngPct\":6.729,\"topPairs\":15,\"categories\":\"bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)\"},\"constraints\":{\"allowed\":[\"entryOverrides\",\"reason\"],\"forbidden\":[\"allowEntries\",\"riskPercent\",\"sizing\",\"pairs\",\"botType\",\"TP\",\"SL\",\"cooldown\"]}}"
+            "content": "Your role is top global spot trading to tune the bot for the next several trades over the next couple of hours.\n\nThese settings should aim for the best overall trading result during that window.\n\nOptimize for easy entry with healthy win rate, and enough opportunity capture across multiple trades, not just one trade.\n\nDo not become overly restrictive unless market conditions are clearly poor.\n\nFocus on market recap from rankedCandidates and minimalGlobalContext\n\nPrefer smart, deliberate changes over broad rewrites.\n\nIf conditions are mixed or unclear, keep changes minimal and explain the reason briefly.\n\nTune entryOverrides only. Do not change allowEntries, risk, sizing, pairs, botType, TP, SL, cooldown.\n\nReturn one valid JSON object only. No markdown. No extra text. Do not echo context.\n\nReturn only: {\"entryOverrides\":{<changed_fields_only>},\"reason\":\"<short_reason>\"}. Numbers for MARKET_FILTER_KEYS, booleans for QUALITY_FILTER_KEYS. Omit unchanged fields.\n\n{\"role\":{\"persona\":\"Senior crypto spot trader in 2026\",\"objective\":\"Tune the bot for the next several trades over the next couple of hours, aiming for the best overall trading result during that temporary window.\"},\"botContext\":{\"selectedBotType\":\"custom\",\"selectedMode\":\"custom\",\"signalTimeframe\":\"3min\",\"trendTimeframe\":\"15min\",\"minScalpTargetPct\":0.008,\"maxScalpTargetPct\":0.012,\"timeStopMinutes\":18,\"maxHoldMinutes\":30,\"breakEvenMinutes\":9,\"minConfirmation\":3,\"breakoutPct\":0.9985,\"requireEma21Rising\":true,\"requireFastTrend\":true,\"requirePriceAboveEma9\":true,\"requireEdge\":false,\"requireRsiMomentum\":true,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":false,\"enablePriceExtensionFilter\":false,\"enableRangeRecoveryFilter\":false},\"currentOverrides\":{\"minExpectedNetPct\":0.005,\"minVolumeRatio\":0.65,\"minTrendRsi\":46,\"minAtrPct\":0.002,\"maxAtrPct\":0.018,\"maxEmaGapPct\":0.02,\"requireRsiMomentum\":true,\"requireBreakout\":true,\"enableRsiBandFilter\":true,\"enableAtrFilter\":true,\"enableVolumeFilter\":true,\"enableCandleStrengthFilter\":false,\"enablePriceExtensionFilter\":false,\"enableRangeRecoveryFilter\":false,\"rsiBandLower\":40,\"rsiBandUpper\":70,\"minCandleStrength\":0.1,\"optimalRsiLow\":45,\"optimalRsiHigh\":65,\"optimalAtrLow\":0.001,\"optimalAtrHigh\":0.02,\"minEmaGapNeg\":-0.004},\"rankedCandidates\":[{\"rank\":1,\"symbol\":\"JTOUSDT\",\"score\":15.182,\"chg\":4.803,\"rng\":9.920575453319353,\"active\":true},{\"rank\":2,\"symbol\":\"TRUMPUSDT\",\"score\":15.086,\"chg\":6.737,\"rng\":13.15345699831366,\"active\":true},{\"rank\":3,\"symbol\":\"GRAMUSDT\",\"score\":14.801,\"chg\":3.9829999999999997,\"rng\":5.853051058530501,\"active\":true},{\"rank\":4,\"symbol\":\"SOONUSDT\",\"score\":14.696,\"chg\":8.629000000000001,\"rng\":16.14518147684605,\"active\":true},{\"rank\":5,\"symbol\":\"SOLUSDT\",\"score\":14.48,\"chg\":0.765,\"rng\":5.561861520998867,\"active\":true},{\"rank\":6,\"symbol\":\"PUMPUSDT\",\"score\":14.42,\"chg\":6.2059999999999995,\"rng\":12.956068503350698,\"active\":true},{\"rank\":7,\"symbol\":\"BTCUSDT\",\"score\":14.345,\"chg\":-0.219,\"rng\":2.223968774763672,\"active\":true},{\"rank\":8,\"symbol\":\"UMXMUSDT\",\"score\":14.283,\"chg\":1.6680000000000001,\"rng\":4.21024505687457,\"active\":true},{\"rank\":9,\"symbol\":\"AVVUSDT\",\"score\":14.196,\"chg\":4.2250000000000005,\"rng\":10.287921348314617,\"active\":true},{\"rank\":10,\"symbol\":\"ETHUSDT\",\"score\":13.947,\"chg\":-0.8750000000000001,\"rng\":2.4206909067492437,\"active\":true},{\"rank\":11,\"symbol\":\"TAOUSDT\",\"score\":13.323,\"chg\":1.337,\"rng\":7.171314741035852,\"active\":true},{\"rank\":12,\"symbol\":\"JUPUSDT\",\"score\":13.309,\"chg\":6.363,\"rng\":15.633008713480267,\"active\":true}],\"globalCtx\":{\"candidateCount\":63,\"activePairs\":15,\"avgChgPct\":3.635,\"avgRngPct\":8.795,\"topPairs\":15,\"categories\":\"bestVolume(×1.2), bestMomentum(×0.8), notOverextended(×1.5)\"},\"constraints\":{\"allowed\":[\"entryOverrides\",\"reason\"],\"forbidden\":[\"allowEntries\",\"riskPercent\",\"sizing\",\"pairs\",\"botType\",\"TP\",\"SL\",\"cooldown\"]},\"portfolio\":{\"openPositions\":0,\"maxPositions\":10,\"exposurePct\":0,\"unrealizedPnlPct\":null},\"tradeFeedback\":{\"sample\":20,\"winRate\":0.35,\"wins\":7,\"losses\":13,\"stopLosses\":2,\"staleTrades\":11,\"avgWinPct\":0.363,\"avgLossPct\":-0.244,\"totalNetPnlPct\":-4.654,\"aiProfile\":{\"sample\":20,\"winRate\":0.35,\"avgPnlPct\":-0.031}},\"decisionHistory\":[{\"at\":\"2026-06-19T17:37:01.235Z\",\"status\":\"applied\",\"changes\":{\"minExpectedNetPct\":0.007,\"minVolumeRatio\":0.75,\"minTrendRsi\":55,\"maxAtrPct\":0.008},\"reason\":\"Market shows high volatility in top candidates (AERO, HYPE); slightly relaxing RSI and ATR constraints to capture more entries while maintaining momentum bias.\"},{\"at\":\"2026-06-19T23:34:00.972Z\",\"status\":\"applied\",\"changes\":{\"minExpectedNetPct\":0.006,\"minVolumeRatio\":0.7,\"minTrendRsi\":52,\"minCandleStrength\":0.1},\"reason\":\"High volatility in top candidates (SLX, MYX, AERO) suggests relaxing entry requirements slightly to ensure capture of multiple momentum shifts during this active window.\"},{\"at\":\"2026-06-20T16:23:58.982Z\",\"status\":\"applied\",\"changes\":{\"minExpectedNetPct\":0.005,\"minVolumeRatio\":0.65,\"minTrendRsi\":50,\"maxAtrPct\":0.01},\"reason\":\"Market is active with multiple candidates like SOL and GOMINING showing healthy range; relaxing volume and RSI thresholds slightly to increase entry frequency across the window.\"}]}"
           }
         ],
-        "response_format": {
-          "type": "json_object"
-        },
         "max_tokens": 6000,
         "temperature": 0.2
       }
@@ -1243,98 +1342,98 @@
     "lastRankedCandidates": [
       {
         "rank": 1,
-        "symbol": "BTCUSDT",
-        "score": 14.697,
-        "chg": -0.15,
-        "rng": 2.5953699800729533,
+        "symbol": "JTOUSDT",
+        "score": 15.182,
+        "chg": 4.803,
+        "rng": 9.920575453319353,
         "active": true
       },
       {
         "rank": 2,
-        "symbol": "KATUSDT",
-        "score": 14.108,
-        "chg": 8.53,
-        "rng": 18.596377749029763,
+        "symbol": "TRUMPUSDT",
+        "score": 15.086,
+        "chg": 6.737,
+        "rng": 13.15345699831366,
         "active": true
       },
       {
         "rank": 3,
-        "symbol": "ETHUSDT",
-        "score": 14.059,
-        "chg": -1.034,
-        "rng": 3.9445354652210196,
+        "symbol": "GRAMUSDT",
+        "score": 14.801,
+        "chg": 3.9829999999999997,
+        "rng": 5.853051058530501,
         "active": true
       },
       {
         "rank": 4,
-        "symbol": "PENGUUSDT",
-        "score": 13.986,
-        "chg": 4.071000000000001,
-        "rng": 11.473385204396681,
+        "symbol": "SOONUSDT",
+        "score": 14.696,
+        "chg": 8.629000000000001,
+        "rng": 16.14518147684605,
         "active": true
       },
       {
         "rank": 5,
-        "symbol": "APRUSDT",
-        "score": 13.806,
-        "chg": 2.872,
-        "rng": 7.47273702401527,
+        "symbol": "SOLUSDT",
+        "score": 14.48,
+        "chg": 0.765,
+        "rng": 5.561861520998867,
         "active": true
       },
       {
         "rank": 6,
-        "symbol": "LABUSDT",
-        "score": 13.72,
-        "chg": 9.086,
-        "rng": 17.722233724191156,
+        "symbol": "PUMPUSDT",
+        "score": 14.42,
+        "chg": 6.2059999999999995,
+        "rng": 12.956068503350698,
         "active": true
       },
       {
         "rank": 7,
-        "symbol": "HYPEUSDT",
-        "score": 13.583,
-        "chg": 0.122,
-        "rng": 3.497891342098726,
+        "symbol": "BTCUSDT",
+        "score": 14.345,
+        "chg": -0.219,
+        "rng": 2.223968774763672,
         "active": true
       },
       {
         "rank": 8,
-        "symbol": "GOMININGUSDT",
-        "score": 13.465,
-        "chg": 2.1260000000000003,
-        "rng": 5.05715275372359,
+        "symbol": "UMXMUSDT",
+        "score": 14.283,
+        "chg": 1.6680000000000001,
+        "rng": 4.21024505687457,
         "active": true
       },
       {
         "rank": 9,
-        "symbol": "USDCUSDT",
-        "score": 13.367,
-        "chg": 0,
-        "rng": 0.040024014408651894,
+        "symbol": "AVVUSDT",
+        "score": 14.196,
+        "chg": 4.2250000000000005,
+        "rng": 10.287921348314617,
         "active": true
       },
       {
         "rank": 10,
-        "symbol": "DOGEUSDT",
-        "score": 13.116,
-        "chg": 0.272,
-        "rng": 3.495695989922318,
+        "symbol": "ETHUSDT",
+        "score": 13.947,
+        "chg": -0.8750000000000001,
+        "rng": 2.4206909067492437,
         "active": true
       },
       {
         "rank": 11,
-        "symbol": "XRPUSDT",
-        "score": 13.062,
-        "chg": -0.532,
-        "rng": 3.62000566732785,
+        "symbol": "TAOUSDT",
+        "score": 13.323,
+        "chg": 1.337,
+        "rng": 7.171314741035852,
         "active": true
       },
       {
         "rank": 12,
-        "symbol": "BGBUSDT",
-        "score": 12.984,
-        "chg": -1.375,
-        "rng": 3.236127137312486,
+        "symbol": "JUPUSDT",
+        "score": 13.309,
+        "chg": 6.363,
+        "rng": 15.633008713480267,
         "active": true
       }
     ],
@@ -1344,5 +1443,14 @@
       "instructions": "Your role is top global spot trading to tune the bot for the next several trades over the next couple of hours.\n\nThese settings should aim for the best overall trading result during that window.\n\nOptimize for easy entry with healthy win rate, and enough opportunity capture across multiple trades, not just one trade.\n\nDo not become overly restrictive unless market conditions are clearly poor.\n\nFocus on market recap from rankedCandidates and minimalGlobalContext\n\nPrefer smart, deliberate changes over broad rewrites.\n\nIf conditions are mixed or unclear, keep changes minimal and explain the reason briefly."
     },
     "openrouterModel": "inclusionai/ling-2.6-flash:free"
-  }
+  },
+  "futures": {
+    "leverage": 10,
+    "marginMode": "crossed",
+    "maxLeverage": 20,
+    "enableShorts": true,
+    "liquidationBufferPct": 0.15,
+    "fundingRateThreshold": 0.001
+  },
+  "tradingMode": "futures"
 }

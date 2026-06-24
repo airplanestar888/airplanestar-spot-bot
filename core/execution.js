@@ -50,6 +50,8 @@ function buildPositionMeta({
     profitActivationPct: Number.isFinite(profitActivationPct) ? profitActivationPct : null,
     profitActivationFloorPct: Number.isFinite(profitActivationFloorPct) ? profitActivationFloorPct : null,
     useDynamicTakeProfit: useDynamicTakeProfit === true,
+    side: bestEligible.side || "long",       // "long" or "short" for futures
+    isFutures: bestEligible.isFutures || false,
     entryTime: now,
     entryReason: {
       score: bestEligible.score,

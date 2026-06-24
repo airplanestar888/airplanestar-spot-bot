@@ -95,16 +95,23 @@ async function handleExitFlow({
         ? exitEval.currentPrice
         : resolvedCurrentPrice;
 
-      const exitResult = await safeExecute(async () => placeOrder(symbol, "sell", coinBal, null, exitPrice));
+      // Futures: close long = sell, close short = buy. Spot: always sell.
+      const exitSide = openPosition.side === "short" ? "buy" : "sell";
+      const isFuturesExit = openPosition.isFutures === true || openPosition.side === "short";
+      const exitResult = await safeExecute(async () => placeOrder(symbol, exitSide, coinBal, null, exitPrice, isFuturesExit));
       if (!exitResult.success) {
-        if (exitResult.skip) return { handledExit: true, lastHoldReportTime };
-        logEvent(LOG_FILE, "ERROR", `Exit failed: ${exitResult.error?.message || "unknown"}`);
-        return { handledExit: true, lastHoldReportTime };
+        if (exitResult.skip) {
+          logEvent(LOG_FILE, "WARN", `Exit skipped for ${symbol}: execution blocked`);
+        } else {
+          logEvent(LOG_FILE, "ERROR", `Exit failed for ${symbol}: ${exitResult.error?.message || "unknown"}`);
+        }
+        continue; // Check remaining positions instead of stopping
       }
 
       const orderResult = exitResult.result;
       if (!["FILLED", "PARTIAL"].includes(normalizeOrderStatus(orderResult.status))) {
-        throw new Error(`Exit order not executable: ${orderResult.status}`);
+        logEvent(LOG_FILE, "ERROR", `Exit order not executable for ${symbol}: ${orderResult.status}`);
+        continue; // Skip this position, check remaining
       }
       logEvent(
         LOG_FILE,
@@ -131,7 +138,11 @@ async function handleExitFlow({
       const exitValueUSDT = Number.isFinite(exitFillPrice) && exitFillPrice > 0 && exitQty > 0
         ? exitFillPrice * exitQty
         : 0;
-      const actualGrossPnlUSDT = exitValueUSDT - entryCostUSDT;
+      // Direction-aware PnL: long = exit-entry, short = entry-exit
+      const isShortPosition = openPosition.side === "short";
+      const actualGrossPnlUSDT = isShortPosition
+        ? entryCostUSDT - exitValueUSDT
+        : exitValueUSDT - entryCostUSDT;
       const actualGrossPnlFraction = entryCostUSDT > 0
         ? actualGrossPnlUSDT / entryCostUSDT
         : exitEval.pnl;
@@ -271,7 +282,7 @@ async function handleExitFlow({
 
       if (pnlFraction < 0) {
         state.lossStreak++;
-        state.lastTradeTime = now + config.lossCooldownMs;
+        state.lastTradeTime = now + (config.lossCooldownMs || config._effectiveCooldown || 600000);
       } else {
         state.lossStreak = 0;
       }

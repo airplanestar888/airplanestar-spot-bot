@@ -299,6 +299,9 @@ async function scanMarket(config, getCandles, logEvent) {
     const emaGapPct = ema9 > 0 ? (price - ema9) / ema9 : 0;
     const scalpTargetPct = Math.min(maxScalpTargetPct, Math.max(minScalpTargetPct, atrPct3 * dynamicTakeProfitAtrMultiplier));
     const expectedNetPct = scalpTargetPct - roundTripFeePct - slippageBufferPct;
+    // Edge gate: skip setups whose expected net (target minus round-trip cost) is too thin.
+    // minExpectedNetPct <= 0 disables the gate for backward compatibility.
+    const edgeOk = !Number.isFinite(minExpectedNetPct) || minExpectedNetPct <= 0 || expectedNetPct >= minExpectedNetPct;
 
     const fastTrendOk = ema9 > ema21_3;
     const ema21Rising = ema21_3 > ema21prev_3;
@@ -307,6 +310,20 @@ async function scanMarket(config, getCandles, logEvent) {
     const rsiBandOk = !enableRsiBandFilter || (rsi >= rsiBandLower && rsi <= rsiBandUpper);
     const atrOk = !enableAtrFilter || (atrPct3 >= minAtrPct && atrPct3 <= maxAtrPct);
     const candleStrong = bodyRatio >= minCandleStr;
+
+    // ===== SHORT CONDITIONS (futures only) =====
+    const fastTrendDown = ema9 < ema21_3;                    // Short-term EMA below long-term
+    const ema21Falling = ema21_3 < ema21prev_3;              // EMA21 declining
+    const priceBelowEma9 = price < ema9;                     // Price below short-term EMA
+    const rsiOverbought = rsi > 70;                          // RSI overbought zone
+    const rsiBearishMomentum = rsi < prevRsi;                // RSI declining
+    const recentLow = Math.min(...lows3.slice(-6, -1));
+    const breakdownOk = Number.isFinite(recentLow) ? price <= recentLow * (2 - Math.min(breakoutPct, 0.9975)) : false;
+    const candleWeak = close < open && bodyRatio >= minCandleStr; // Bearish candle
+    const shortTrendOk = fastTrendDown && ema21Falling;       // Downtrend confirmed
+    const shortEligible = shortTrendOk && priceBelowEma9 && (rsiOverbought || rsiBearishMomentum) && candleWeak;
+    const shortScore = (fastTrendDown ? 2 : 0) + (ema21Falling ? 2 : 0) + (priceBelowEma9 ? 1 : 0) +
+      (rsiOverbought ? 2 : 0) + (rsiBearishMomentum ? 1 : 0) + (breakdownOk ? 2 : 0) + (candleWeak ? 1 : 0);
     const priceNotExtended = emaGapPct >= -minEmaGapNeg && emaGapPct <= maxEmaGapPct;
     const rangeRecoveryOk = !enableRangeRecoveryFilter || (price >= ema9 * 0.998 && rsiMomentumOk && emaGapPct <= Math.max(maxEmaGapPct * 0.5, 0.004));
     const candleStrengthOk = !enableCandleStrengthFilter || candleStrong;
@@ -343,7 +360,7 @@ async function scanMarket(config, getCandles, logEvent) {
           (priceExtensionOk ? 1 : 0) +
           (volumeOk ? 1 : 0) +
           (breakoutSignalOk ? 1 : 0);
-    const eligible = baseTrend && entrySignal && confirmation >= minConf;
+    const eligible = baseTrend && entrySignal && edgeOk && confirmation >= minConf;
 
     const signalLiveWeight = computeSignalLiveWeight({
       trendWeight: trendLiveWeight,
@@ -396,6 +413,7 @@ async function scanMarket(config, getCandles, logEvent) {
     if (enableCandleStrengthFilter && !candleStrong) failed.push("candle strength");
     if (enablePriceExtensionFilter && !priceNotExtended) failed.push("price extended");
     if (enableVolumeFilter && !volumeOk) failed.push(`volume ratio (${volumeRatio.toFixed(2)}x)`);
+    if (!edgeOk) failed.push(`expected net too thin (${typeof expectedNetPct === 'number' ? (expectedNetPct*100).toFixed(2) : 'N/A'}% < ${(minExpectedNetPct*100).toFixed(2)}%)`);
     const rotationCandidates = Array.isArray(config.lastAutoPairRotation?.candidates) ? config.lastAutoPairRotation.candidates : [];
     const rotationIndex = rotationCandidates.findIndex((item) => item?.symbol === symbol);
     const rotationRankBoost = rotationIndex >= 0 ? Math.max(0.5, 2.5 - rotationIndex * 0.12) : 0;
@@ -416,7 +434,7 @@ async function scanMarket(config, getCandles, logEvent) {
       rawScore: Number(rawScore.toFixed(2)),
       eligible,
       rsi,
-      atr,          // BUG2: store atr (raw)
+      atr,
       atrPct: atrPct3,
       price,
       trendOk15,
@@ -433,10 +451,21 @@ async function scanMarket(config, getCandles, logEvent) {
       volumeRatio,
       emaGapPct,
       expectedNetPct,
+      edgeOk,
       scalpTargetPct,
       dynamicTakeProfitPct: scalpTargetPct,
       liveWeight: signalLiveWeight,
-      failed
+      failed,
+      // Short data for futures
+      shortScore,
+      shortEligible,
+      shortTrendOk,
+      fastTrendDown,
+      ema21Falling,
+      priceBelowEma9,
+      rsiOverbought,
+      breakdownOk,
+      candleWeak
     });
 
     // Optional debug only (disabled by default)
@@ -458,7 +487,9 @@ async function scanMarket(config, getCandles, logEvent) {
 
   const bullishCount = bullishFlags15.filter(Boolean).length;
   const avgAtrPct = atrPcts15.length ? atrPcts15.reduce((a,b)=>a+b,0)/atrPcts15.length : 0;
-  const bestEligible = entryCandidates.filter(s => s.eligible).sort((a,b) => b.score - a.score)[0] || null; // BUG1: highest score
+  const bestEligible = entryCandidates.filter(s => s.eligible).sort((a,b) => b.score - a.score)[0] || null;
+  // Best short candidate: highest shortScore among shortEligible pairs
+  const bestShortEligible = entryCandidates.filter(s => s.shortEligible).sort((a,b) => b.shortScore - a.shortScore)[0] || null;
   const topEntryCandidate = entryCandidates.reduce((a, b) => {
     if (!a) return b;
     return Number(a.score) > Number(b.score) ? a : b;
@@ -491,11 +522,12 @@ async function scanMarket(config, getCandles, logEvent) {
   return {
     marketData,
     bestEligible,
+    bestShortEligible,
     topScoring,
     watchlist,
     marketMode,
     volatilityState,
-    entryCandidates   // tambahkan
+    entryCandidates
   };
 }
 
@@ -534,11 +566,15 @@ async function evaluateExit(position, balances, config, getCandles) {
   if (!candles || candles.length < 2) return null;
   const closes = candles.map(c => parseFloat(c[4]));
   const highs = candles.map(c => parseFloat(c[2]));
+  const lows = candles.map(c => parseFloat(c[3]));
   const price = closes[closes.length-1];
   const prevClose = closes[closes.length-2];
   const rsi = RSI(closes);
   const prevRsi = RSI(closes.slice(0,-1));
-  const pnl = (price - entry) / entry;
+  // Direction-aware PnL: long = (price-entry)/entry, short = (entry-price)/entry
+  const posSide = position.side || "long";
+  const isShort = posSide === "short";
+  const pnl = isShort ? (entry - price) / entry : (price - entry) / entry;
   const roundTripFeePct = config._effectiveRoundTripFeePct ?? config.roundTripFeePct ?? 0.004;
   const slippageBufferPct = config._effectiveSlippageBufferPct ?? config.slippageBufferPct ?? 0.001;
   const estimatedNetPnl = pnl - roundTripFeePct - slippageBufferPct;
@@ -552,12 +588,15 @@ async function evaluateExit(position, balances, config, getCandles) {
   const latestCandleCloseTime = Array.isArray(latestCandle) && exitTimeframeMs > 0
     ? Number(latestCandle[0]) + exitTimeframeMs
     : 0;
-  // Only trust candle high for peak tracking when that candle closed after entry.
-  // Otherwise a just-bought position can inherit a pre-entry high and false-trigger trailing.
+  // Only trust candle high/low for peak tracking when that candle closed after entry.
   const candleClosedAfterEntry = Number.isFinite(latestCandleCloseTime) && latestCandleCloseTime > entryTimeMs;
+  // For longs: track highest price (peak). For shorts: track lowest price (trough = best for short).
   const currentHigh = candleClosedAfterEntry && Number.isFinite(highs[highs.length - 1]) ? highs[highs.length - 1] : price;
-  const effectivePeak = Math.max(priorPeak, price, currentHigh);
-  const peakPnl = (effectivePeak - entry) / entry;
+  const currentLow = candleClosedAfterEntry && Number.isFinite(lows[lows.length - 1]) ? lows[lows.length - 1] : price;
+  const effectivePeak = isShort
+    ? Math.min(priorPeak, price, currentLow)  // For shorts, "peak" = lowest price seen
+    : Math.max(priorPeak, price, currentHigh); // For longs, "peak" = highest price seen
+  const peakPnl = isShort ? (entry - effectivePeak) / entry : (effectivePeak - entry) / entry;
   const peakEstimatedNetPnl = peakPnl - roundTripFeePct - slippageBufferPct;
   // Case-insensitive balance lookup
   const coinKey = symbol.replace("USDT","").toLowerCase();
@@ -620,6 +659,21 @@ async function evaluateExit(position, balances, config, getCandles) {
   const profitActivationArmed = dynamicTakeProfitEnabled && peakPnl >= activationPct;
   const emergencySL = pnl <= config.emergencyStopLossPct;
   const normalSL = pnl <= stopPct && !useTrailing;
+
+  // Liquidation protection for futures positions
+  const liqPrice = Number(position.liquidationPrice || 0);
+  const liqBufferPct = config.futures?.liquidationBufferPct || 0.15;
+  let liquidationDanger = false;
+  if (liqPrice > 0) {
+    if (isShort) {
+      // Short: liquidation when price rises to liqPrice
+      liquidationDanger = price >= liqPrice * (1 - liqBufferPct);
+    } else {
+      // Long: liquidation when price drops to liqPrice
+      liquidationDanger = price <= liqPrice * (1 + liqBufferPct);
+    }
+  }
+
   const momentumFailure =
     !costGuardBlocksSoftExit &&
     !costGuardArmed &&
@@ -635,7 +689,10 @@ async function evaluateExit(position, balances, config, getCandles) {
     rsi > config.exitRSIThreshold &&
     rsi < prevRsi &&
     price < prevClose;
-  const drawdownFromPeak = effectivePeak > 0 ? (price - effectivePeak) / effectivePeak : 0;
+  // Direction-aware drawdown: long = price drops from peak, short = price rises from trough
+  const drawdownFromPeak = isShort
+    ? (effectivePeak > 0 ? (effectivePeak - price) / effectivePeak : 0)
+    : (effectivePeak > 0 ? (price - effectivePeak) / effectivePeak : 0);
   const trailingExit = !costGuardBlocksSoftExit && trailingAgeReady && useTrailing && drawdownFromPeak <= -config.trailingDrawdownPct;
   const trailingProtection = !costGuardBlocksSoftExit && trailingAgeReady && useTrailing && pnl < config.trailingProtectionPct;
   const profitActivationExit =
@@ -731,10 +788,12 @@ async function evaluateExit(position, balances, config, getCandles) {
     momentumFailure,
     rsiBlowoffExit,
     trailingExit,
-    trailingProtection
+    trailingProtection,
+    liquidationDanger
   };
 
   if (takeProfitHit) return { exit: true, reason: "Take Profit", pnl, qty: exitQty, currentPrice: price, drawdownFromPeak, peakPnlPct: peakPnl * 100, diagnostics };
+  if (liquidationDanger) return { exit: true, reason: "Liquidation Protection", pnl, qty: exitQty, currentPrice: price, drawdownFromPeak, peakPnlPct: peakPnl * 100, diagnostics };
   if (emergencySL) return { exit: true, reason: "Emergency SL", pnl, qty: exitQty, currentPrice: price, drawdownFromPeak, peakPnlPct: peakPnl * 100, diagnostics };
   if (normalSL) return { exit: true, reason: "ATR Stop Loss", pnl, qty: exitQty, currentPrice: price, drawdownFromPeak, peakPnlPct: peakPnl * 100, diagnostics };
   if (profitActivationExit) return { exit: true, reason: "DTP Fallback", pnl, qty: exitQty, currentPrice: price, drawdownFromPeak, peakPnlPct: peakPnl * 100, diagnostics };

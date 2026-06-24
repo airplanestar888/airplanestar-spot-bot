@@ -88,6 +88,89 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// ================= TRADE FEEDBACK & HISTORY =================
+
+function buildTradeSummary(lookback = 20) {
+  try {
+    const journalPath = path.join(__dirname, "..", "data", "trade_journal.json");
+    if (!fs.existsSync(journalPath)) return null;
+    const raw = fs.readFileSync(journalPath, "utf8").trim();
+    if (!raw) return null;
+    const journal = JSON.parse(raw);
+    if (!Array.isArray(journal)) return null;
+
+    const closed = journal.filter(t => t && t.status === "closed").slice(-lookback);
+    if (!closed.length) return null;
+
+    const wins = closed.filter(t => Number(t.metrics?.grossPnlPct ?? t.metrics?.netPnlEstPct ?? 0) > 0);
+    const losses = closed.filter(t => Number(t.metrics?.grossPnlPct ?? t.metrics?.netPnlEstPct ?? 0) <= 0);
+    const stopLosses = closed.filter(t => {
+      const reason = String(t.exit?.reason || "").toLowerCase();
+      return reason.includes("emergency sl") || reason.includes("atr stop loss");
+    });
+    const staleTrades = closed.filter(t => String(t.exit?.reason || "").toLowerCase().includes("stale trade"));
+
+    const avgPnl = (arr, field) => {
+      const vals = arr.map(t => Number(t.metrics?.[field] ?? 0)).filter(Number.isFinite);
+      return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : 0;
+    };
+
+    // AI-specific trades
+    const aiTrades = closed.filter(t => t.marketProfile === "ai_agent");
+    const aiWins = aiTrades.filter(t => Number(t.metrics?.grossPnlPct ?? 0) > 0);
+
+    const result = {
+      sample: closed.length,
+      winRate: closed.length ? Number((wins.length / closed.length).toFixed(2)) : 0,
+      wins: wins.length,
+      losses: losses.length,
+      stopLosses: stopLosses.length,
+      staleTrades: staleTrades.length,
+      avgWinPct: Number(avgPnl(wins, "grossPnlPct").toFixed(3)),
+      avgLossPct: Number(avgPnl(losses, "grossPnlPct").toFixed(3)),
+      totalNetPnlPct: Number(closed.reduce((s, t) => s + Number(t.metrics?.netPnlEstPct ?? t.metrics?.grossPnlPct ?? 0), 0).toFixed(3))
+    };
+
+    if (aiTrades.length > 0) {
+      result.aiProfile = {
+        sample: aiTrades.length,
+        winRate: Number((aiWins.length / aiTrades.length).toFixed(2)),
+        avgPnlPct: Number(avgPnl(aiTrades, "grossPnlPct").toFixed(3))
+      };
+    }
+
+    return result;
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildDecisionHistory(count = 3) {
+  try {
+    const statePath = path.join(__dirname, "..", "data", "ai_agent_state.jsonl");
+    if (!fs.existsSync(statePath)) return [];
+    const lines = fs.readFileSync(statePath, "utf8").trim().split("\n").filter(Boolean);
+    if (!lines.length) return [];
+
+    const recent = [];
+    for (let i = lines.length - 1; i >= 0 && recent.length < count; i--) {
+      try {
+        const entry = JSON.parse(lines[i]);
+        if (!entry?.decision) continue;
+        recent.unshift({
+          at: entry.at,
+          status: entry.status,
+          changes: entry.decision.entryOverrides || {},
+          reason: entry.decision.reason || ""
+        });
+      } catch (_) {}
+    }
+    return recent;
+  } catch (_) {
+    return [];
+  }
+}
+
 function sanitizePromptInstructions(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -133,6 +216,8 @@ function getAiAgentSettings(config) {
     model: process.env.OPENAI_MODEL || raw.model || "gpt-5-mini",
     geminiModel: process.env.GEMINI_MODEL || raw.geminiModel || "gemini-2.5-flash",
     openrouterModel: process.env.OPENROUTER_MODEL || raw.openrouterModel || "openai/gpt-5-mini",
+    nvidiaModel: process.env.NVIDIA_MODEL || raw.nvidiaModel || "meta/llama-3.1-8b-instruct",
+    nvidiaBaseUrl: process.env.NVIDIA_BASE_URL || raw.nvidiaBaseUrl || "https://integrate.api.nvidia.com/v1",
     timeoutMs: Math.max(3000, Math.min(20000, Number(process.env.AI_AGENT_TIMEOUT_MS || raw.timeoutMs || 8000))),
     retryAttempts: Math.max(1, Math.min(3, Number(process.env.AI_AGENT_RETRY_ATTEMPTS || raw.retryAttempts || 3))),
     allowMarketFilters: allowed.marketFilters !== false,
@@ -243,7 +328,7 @@ function normalizeRotationCandidates(candidates) {
     );
 }
 
-function buildPrompt({ config, rotation, candidates }) {
+function buildPrompt({ config, rotation, candidates, context }) {
   const promptConfig = getPromptConfig(config);
   const activePairSet = new Set(Array.isArray(rotation?.activePairs) ? rotation.activePairs : []);
   // Kurangi dari 20 ke 12 kandidat untuk hemat token
@@ -253,11 +338,65 @@ function buildPrompt({ config, rotation, candidates }) {
     score: Number(item.score?.toFixed ? item.score.toFixed(3) : item.score),
     chg: item.changePct,
     rng: item.rangePct,
-    active: activePairSet.has(item.symbol)
+    active: activePairSet.has(item.symbol),
+    // Enriched: per-candidate indicators jika tersedia
+    ...(item.rsi != null ? { rsi: Number(Number(item.rsi).toFixed(1)) } : {}),
+    ...(item.atrPct != null ? { atrPct: Number(Number(item.atrPct).toFixed(4)) } : {})
   }));
   const aiAgentProfile = isPlainObject(config.marketProfiles?.[AI_AGENT_PROFILE_KEY])
     ? config.marketProfiles[AI_AGENT_PROFILE_KEY]
     : {};
+
+  // Build enriched context sections
+  const ctx = context || {};
+  const enrichedSections = {};
+
+  // Market regime
+  if (ctx.marketMode || ctx.volatilityState) {
+    enrichedSections.marketRegime = {
+      mode: ctx.marketMode || "Unknown",
+      volatility: ctx.volatilityState || "Unknown"
+    };
+  }
+
+  // Portfolio state
+  if (ctx.openPositions != null || ctx.exposurePct != null) {
+    enrichedSections.portfolio = {
+      openPositions: Number(ctx.openPositions || 0),
+      maxPositions: config.maxOpenPositions || 1,
+      exposurePct: ctx.exposurePct != null ? Number(Number(ctx.exposurePct).toFixed(3)) : null,
+      unrealizedPnlPct: ctx.unrealizedPnlPct != null ? Number(Number(ctx.unrealizedPnlPct).toFixed(3)) : null
+    };
+  }
+
+  // Trade feedback
+  if (ctx.tradeFeedback) {
+    enrichedSections.tradeFeedback = ctx.tradeFeedback;
+  }
+
+  // Decision history
+  if (Array.isArray(ctx.decisionHistory) && ctx.decisionHistory.length > 0) {
+    enrichedSections.decisionHistory = ctx.decisionHistory;
+  }
+
+  // Indicator snapshot from entry candidates
+  if (Array.isArray(ctx.entryCandidates) && ctx.entryCandidates.length > 0) {
+    const rsis = ctx.entryCandidates.map(c => Number(c.rsi)).filter(Number.isFinite);
+    const atrs = ctx.entryCandidates.map(c => Number(c.atrPct)).filter(Number.isFinite);
+    const vols = ctx.entryCandidates.map(c => Number(c.volumeRatio)).filter(Number.isFinite);
+    if (rsis.length || atrs.length) {
+      const sortedRsi = rsis.sort((a, b) => a - b);
+      const sortedAtr = atrs.sort((a, b) => a - b);
+      enrichedSections.indicatorSnapshot = {
+        candidateCount: ctx.entryCandidates.length,
+        eligibleCount: ctx.entryCandidates.filter(c => c.eligible).length,
+        ...(rsis.length ? { rsiRange: [sortedRsi[0], sortedRsi[sortedRsi.length - 1]], medianRsi: sortedRsi[Math.floor(sortedRsi.length / 2)] } : {}),
+        ...(atrs.length ? { atrRange: [Number(sortedAtr[0].toFixed(4)), Number(sortedAtr[sortedAtr.length - 1].toFixed(4))] } : {}),
+        ...(vols.length ? { avgVolumeRatio: Number((vols.reduce((s, v) => s + v, 0) / vols.length).toFixed(2)) } : {})
+      };
+    }
+  }
+
   // Kirim nilai langsung tanpa wrapper {value, meaning} untuk hemat token
   const richContext = {
     role: {
@@ -302,7 +441,9 @@ function buildPrompt({ config, rotation, candidates }) {
     constraints: {
       allowed: ["entryOverrides", "reason"],
       forbidden: ["allowEntries", "riskPercent", "sizing", "pairs", "botType", "TP", "SL", "cooldown"]
-    }
+    },
+    // Enriched sections — backward compatible (hanya muncul jika data tersedia)
+    ...enrichedSections
   };
 
   // Instruksi output diringkas jadi satu baris — hemat ~300 token dari expectedOutputSchema
@@ -414,7 +555,35 @@ async function askOpenRouter({ apiKey, model, timeoutMs, prompt }) {
   return parseJson(res.data?.choices?.[0]?.message?.content || "");
 }
 
-function buildRequestPayload({ provider, model, geminiModel, openrouterModel, prompt }) {
+async function askNvidia({ apiKey, model, timeoutMs, prompt, baseUrl }) {
+  const endpoint = `${(baseUrl || "https://integrate.api.nvidia.com/v1").replace(/\/+$/, "")}/chat/completions`;
+  const payload = {
+    model,
+    messages: [
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    max_tokens: 6000,
+    temperature: 0.2
+  };
+  const res = await axios.post(
+    endpoint,
+    payload,
+    {
+      timeout: timeoutMs,
+      proxy: false,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      }
+    }
+  );
+  return parseJson(res.data?.choices?.[0]?.message?.content || "");
+}
+
+function buildRequestPayload({ provider, model, geminiModel, openrouterModel, nvidiaModel, nvidiaBaseUrl, prompt }) {
   if (provider === "gemini") {
     return {
       provider,
@@ -448,6 +617,25 @@ function buildRequestPayload({ provider, model, geminiModel, openrouterModel, pr
         ],
         response_format: { type: "json_object" },
         max_tokens: OPENROUTER_MAX_TOKENS,
+        temperature: 0.2
+      }
+    };
+  }
+  if (provider === "nvidia") {
+    const baseUrl = (nvidiaBaseUrl || "https://integrate.api.nvidia.com/v1").replace(/\/+$/, "");
+    return {
+      provider,
+      model: nvidiaModel,
+      endpoint: `${baseUrl}/chat/completions`,
+      body: {
+        model: nvidiaModel,
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        max_tokens: 6000,
         temperature: 0.2
       }
     };
@@ -597,7 +785,12 @@ function appendAiAgentState(entry) {
     const filePath = path.join(__dirname, "..", "data", "ai_agent_state.jsonl");
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, "utf8");
-  } catch (_) {}
+  } catch (err) {
+    try {
+      const logPath = path.join(__dirname, "..", "logs", "bot.log");
+      fs.appendFileSync(logPath, `[${new Date().toISOString()}] WARN | AI Agent state append failed: ${err.message}\n`, "utf8");
+    } catch (_) {}
+  }
 }
 
 function buildReport(lastDecision) {
@@ -626,7 +819,7 @@ function buildReport(lastDecision) {
     `Time: ${timeLabel}`
   ].join("\n");
 }
-async function runAiAgentAfterRotation({ config, rotation, candidates, now = Date.now(), report, log }) {
+async function runAiAgentAfterRotation({ config, rotation, candidates, now = Date.now(), report, log, context }) {
   if (!isPlainObject(config.aiAgent)) config.aiAgent = {};
   const settings = getAiAgentSettings(config);
   if (!settings.enabled) {
@@ -655,14 +848,18 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
       ? process.env.GEMINI_API_KEY
       : settings.provider === "openrouter"
         ? process.env.OPENROUTER_API_KEY
-        : process.env.OPENAI_API_KEY;
+        : settings.provider === "nvidia"
+          ? process.env.NVIDIA_API_KEY
+          : process.env.OPENAI_API_KEY;
   if (!apiKey) {
     const missingKey =
       settings.provider === "gemini"
         ? "GEMINI_API_KEY missing"
         : settings.provider === "openrouter"
           ? "OPENROUTER_API_KEY missing"
-          : "OPENAI_API_KEY missing";
+          : settings.provider === "nvidia"
+            ? "NVIDIA_API_KEY missing"
+            : "OPENAI_API_KEY missing";
     config.aiAgent.lastDecision = {
       at: new Date(now).toISOString(),
       status: "skipped",
@@ -673,13 +870,25 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
   }
 
   try {
-    const builtPrompt = buildPrompt({ config, rotation, candidates: rotationCandidates });
+    // Enrich context with trade feedback and decision history
+    const enrichedContext = { ...(context || {}) };
+    if (config.aiAgent?.includeTradeFeedback !== false && !enrichedContext.tradeFeedback) {
+      const lookback = Number(config.aiAgent?.feedbackLookbackTrades || 20);
+      enrichedContext.tradeFeedback = buildTradeSummary(lookback);
+    }
+    if (!enrichedContext.decisionHistory || !enrichedContext.decisionHistory.length) {
+      enrichedContext.decisionHistory = buildDecisionHistory(3);
+    }
+
+    const builtPrompt = buildPrompt({ config, rotation, candidates: rotationCandidates, context: enrichedContext });
     const prompt = builtPrompt.prompt;
     const requestPayload = buildRequestPayload({
       provider: settings.provider,
       model: settings.model,
       geminiModel: settings.geminiModel,
       openrouterModel: settings.openrouterModel,
+      nvidiaModel: settings.nvidiaModel,
+      nvidiaBaseUrl: settings.nvidiaBaseUrl,
       prompt
     });
     config.aiAgent.lastSystemPrompt = "";
@@ -693,7 +902,9 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
       ? settings.geminiModel
       : settings.provider === "openrouter"
         ? settings.openrouterModel
-        : settings.model;
+        : settings.provider === "nvidia"
+          ? settings.nvidiaModel
+          : settings.model;
     config.aiAgent.lastRawResponse = null;
     let decision = null;
     let lastError = null;
@@ -705,6 +916,8 @@ async function runAiAgentAfterRotation({ config, rotation, candidates, now = Dat
           ? await askGemini({ apiKey, model: settings.geminiModel, timeoutMs: settings.timeoutMs, prompt })
           : settings.provider === "openrouter"
             ? await askOpenRouter({ apiKey, model: settings.openrouterModel, timeoutMs: settings.timeoutMs, prompt })
+            : settings.provider === "nvidia"
+              ? await askNvidia({ apiKey, model: settings.nvidiaModel, timeoutMs: settings.timeoutMs, prompt, baseUrl: settings.nvidiaBaseUrl })
           : await askOpenAi({ apiKey, model: settings.model, timeoutMs: settings.timeoutMs, prompt });
         config.aiAgent.lastRawResponse = raw;
         decision = validateDecision(raw, settings);

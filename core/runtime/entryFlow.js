@@ -5,6 +5,7 @@ async function handleEntryFlow({
   marketMode,
   volatilityState,
   bestEligible,
+  bestShortEligible,
   usdtFree,
   currentEquity,
   now,
@@ -28,13 +29,99 @@ async function handleEntryFlow({
   logEvent,
   LOG_FILE,
   safeToFixed,
-  cachedPrices
+  cachedPrices,
+  request,
+  futures
 }) {
   const calcBuySlippagePct = (intendedPrice, fillPrice) => {
     if (!Number.isFinite(intendedPrice) || intendedPrice <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) return null;
     return Math.max(0, (fillPrice - intendedPrice) / intendedPrice);
   };
 
+  // ===== SHARED: finalize entry after order fill =====
+  async function finalizeEntry({
+    orderResult,
+    entryPrice,
+    entryQty,
+    entrySizeUSDT,
+    entryPriceSource,
+    intendedPrice,
+    plannedSize,
+    positionMeta,
+    buyReasons,
+    positionTakeProfitPct,
+    profitActivationPct,
+    stopPct,
+    usdtFreeAfterBuy
+  }) {
+    const entrySlippagePct = calcBuySlippagePct(intendedPrice, entryPrice);
+    const entryFeeAmount = Number.isFinite(orderResult.feeAmount) ? Number(orderResult.feeAmount) : null;
+    const entryFeeCoin = orderResult.feeCoin || null;
+    const entryFeeUSDT = Number.isFinite(orderResult.feeUSDT) ? Number(orderResult.feeUSDT) : null;
+
+    state.positions = [...(state.positions || []).filter(Boolean), positionMeta];
+    state.position = state.positions[0] || null;
+    state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
+    state.recentEntriesBySymbol[candidate.symbol] = {
+      at: now,
+      entry: positionMeta.entry,
+      qty: positionMeta.qty,
+      sizeUSDT: positionMeta.sizeUSDT
+    };
+    state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
+    saveState(STATE_PATH, state);
+
+    await report(reporting.buildBuyReport(
+      candidate.symbol,
+      positionMeta.entry,
+      positionMeta.sizeUSDT,
+      positionMeta.qty,
+      stopPct,
+      config.emergencyStopLossPct,
+      config.trailingActivationPct,
+      usdtFreeAfterBuy,
+      buyReasons,
+      positionTakeProfitPct,
+      profitActivationPct
+    ));
+
+    logEvent(LOG_FILE, "INFO", `Reconciled entry for ${candidate.symbol}: entry=${safeToFixed(positionMeta.entry, 6)} qty=${safeToFixed(positionMeta.qty, 6)} source=${entryPriceSource}`);
+
+    logTrade({
+      type: "entry",
+      source: "signal",
+      botType: config.activeBotType || config.selectedBotType || "",
+      mode: config.activeMode || config.selectedMode || "",
+      marketProfile: scanConfig.activeMarketProfile || config.selectedMarketProfile || "",
+      marketProfileMode: config.marketProfileMode || "",
+      pair: candidate.symbol,
+      side: entrySide,
+      price: positionMeta.entry,
+      intendedPrice,
+      fillPrice: entryPrice,
+      slippagePct: entrySlippagePct != null ? entrySlippagePct * 100 : null,
+      feeAmount: entryFeeAmount,
+      feeCoin: entryFeeCoin,
+      feeUSDT: entryFeeUSDT,
+      qty: positionMeta.qty,
+      sizeUSDT: positionMeta.sizeUSDT,
+      reason: (positionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
+      entry_rsi: candidate.rsi,
+      entry_atrPct: candidate.atrPct,
+      entry_score: candidate.score,
+      entry_marketMode: marketMode,
+      entry_volatility: volatilityState,
+      fillsUsed: orderResult.fillsUsed === true,
+      reconcileLatencyMs: orderResult.reconcileLatencyMs ?? null
+    });
+
+    return {
+      handled: true,
+      currentPositionPrice: entryPrice > 0 ? entryPrice : 0
+    };
+  }
+
+  // ===== ENTRY GATE CHECKS =====
   const positions = Array.isArray(state.positions)
     ? state.positions.filter(Boolean)
     : (state.position ? [state.position] : []);
@@ -53,36 +140,56 @@ async function handleEntryFlow({
     saveState(STATE_PATH, state);
     return { handled: true };
   }
-  if (!bestEligible) return { handled: true };
-  const activeEntryBlock = state.entryBlockBySymbol?.[bestEligible.symbol];
+
+  // ===== SHORT ENTRY DECISION (futures only) =====
+  const isFutures = config.tradingMode === "futures";
+  const shortsEnabled = isFutures && config.futures?.enableShorts !== false;
+  const bearishMarket = ["Bearish", "Choppy"].includes(marketMode);
+  const useShort = shortsEnabled && bearishMarket && bestShortEligible && !bestEligible;
+
+  // Select candidate: short or long
+  const candidate = useShort ? bestShortEligible : bestEligible;
+  if (!candidate) return { handled: true };
+
+  // Set direction fields for futures
+  if (useShort) {
+    candidate.side = "short";
+    candidate.isFutures = true;
+    logEvent(LOG_FILE, "INFO", `SHORT entry candidate: ${candidate.symbol} (shortScore=${candidate.shortScore}, marketMode=${marketMode})`);
+  } else if (isFutures) {
+    candidate.side = "long";
+    candidate.isFutures = true;
+  }
+
+  const activeEntryBlock = state.entryBlockBySymbol?.[candidate.symbol];
   if (activeEntryBlock && Number(activeEntryBlock.until || 0) > now) {
     const minsLeft = Math.max(1, Math.ceil((Number(activeEntryBlock.until) - now) / 60000));
     logEvent(
       LOG_FILE,
       "INFO",
-      `Skipping entry ${bestEligible.symbol}: reentry blocked ${minsLeft}m after ${activeEntryBlock.reason || "loss"} (${safeToFixed(activeEntryBlock.pnlPct, 2)}%)`
+      `Skipping entry ${candidate.symbol}: reentry blocked ${minsLeft}m after ${activeEntryBlock.reason || "loss"} (${safeToFixed(activeEntryBlock.pnlPct, 2)}%)`
     );
     return { handled: true };
   }
-  if (heldSymbols.has(bestEligible.symbol)) {
-    logEvent(LOG_FILE, "DEBUG", `Skipping entry ${bestEligible.symbol}: already open`);
+  if (heldSymbols.has(candidate.symbol)) {
+    logEvent(LOG_FILE, "DEBUG", `Skipping entry ${candidate.symbol}: already open`);
     return { handled: true };
   }
   if (positions.length >= maxOpenPositions) {
-    logEvent(LOG_FILE, "DEBUG", `Skipping entry ${bestEligible.symbol}: max open positions reached (${positions.length}/${maxOpenPositions})`);
+    logEvent(LOG_FILE, "DEBUG", `Skipping entry ${candidate.symbol}: max open positions reached (${positions.length}/${maxOpenPositions})`);
     return { handled: true };
   }
   const remainingExposureUsdt = exposureCapUsdt > 0 ? Math.max(0, exposureCapUsdt - openExposureUsdt) : 0;
   if (remainingExposureUsdt < config.minBuyUSDT) {
-    logEvent(LOG_FILE, "DEBUG", `Skipping entry ${bestEligible.symbol}: exposure cap reached (${safeToFixed(openExposureUsdt, 2)}/${safeToFixed(exposureCapUsdt, 2)} USDT)`);
+    logEvent(LOG_FILE, "DEBUG", `Skipping entry ${candidate.symbol}: exposure cap reached (${safeToFixed(openExposureUsdt, 2)}/${safeToFixed(exposureCapUsdt, 2)} USDT)`);
     return { handled: true };
   }
-  if (typeof bestEligible.price !== "number" || !isFinite(bestEligible.price) || bestEligible.price <= 0) {
+  if (typeof candidate.price !== "number" || !isFinite(candidate.price) || candidate.price <= 0) {
     logEvent(LOG_FILE, "WARN", "Skipping entry: invalid price from signal");
     return { handled: true };
   }
-  const coinKey = String(bestEligible.symbol || "").replace(/USDT$/i, "").toLowerCase();
-  const livePrice = Number(cachedPrices?.[coinKey] ?? cachedPrices?.[bestEligible.symbol] ?? 0);
+  const coinKey = String(candidate.symbol || "").replace(/USDT$/i, "").toLowerCase();
+  const livePrice = Number(cachedPrices?.[coinKey] ?? cachedPrices?.[candidate.symbol] ?? 0);
   const maxEntryPriceDriftPct = Number(config.maxEntryPriceDriftPct ?? 0.006);
   if (
     Number.isFinite(livePrice) &&
@@ -90,24 +197,44 @@ async function handleEntryFlow({
     Number.isFinite(maxEntryPriceDriftPct) &&
     maxEntryPriceDriftPct > 0
   ) {
-    const liveDriftPct = (livePrice - bestEligible.price) / bestEligible.price;
+    const liveDriftPct = (livePrice - candidate.price) / candidate.price;
     if (Math.abs(liveDriftPct) > maxEntryPriceDriftPct) {
       logEvent(
         LOG_FILE,
         "INFO",
-        `Skipping entry ${bestEligible.symbol}: live price drift ${(liveDriftPct * 100).toFixed(2)}% exceeds max ${(maxEntryPriceDriftPct * 100).toFixed(2)}% (signal=${safeToFixed(bestEligible.price, 6)} live=${safeToFixed(livePrice, 6)})`
+        `Skipping entry ${candidate.symbol}: live price drift ${(liveDriftPct * 100).toFixed(2)}% exceeds max ${(maxEntryPriceDriftPct * 100).toFixed(2)}% (signal=${safeToFixed(candidate.price, 6)} live=${safeToFixed(livePrice, 6)})`
       );
       return { handled: true };
     }
   }
 
-  const entryPlan = buildEntryPlan({ usdtFree, bestEligible, config, maxAllowedSizeUSDT: remainingExposureUsdt });
+  // ===== FUTURES FUNDING RATE GUARD =====
+  // Skip entry when funding cost is too expensive for the intended direction.
+  // Longs pay when rate > 0; shorts pay when rate < 0. Cached 5min per symbol in futures module.
+  if (config.tradingMode === "futures" && futures && Number(config.futures?.fundingRateThreshold) > 0) {
+    const fundingRate = await futures.getLiveFundingRate(request, config, candidate.symbol);
+    const threshold = Number(config.futures.fundingRateThreshold);
+    if (Number.isFinite(fundingRate) && Number.isFinite(threshold)) {
+      const expensiveForDirection = useShort
+        ? fundingRate < -threshold
+        : fundingRate > threshold;
+      if (expensiveForDirection) {
+        logEvent(LOG_FILE, "INFO",
+          `Skipping entry ${candidate.symbol}: funding rate ${(fundingRate * 100).toFixed(4)}% exceeds ±${(threshold * 100).toFixed(4)}% for ${useShort ? "short" : "long"}`
+        );
+        return { handled: true };
+      }
+    }
+  }
+
+  // ===== BUILD ENTRY PLAN =====
+  const entryPlan = buildEntryPlan({ usdtFree, candidate, config, maxAllowedSizeUSDT: remainingExposureUsdt });
   if (!entryPlan) return { handled: true };
   const { reserveUSDT, plannedSize, estimatedQty, clientOrderId } = entryPlan;
   const sizeCapped = safeToFixed(plannedSize, 2);
   const dynamicTakeProfitEnabled = config.useDynamicTakeProfit === true;
   const baseTakeProfitPct = config._effectiveTakeProfitPct ?? config.takeProfitPct ?? 0.012;
-  const dynamicTakeProfitPct = bestEligible.dynamicTakeProfitPct ?? bestEligible.scalpTargetPct ?? baseTakeProfitPct;
+  const dynamicTakeProfitPct = candidate.dynamicTakeProfitPct ?? candidate.scalpTargetPct ?? baseTakeProfitPct;
   const positionTakeProfitPct = dynamicTakeProfitEnabled
     ? Math.max(baseTakeProfitPct, dynamicTakeProfitPct)
     : baseTakeProfitPct;
@@ -115,183 +242,55 @@ async function handleEntryFlow({
     ? Math.min(baseTakeProfitPct, dynamicTakeProfitPct)
     : baseTakeProfitPct;
   const profitActivationFloorPct = Math.max(config.trailingProtectionPct ?? 0.0025, profitActivationPct * 0.35);
-  const stopPct = pickStopPct(bestEligible.atr, bestEligible.price, config);
+  const stopPct = pickStopPct(candidate.atr, candidate.price, config);
 
-  const signalNotes = ["15m trend aligned", `RSI ${Number(bestEligible.rsi).toFixed(1)}`];
-  if (config.requireBreakout !== false && bestEligible.breakoutOk) {
+  const signalNotes = ["15m trend aligned", `RSI ${Number(candidate.rsi).toFixed(1)}`];
+  if (config.requireBreakout !== false && candidate.breakoutOk) {
     signalNotes.push(config.activeBotType === "swing_trade" ? "higher timeframe breakout confirmed" : "micro breakout confirmed");
   }
-  if (config.requireFastTrend !== false && bestEligible.fastTrendOk) {
+  if (config.requireFastTrend !== false && candidate.fastTrendOk) {
     signalNotes.push("fast trend aligned");
   }
-  if (config.requireEma21Rising !== false && bestEligible.ema21Rising) {
+  if (config.requireEma21Rising !== false && candidate.ema21Rising) {
     signalNotes.push("EMA21 rising");
   }
-  if (config.requirePriceAboveEma9 !== false && bestEligible.priceAboveEma9) {
+  if (config.requirePriceAboveEma9 !== false && candidate.priceAboveEma9) {
     signalNotes.push("price above EMA9");
   }
 
   const qualityNotes = [];
   if (config.enableAtrFilter !== false) {
-    qualityNotes.push(`ATR ${(Number(bestEligible.atrPct) * 100).toFixed(2)}%`);
+    qualityNotes.push(`ATR ${(Number(candidate.atrPct) * 100).toFixed(2)}%`);
   }
   if (config.enableVolumeFilter !== false) {
-    qualityNotes.push(`volume ${Number(bestEligible.volumeRatio || 0).toFixed(2)}x`);
+    qualityNotes.push(`volume ${Number(candidate.volumeRatio || 0).toFixed(2)}x`);
   }
   if (config.enablePriceExtensionFilter !== false) {
-    qualityNotes.push(`EMA gap ${(Number((bestEligible.emaGapPct || 0) * 100)).toFixed(2)}%`);
+    qualityNotes.push(`EMA gap ${(Number((candidate.emaGapPct || 0) * 100)).toFixed(2)}%`);
   }
   if (config.enableCandleStrengthFilter !== false) {
     qualityNotes.push("candle strength ok");
   }
 
   const buyReasons = [
-    `Highest eligible score (${Number(bestEligible.score).toFixed(2)})`,
+    `Highest eligible score (${Number(candidate.score).toFixed(2)})`,
     signalNotes.join(", "),
     qualityNotes.length ? `3m quality: ${qualityNotes.join(", ")}` : "3m quality filters relaxed",
     dynamicTakeProfitEnabled
       ? `TP ${(positionTakeProfitPct * 100).toFixed(2)}% | DTP ${(profitActivationPct * 100).toFixed(2)}%`
       : `Take profit ${(positionTakeProfitPct * 100).toFixed(2)}%`,
-    `Path: E ${safeToFixed(bestEligible.price, 4)} | D +${safeToFixed(profitActivationPct * 100, 2)}% | T +${safeToFixed(positionTakeProfitPct * 100, 2)}%`,
+    `Path: E ${safeToFixed(candidate.price, 4)} | D +${safeToFixed(profitActivationPct * 100, 2)}% | T +${safeToFixed(positionTakeProfitPct * 100, 2)}%`,
     `Reserve kept: ${safeToFixed(reserveUSDT)} USDT`
   ];
 
-  const positionMeta = buildPositionMeta({
-    bestEligible,
-    marketMode,
-    stopPct,
-    plannedSize,
-    estimatedQty,
-    now,
-    intendedEntryPrice: bestEligible.price,
-    takeProfitPct: positionTakeProfitPct,
-    profitActivationPct,
-    profitActivationFloorPct,
-    useDynamicTakeProfit: dynamicTakeProfitEnabled
-  });
-
-  if (config.dryRun) {
-    const entryResult = await safeExecute(async () => placeOrder(
-      bestEligible.symbol,
-      "buy",
-      sizeCapped,
-      clientOrderId,
-      bestEligible.price
-    ));
-    if (!entryResult.success) {
-      return { handled: true };
-    }
-
-    const orderResult = entryResult.result;
-    if (!["FILLED", "PARTIAL"].includes(normalizeOrderStatus(orderResult.status))) {
-      throw new Error(`Dry-run entry not executable: ${orderResult.status}`);
-    }
-    logEvent(LOG_FILE, "INFO", `Dry-run order placed: ${orderResult.orderId} filled=${orderResult.filledSize} avg=${safeToFixed(orderResult.avgPrice, 6)} status=${orderResult.status}`);
-
-    const dryRunEntryPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
-      ? Number(orderResult.avgPrice)
-      : bestEligible.price;
-    const dryRunEntrySlippagePct = calcBuySlippagePct(bestEligible.price, dryRunEntryPrice);
-    const dryRunActualQty = Number.isFinite(Number(orderResult.filledSize)) && Number(orderResult.filledSize) > 0
-      ? Number(orderResult.filledSize)
-      : estimatedQty;
-    const dryRunActualSizeUSDT = dryRunActualQty > 0 && dryRunEntryPrice > 0
-      ? Number((dryRunActualQty * dryRunEntryPrice).toFixed(8))
-      : plannedSize;
-    const dryRunEntryFeeAmount = Number.isFinite(Number(orderResult.feeAmount)) ? Number(orderResult.feeAmount) : null;
-    const dryRunEntryFeeUSDT = Number.isFinite(Number(orderResult.feeUSDT)) ? Number(orderResult.feeUSDT) : null;
-    const dryRunSpendUSDT = Number.isFinite(Number(orderResult.requestedSize)) && Number(orderResult.requestedSize) > 0
-      ? Number(orderResult.requestedSize)
-      : Number(plannedSize || sizeCapped || 0);
-    const dryRunPositionMeta = buildPositionMeta({
-      bestEligible,
-      marketMode,
-      stopPct,
-      plannedSize,
-      estimatedQty,
-      now,
-      entryPrice: dryRunEntryPrice,
-      actualQty: dryRunActualQty,
-      actualSizeUSDT: dryRunActualSizeUSDT,
-      intendedEntryPrice: bestEligible.price,
-      entryFillPrice: dryRunEntryPrice,
-      entrySlippagePct: dryRunEntrySlippagePct,
-      entryFeeAmount: dryRunEntryFeeAmount,
-      entryFeeCoin: orderResult.feeCoin || null,
-      entryFeeUSDT: dryRunEntryFeeUSDT,
-      takeProfitPct: positionTakeProfitPct,
-      profitActivationPct,
-      profitActivationFloorPct,
-      useDynamicTakeProfit: dynamicTakeProfitEnabled
-    });
-
-    state.positions = [...positions, dryRunPositionMeta];
-    state.position = state.positions[0] || null;
-    let dryRunUsdtAfterBuy = usdtFree - plannedSize;
-    if (state.dryRunPaperBalance) {
-      state.dryRunPaperBalance.usdt = Math.max(0, Number(state.dryRunPaperBalance.usdt || 0) - dryRunSpendUSDT);
-      state.dryRunPaperBalance.balances = state.dryRunPaperBalance.balances || {};
-      const coin = String(bestEligible.symbol || '').replace(/USDT$/i, '').toLowerCase();
-      state.dryRunPaperBalance.balances.usdt = state.dryRunPaperBalance.usdt;
-      state.dryRunPaperBalance.balances[coin] = Number(state.dryRunPaperBalance.balances[coin] || 0) + Number(dryRunPositionMeta.qty || 0);
-      dryRunUsdtAfterBuy = state.dryRunPaperBalance.usdt;
-    }
-    state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
-    state.recentEntriesBySymbol[bestEligible.symbol] = {
-      at: now,
-      entry: dryRunPositionMeta.entry,
-      qty: dryRunPositionMeta.qty,
-      sizeUSDT: dryRunPositionMeta.sizeUSDT
-    };
-    state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
-    saveState(STATE_PATH, state);
-    await report(reporting.buildBuyReport(
-      bestEligible.symbol,
-      dryRunPositionMeta.entry,
-      dryRunPositionMeta.sizeUSDT,
-      dryRunPositionMeta.qty,
-      stopPct,
-      config.emergencyStopLossPct,
-      config.trailingActivationPct,
-      dryRunUsdtAfterBuy,
-      buyReasons,
-      positionTakeProfitPct,
-      profitActivationPct
-    ));
-    logTrade({
-      type: "entry",
-      source: "signal",
-      botType: config.activeBotType || config.selectedBotType || "",
-      mode: config.activeMode || config.selectedMode || "",
-      marketProfile: scanConfig.activeMarketProfile || config.selectedMarketProfile || "",
-      marketProfileMode: config.marketProfileMode || "",
-      pair: bestEligible.symbol,
-      side: "buy",
-      price: dryRunEntryPrice,
-      intendedPrice: bestEligible.price,
-      fillPrice: dryRunEntryPrice,
-      slippagePct: dryRunEntrySlippagePct != null ? dryRunEntrySlippagePct * 100 : null,
-      qty: dryRunActualQty,
-      sizeUSDT: dryRunActualSizeUSDT,
-      reason: (dryRunPositionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
-      entry_rsi: bestEligible.rsi,
-      entry_atrPct: bestEligible.atrPct,
-      entry_score: bestEligible.score,
-      entry_marketMode: marketMode,
-      entry_volatility: volatilityState
-    });
-    return {
-      handled: true,
-      currentPositionPrice: dryRunPositionMeta.entry
-    };
-  }
-
+  // ===== EXECUTE ORDER =====
+  const entrySide = useShort ? "sell" : "buy";
   const entryResult = await safeExecute(async () => placeOrder(
-    bestEligible.symbol,
-    "buy",
+    candidate.symbol,
+    entrySide,
     sizeCapped,
     clientOrderId,
-    bestEligible.price
+    candidate.price
   ));
   if (!entryResult.success) {
     return { handled: true };
@@ -303,21 +302,82 @@ async function handleEntryFlow({
   }
   logEvent(LOG_FILE, "INFO", `Order placed: ${orderResult.orderId} filled=${orderResult.filledSize} avg=${safeToFixed(orderResult.avgPrice, 6)} status=${orderResult.status}`);
 
+  // ===== RECONCILE FILL =====
+  const orderAvgPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
+    ? Number(orderResult.avgPrice)
+    : 0;
+  const actualQtyFromOrder = Number.isFinite(Number(orderResult.filledSize)) && Number(orderResult.filledSize) > 0
+    ? Number(orderResult.filledSize)
+    : null;
+  const spendUSDT = Number.isFinite(Number(orderResult.requestedSize)) && Number(orderResult.requestedSize) > 0
+    ? Number(orderResult.requestedSize)
+    : Number(plannedSize || sizeCapped || 0);
+
+  if (config.dryRun) {
+    // Dry-run: use simulated values directly, no portfolio fetch needed
+    const dryRunEntryPrice = orderAvgPrice || candidate.price;
+    const dryRunActualQty = actualQtyFromOrder || estimatedQty;
+    const dryRunActualSizeUSDT = dryRunActualQty > 0 && dryRunEntryPrice > 0
+      ? Number((dryRunActualQty * dryRunEntryPrice).toFixed(8))
+      : plannedSize;
+
+    if (state.dryRunPaperBalance) {
+      state.dryRunPaperBalance.usdt = Math.max(0, Number(state.dryRunPaperBalance.usdt || 0) - spendUSDT);
+      state.dryRunPaperBalance.balances = state.dryRunPaperBalance.balances || {};
+      const coin = String(candidate.symbol || '').replace(/USDT$/i, '').toLowerCase();
+      state.dryRunPaperBalance.balances.usdt = state.dryRunPaperBalance.usdt;
+      state.dryRunPaperBalance.balances[coin] = Number(state.dryRunPaperBalance.balances[coin] || 0) + dryRunActualQty;
+    }
+
+    const dryRunPositionMeta = buildPositionMeta({
+      candidate,
+      marketMode,
+      stopPct,
+      plannedSize,
+      estimatedQty,
+      now,
+      entryPrice: dryRunEntryPrice,
+      actualQty: dryRunActualQty,
+      actualSizeUSDT: dryRunActualSizeUSDT,
+      intendedEntryPrice: candidate.price,
+      entryFillPrice: dryRunEntryPrice,
+      entrySlippagePct: calcBuySlippagePct(candidate.price, dryRunEntryPrice),
+      entryFeeAmount: Number.isFinite(orderResult.feeAmount) ? Number(orderResult.feeAmount) : null,
+      entryFeeCoin: orderResult.feeCoin || null,
+      entryFeeUSDT: Number.isFinite(orderResult.feeUSDT) ? Number(orderResult.feeUSDT) : null,
+      takeProfitPct: positionTakeProfitPct,
+      profitActivationPct,
+      profitActivationFloorPct,
+      useDynamicTakeProfit: dynamicTakeProfitEnabled
+    });
+
+    return finalizeEntry({
+      orderResult,
+      entryPrice: dryRunEntryPrice,
+      entryQty: dryRunActualQty,
+      entrySizeUSDT: dryRunActualSizeUSDT,
+      entryPriceSource: "dry-run",
+      intendedPrice: candidate.price,
+      plannedSize,
+      positionMeta: dryRunPositionMeta,
+      buyReasons,
+      positionTakeProfitPct,
+      profitActivationPct,
+      stopPct,
+      usdtFreeAfterBuy: state.dryRunPaperBalance?.usdt ?? (usdtFree - plannedSize)
+    });
+  }
+
+  // Live: fetch fresh portfolio after buy
   const portfolio = await getPortfolioValue();
   const usdtFreeAfterBuy = portfolio.usdtFree;
   const balances = portfolio.balances;
 
-  const actualQty = getCoinBalance(bestEligible.symbol, balances);
-  const orderAvgEntryPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
-    ? Number(orderResult.avgPrice)
-    : 0;
-  let actualEntryPrice = orderAvgEntryPrice || getPriceFromBreakdown(bestEligible.symbol, balances, portfolio.breakdown);
-  let entryPriceSource = "portfolio";
-  if (orderAvgEntryPrice > 0) {
-    entryPriceSource = "fill-avg";
-  }
+  const actualQty = getCoinBalance(candidate.symbol, balances);
+  let actualEntryPrice = orderAvgPrice || getPriceFromBreakdown(candidate.symbol, balances, portfolio.breakdown);
+  let entryPriceSource = orderAvgPrice > 0 ? "fill-avg" : "portfolio";
   if ((!actualEntryPrice || actualEntryPrice <= 0) && actualQty > 0) {
-    const pCandles = await getCandles(bestEligible.symbol, config.signalTimeframe);
+    const pCandles = await getCandles(candidate.symbol, config.signalTimeframe);
     if (pCandles?.length) {
       actualEntryPrice = extractLastClosedPrice(pCandles);
       entryPriceSource = "candle-fallback";
@@ -325,12 +385,8 @@ async function handleEntryFlow({
   }
   const reconciledQty = Number.isFinite(actualQty) && actualQty > 0
     ? Number(actualQty)
-    : (Number.isFinite(orderResult.filledSize) && orderResult.filledSize > 0 ? Number(orderResult.filledSize) : actualQty);
-  const entryFillPrice = orderAvgEntryPrice || actualEntryPrice;
-  const entrySlippagePct = calcBuySlippagePct(bestEligible.price, entryFillPrice);
-  const entryFeeAmount = Number.isFinite(orderResult.feeAmount) ? Number(orderResult.feeAmount) : null;
-  const entryFeeCoin = orderResult.feeCoin || null;
-  const entryFeeUSDT = Number.isFinite(orderResult.feeUSDT) ? Number(orderResult.feeUSDT) : null;
+    : (actualQtyFromOrder || actualQty);
+  const entryFillPrice = orderAvgPrice || actualEntryPrice;
   const actualSizeUSDT = reconciledQty > 0 && actualEntryPrice > 0
     ? Number((reconciledQty * actualEntryPrice).toFixed(8))
     : actualQty > 0 && actualEntryPrice > 0
@@ -338,7 +394,7 @@ async function handleEntryFlow({
     : plannedSize;
 
   const reconciledPositionMeta = buildPositionMeta({
-    bestEligible,
+    candidate,
     marketMode,
     stopPct,
     plannedSize,
@@ -347,77 +403,33 @@ async function handleEntryFlow({
     entryPrice: actualEntryPrice,
     actualQty: reconciledQty,
     actualSizeUSDT,
-    intendedEntryPrice: bestEligible.price,
+    intendedEntryPrice: candidate.price,
     entryFillPrice,
-    entrySlippagePct,
-    entryFeeAmount,
-    entryFeeCoin,
-    entryFeeUSDT,
+    entrySlippagePct: calcBuySlippagePct(candidate.price, entryFillPrice),
+    entryFeeAmount: Number.isFinite(orderResult.feeAmount) ? Number(orderResult.feeAmount) : null,
+    entryFeeCoin: orderResult.feeCoin || null,
+    entryFeeUSDT: Number.isFinite(orderResult.feeUSDT) ? Number(orderResult.feeUSDT) : null,
     takeProfitPct: positionTakeProfitPct,
     profitActivationPct,
     profitActivationFloorPct,
     useDynamicTakeProfit: dynamicTakeProfitEnabled
   });
 
-  state.positions = [...positions, reconciledPositionMeta];
-  state.position = state.positions[0] || null;
-  state.recentEntriesBySymbol = state.recentEntriesBySymbol || {};
-  state.recentEntriesBySymbol[bestEligible.symbol] = {
-    at: now,
-    entry: reconciledPositionMeta.entry,
-    qty: reconciledPositionMeta.qty,
-    sizeUSDT: reconciledPositionMeta.sizeUSDT
-  };
-  state.lastTradeTime = now + (config._effectiveCooldown ?? config.cooldownMs ?? 300000);
-  saveState(STATE_PATH, state);
-
-  await report(reporting.buildBuyReport(
-    bestEligible.symbol,
-    reconciledPositionMeta.entry,
-    reconciledPositionMeta.sizeUSDT,
-    reconciledPositionMeta.qty,
-    stopPct,
-    config.emergencyStopLossPct,
-    config.trailingActivationPct,
-    usdtFreeAfterBuy,
+  return finalizeEntry({
+    orderResult,
+    entryPrice: actualEntryPrice,
+    entryQty: reconciledQty,
+    entrySizeUSDT: actualSizeUSDT,
+    entryPriceSource,
+    intendedPrice: candidate.price,
+    plannedSize,
+    positionMeta: reconciledPositionMeta,
     buyReasons,
     positionTakeProfitPct,
-    profitActivationPct
-  ));
-  logEvent(LOG_FILE, "INFO", `Reconciled entry for ${bestEligible.symbol}: entry=${safeToFixed(reconciledPositionMeta.entry, 6)} qty=${safeToFixed(reconciledPositionMeta.qty, 6)} source=${entryPriceSource}`);
-
-  logTrade({
-    type: "entry",
-    source: "signal",
-    botType: config.activeBotType || config.selectedBotType || "",
-    mode: config.activeMode || config.selectedMode || "",
-    marketProfile: scanConfig.activeMarketProfile || config.selectedMarketProfile || "",
-    marketProfileMode: config.marketProfileMode || "",
-    pair: bestEligible.symbol,
-    side: "buy",
-    price: reconciledPositionMeta.entry,
-    intendedPrice: bestEligible.price,
-    fillPrice: entryFillPrice,
-    slippagePct: entrySlippagePct != null ? entrySlippagePct * 100 : null,
-    feeAmount: entryFeeAmount,
-    feeCoin: entryFeeCoin,
-    feeUSDT: entryFeeUSDT,
-    qty: reconciledPositionMeta.qty,
-    sizeUSDT: reconciledPositionMeta.sizeUSDT,
-    reason: (reconciledPositionMeta.entryReason?.notes || "entry signal") + (stopPct ? `; stop: ${safeToFixed(stopPct * 100)}%` : ""),
-    entry_rsi: bestEligible.rsi,
-    entry_atrPct: bestEligible.atrPct,
-    entry_score: bestEligible.score,
-    entry_marketMode: marketMode,
-    entry_volatility: volatilityState,
-    fillsUsed: orderResult.fillsUsed === true,
-    reconcileLatencyMs: orderResult.reconcileLatencyMs ?? null
+    profitActivationPct,
+    stopPct,
+    usdtFreeAfterBuy
   });
-
-  return {
-    handled: true,
-    currentPositionPrice: actualEntryPrice > 0 ? actualEntryPrice : 0
-  };
 }
 
 module.exports = {

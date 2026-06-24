@@ -159,6 +159,7 @@
 <button class="tab-btn" data-tab="marketTab">Market Profile</button>
 <button class="tab-btn" data-tab="tradeTab">Trade Style</button>
 <button class="tab-btn" data-tab="agentTab">AI Agent</button>
+<button class="tab-btn" data-tab="leverageTab">Leverage</button>
 <button class="tab-btn" data-tab="readmeTab">README</button>
 </section>
 
@@ -496,7 +497,7 @@
       <label class="check-item"><input id="aiAgentEnabled" type="checkbox"><span>Enable AI Agent</span></label>
     </div>
     <div class="field-grid">
-      <div class="field"><label>AI Provider</label><select id="aiProviderEditor"><option value="openrouter">OpenRouter</option><option value="gemini">Gemini</option><option value="openai">OpenAI</option></select><div class="hint" style="margin-top:6px">Default: OpenRouter.</div></div>
+      <div class="field"><label>AI Provider</label><select id="aiProviderEditor"><option value="openrouter">OpenRouter</option><option value="gemini">Gemini</option><option value="openai">OpenAI</option><option value="nvidia">NVIDIA</option></select><div class="hint" style="margin-top:6px">Default: OpenRouter.</div></div>
       <div class="field"><label>Decision Cadence</label><select id="aiAgentDecisionInterval" disabled><option value="1">1 jam - freshest</option><option value="2">2 jam - active</option><option value="3">3 jam - balanced</option><option value="6">6 jam - light</option><option value="12">12 jam - conservative</option></select><div class="hint" style="margin-top:6px">Follows Auto Pair Rotation interval.</div></div>
     </div>
   </div>
@@ -573,6 +574,63 @@
   </div>
 </div>
 </section></section>
+
+<!-- LEVERAGE / FUTURES -->
+<section class="tab-panel" id="leverageTab">
+<section class="two-col">
+<div class="panel">
+<h2>Trading Mode</h2>
+<div class="acc" id="accLeverageMode">
+  <div class="acc-hd" onclick="toggleAcc('accLeverageMode')"><h3>Mode &amp; Leverage</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Trading Mode</label><select id="tradingModeEditor"><option value="spot">Spot (Default)</option><option value="futures">USDT-M Futures</option></select><div class="hint" style="margin-top:6px">Spot = beli jual aset. Futures = leverage trading dengan margin.</div></div>
+      <!-- min/max keep in sync with MIN_FUTURES_LEVERAGE / MAX_FUTURES_LEVERAGE in core/futures.js -->
+      <div class="field"><label>Leverage</label><input id="futuresLeverageEditor" type="number" min="1" max="20" value="10"><div class="hint" style="margin-top:6px">1x-20x. Semakin tinggi, semakin besar risiko dan reward.</div></div>
+    </div>
+    <div class="field-grid">
+      <div class="field"><label>Margin Mode</label><select id="futuresMarginModeEditor"><option value="crossed">Cross (Recommended)</option><option value="isolated">Isolated</option></select><div class="hint" style="margin-top:6px">Cross = margin shared. Isolated = margin per posisi terpisah.</div></div>
+      <!-- keep in sync with MAX_FUTURES_LEVERAGE in core/futures.js -->
+      <div class="field"><label>Max Leverage</label><input id="futuresMaxLeverageEditor" type="number" min="1" max="20" value="20"><div class="hint" style="margin-top:6px">Batasi leverage maksimal yang bisa dipakai.</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="acc" id="accLeverageShorts">
+  <div class="acc-hd" onclick="toggleAcc('accLeverageShorts')"><h3>Short Selling</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="check-grid">
+      <label class="check-item"><input id="futuresEnableShortsEditor" type="checkbox" checked><span>Enable Short Selling</span></label>
+    </div>
+    <div class="info-box">Jika aktif, bot bisa buka posisi SHORT (jual dulu, beli nanti) saat market bearish. Cocok untuk market turun.</div>
+  </div>
+</div>
+
+<div class="acc" id="accLeverageSafety">
+  <div class="acc-hd" onclick="toggleAcc('accLeverageSafety')"><h3>Safety &amp; Protection</h3><span class="acc-arrow">&#9660;</span></div>
+  <div class="acc-body">
+    <div class="field-grid">
+      <div class="field"><label>Liquidation Buffer %</label><input id="futuresLiquidationBufferEditor" type="number" min="5" max="50" step="1" value="15"><div class="hint" style="margin-top:6px">Exit jika harga dalam X% dari liquidation price. Default 15%.</div></div>
+      <div class="field"><label>Funding Rate Threshold</label><input id="futuresFundingThresholdEditor" type="number" min="0" max="1" step="0.001" value="0.001"><div class="hint" style="margin-top:6px">Peringatan jika funding rate melebihi threshold ini.</div></div>
+    </div>
+    <div class="note" style="margin-top:10px">⚠️ <strong>Peringatan:</strong> Futures trading dengan leverage tinggi memiliki risiko tinggi. Pastikan Anda memahami risiko liquidation sebelum mengaktifkan mode ini. Gunakan dry-run terlebih dahulu untuk testing.</div>
+  </div>
+</div>
+</div>
+
+<div class="panel">
+<h2>Futures Info</h2>
+<div class="info-box" id="futuresInfoBox">
+  <div style="margin-bottom:8px"><strong>Status:</strong> <span id="futuresStatusText">Spot Mode</span></div>
+  <div style="margin-bottom:8px"><strong>Leverage:</strong> <span id="futuresLeverageText">-</span></div>
+  <div style="margin-bottom:8px"><strong>Margin Mode:</strong> <span id="futuresMarginModeText">-</span></div>
+  <div style="margin-bottom:8px"><strong>Short Selling:</strong> <span id="futuresShortsText">-</span></div>
+  <div><strong>Liquidation Buffer:</strong> <span id="futuresLiqBufferText">-</span></div>
+</div>
+<div class="note" style="margin-top:12px">Config disimpan ke <code>config.json</code> saat Anda klik Save Config. Perubahan berlaku pada loop berikutnya.</div>
+</div>
+</section>
+</section>
 
 <!-- README -->
 <section class="tab-panel" id="readmeTab">
@@ -735,6 +793,43 @@ function renderAiAgentConfig(){
   sEv('aiLastTimestamp',d.at||'-');
   syncAiAgentAllowEntriesUI();
   syncAiAgentCadenceUI();
+}
+
+// ===== FUTURES / LEVERAGE CONFIG =====
+function ensureFuturesConfig(){
+  if(!currentConfig)return;
+  if(!currentConfig.futures)currentConfig.futures={};
+  const f=currentConfig.futures;
+  if(f.leverage==null)f.leverage=10;
+  if(f.marginMode==null)f.marginMode='crossed';
+  if(f.maxLeverage==null)f.maxLeverage=20;
+  if(f.enableShorts==null)f.enableShorts=true;
+  if(f.liquidationBufferPct==null)f.liquidationBufferPct=0.15;
+  if(f.fundingRateThreshold==null)f.fundingRateThreshold=0.001;
+}
+function renderFuturesConfig(){
+  ensureFuturesConfig();
+  const tm=currentConfig.tradingMode||'spot';
+  const f=currentConfig.futures;
+  sEv('tradingModeEditor',tm);
+  sEv('futuresLeverageEditor',f.leverage);
+  sEv('futuresMarginModeEditor',f.marginMode);
+  sEv('futuresMaxLeverageEditor',f.maxLeverage);
+  sEv('futuresEnableShortsEditor',f.enableShorts);
+  sEv('futuresLiquidationBufferEditor',Math.round(f.liquidationBufferPct*100));
+  sEv('futuresFundingThresholdEditor',f.fundingRateThreshold);
+  // Info box
+  document.getElementById('futuresStatusText').textContent=tm==='futures'?'FUTURES MODE (Active)':'Spot Mode';
+  document.getElementById('futuresLeverageText').textContent=tm==='futures'?f.leverage+'x':'-';
+  document.getElementById('futuresMarginModeText').textContent=tm==='futures'?f.marginMode:'-';
+  document.getElementById('futuresShortsText').textContent=tm==='futures'?(f.enableShorts?'Enabled':'Disabled'):'-';
+  document.getElementById('futuresLiqBufferText').textContent=tm==='futures'?Math.round(f.liquidationBufferPct*100)+'%':'-';
+  // Disable futures fields when in spot mode
+  const futuresFields=['futuresLeverageEditor','futuresMarginModeEditor','futuresMaxLeverageEditor','futuresEnableShortsEditor','futuresLiquidationBufferEditor','futuresFundingThresholdEditor'];
+  futuresFields.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.disabled=(tm!=='futures');
+  });
 }
 function syncAiAgentAllowEntriesUI(){
   if(!currentConfig)return;
@@ -948,6 +1043,7 @@ function popCfg(){
   for(const[k,id]of Object.entries(BTYPE_MAP))sEv(id,botTypeVal(currentConfig,k));
   for(const[k,id]of Object.entries(TRD_MAP))sEv(id,effVal(currentConfig,k));
   renderAiAgentConfig();
+  renderFuturesConfig();
   popPairs(currentConfig.pairSettings||{});
   document.getElementById('configStatus').textContent=`Config aktif — bot type: ${currentConfig.selectedBotType||'-'}, trade style: ${currentConfig.selectedMode||'-'}, market profile: ${currentConfig.selectedMarketProfile||'-'} (${currentConfig.marketProfileMode||'auto'})`;
   renderReadmeTab();
@@ -1010,6 +1106,15 @@ function applyCfg(){
   nc.aiAgent.promptConfig.objective=String(gEv('aiPromptObjectiveEditor')||'').trim()||DEFAULT_AI_PROMPT_OBJECTIVE;
   nc.aiAgent.promptConfig.instructions=String(gEv('aiPromptInstructionsEditor')||'').trim()||DEFAULT_AI_PROMPT_INSTRUCTIONS;
   nc.aiAgent.promptOverride=nc.aiAgent.promptConfig.instructions;
+  // Futures / Leverage config
+  nc.tradingMode=String(gEv('tradingModeEditor')||'spot');
+  if(!nc.futures||typeof nc.futures!=='object')nc.futures={};
+  nc.futures.leverage=Math.max(1,Math.min(20,Number(gEv('futuresLeverageEditor'))||10));
+  nc.futures.marginMode=String(gEv('futuresMarginModeEditor')||'crossed');
+  nc.futures.maxLeverage=Math.max(1,Math.min(20,Number(gEv('futuresMaxLeverageEditor'))||20));
+  nc.futures.enableShorts=Boolean(gEv('futuresEnableShortsEditor'));
+  nc.futures.liquidationBufferPct=Math.max(0.05,Math.min(0.5,(Number(gEv('futuresLiquidationBufferEditor'))||15)/100));
+  nc.futures.fundingRateThreshold=Number(gEv('futuresFundingThresholdEditor'))||0.001;
   const ps={};
   for(const c of document.getElementById('pairEditor').querySelectorAll('[data-pe]')){
     const s=c.getAttribute('data-pe');
@@ -1385,5 +1490,24 @@ document.querySelectorAll('[data-tab]').forEach(btn=>{
     document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));
     document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id===t))
   })
+});
+// Toggle futures fields when trading mode changes
+document.getElementById('tradingModeEditor').addEventListener('change',()=>{
+  const isFutures=document.getElementById('tradingModeEditor').value==='futures';
+  const fields=['futuresLeverageEditor','futuresMarginModeEditor','futuresMaxLeverageEditor','futuresEnableShortsEditor','futuresLiquidationBufferEditor','futuresFundingThresholdEditor'];
+  fields.forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=!isFutures});
+  // Update info box
+  document.getElementById('futuresStatusText').textContent=isFutures?'FUTURES MODE (Active)':'Spot Mode';
+  if(isFutures){
+    document.getElementById('futuresLeverageText').textContent=document.getElementById('futuresLeverageEditor').value+'x';
+    document.getElementById('futuresMarginModeText').textContent=document.getElementById('futuresMarginModeEditor').value;
+    document.getElementById('futuresShortsText').textContent=document.getElementById('futuresEnableShortsEditor').checked?'Enabled':'Disabled';
+    document.getElementById('futuresLiqBufferText').textContent=document.getElementById('futuresLiquidationBufferEditor').value+'%';
+  }else{
+    document.getElementById('futuresLeverageText').textContent='-';
+    document.getElementById('futuresMarginModeText').textContent='-';
+    document.getElementById('futuresShortsText').textContent='-';
+    document.getElementById('futuresLiqBufferText').textContent='-';
+  }
 });
 </script></body></html>

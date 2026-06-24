@@ -3,7 +3,6 @@ const { EMA } = require("./indicators");
 const { buildEntryPlan, buildPositionMeta } = require("./execution");
 const {
   computeEquity,
-  detectOpenPositionFromBalance,
   getCoinBalance,
   getPriceFromBreakdown
 } = require("./portfolio");
@@ -20,6 +19,15 @@ const { handleExitFlow } = require("./runtime/exitFlow");
 const { handleEntryFlow } = require("./runtime/entryFlow");
 const { validateConfig, validateEngineFiles } = require("./configValidation");
 const { getAiAgentSettings, runAiAgentAfterRotation } = require("./aiAgent");
+const {
+  normalizeOrderStatus,
+  isTerminalOrderStatus,
+  toFiniteNumber,
+  normalizeFeeCoin,
+  parseOrderFee,
+  createOrderManager
+} = require("./orderManager");
+const futures = require("./futures");
 const dotenv = require("dotenv");
 const path = require("path");
 const fs = require("fs");
@@ -85,11 +93,6 @@ function releaseSlot() {
 
 // Wrapper logger for internal modules
 function botLog(level, message, meta = {}) {
-  logEvent(LOG_FILE, level, message, meta);
-}
-
-// Wrapper logging
-function log(level, message, meta = {}) {
   logEvent(LOG_FILE, level, message, meta);
 }
 
@@ -327,332 +330,12 @@ const MAX_EXECUTION_FAILURES = 3;
 let executionKillSwitch = false;
 const inFlightClientOrders = new Set();
 
-function normalizeOrderStatus(status) {
-  const raw = String(status || "").toUpperCase();
-  if (!raw) return "UNKNOWN";
-  if (["FILLED", "FULLY_FILLED", "SUCCESS"].includes(raw)) return "FILLED";
-  if (["PARTIAL", "PARTIALLY_FILLED", "PARTIAL_FILL"].includes(raw)) return "PARTIAL";
-  if (["CANCELED", "CANCELLED", "CANCELING"].includes(raw)) return "CANCELED";
-  if (["REJECTED", "FAILED", "FAIL"].includes(raw)) return "REJECTED";
-  if (["NEW", "INIT", "LIVE", "OPEN"].includes(raw)) return "OPEN";
-  return raw;
-}
+// Order manager instance — created after config is loaded (see startBot)
+let orderManager = null;
 
-function isTerminalOrderStatus(status) {
-  return ["FILLED", "PARTIAL", "CANCELED", "REJECTED"].includes(normalizeOrderStatus(status));
-}
-
-function toFiniteNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
-}
-
-function normalizeFeeCoin(value) {
-  if (!value) return null;
-  return String(value).replace(/[^a-z0-9]/gi, "").toUpperCase() || null;
-}
-
-function splitSpotSymbol(symbol) {
-  const normalized = String(symbol || "").toUpperCase();
-  if (normalized.endsWith("USDT")) {
-    return {
-      baseCoin: normalized.replace(/USDT$/i, ""),
-      quoteCoin: "USDT"
-    };
-  }
-  return {
-    baseCoin: normalized,
-    quoteCoin: null
-  };
-}
-
-function inferFeeCoinFromSide(symbol, side) {
-  const { baseCoin, quoteCoin } = splitSpotSymbol(symbol);
-  const normalizedSide = String(side || "").toLowerCase();
-  if (normalizedSide === "buy") return baseCoin || null;
-  if (normalizedSide === "sell") return quoteCoin || baseCoin || null;
-  return quoteCoin || baseCoin || null;
-}
-
-function convertFeeToUsdt(symbol, feeAmount, feeCoin, avgPrice) {
-  const amount = toFiniteNumber(feeAmount);
-  const coin = normalizeFeeCoin(feeCoin);
-  if (!Number.isFinite(amount) || amount < 0) return null;
-  if (!coin) return null;
-  const baseCoin = String(symbol || "").replace(/USDT$/i, "").toUpperCase();
-  if (coin === "USDT") return amount;
-  if (coin === baseCoin && Number.isFinite(avgPrice) && avgPrice > 0) {
-    return amount * avgPrice;
-  }
-  return null;
-}
-
-function parseOrderFee(raw, symbol, avgPrice = 0) {
-  if (!raw || typeof raw !== "object") {
-    return { feeAmount: null, feeCoin: null, feeUSDT: null };
-  }
-  const inferredFeeCoin = inferFeeCoinFromSide(symbol, raw.side);
-
-  let feeAmount = toFiniteNumber(
-    raw.fillFee ??
-    raw.fee ??
-    raw.fillFeeAmount ??
-    raw.totalFee ??
-    raw.baseFee
-  );
-  let feeCoin = normalizeFeeCoin(
-    raw.fillFeeCoin ||
-    raw.feeCoin ||
-    raw.feeCcy ||
-    raw.feeCurrency ||
-    raw.fillFeeCoinCode ||
-    raw.chargeFeeCoin
-  );
-
-  if ((!Number.isFinite(feeAmount) || !feeCoin) && raw.feeDetail) {
-    let feeDetail = raw.feeDetail;
-    if (typeof feeDetail === "string") {
-      try {
-        feeDetail = JSON.parse(feeDetail);
-      } catch (_) {
-        feeDetail = null;
-      }
-    }
-
-    if (feeDetail && typeof feeDetail === "object") {
-      const directAmount = toFiniteNumber(
-        feeDetail.totalFee ??
-        feeDetail.fee ??
-        feeDetail.fillFee
-      );
-      const directCoin = normalizeFeeCoin(
-        feeDetail.feeCoin ||
-        feeDetail.coin ||
-        feeDetail.currency ||
-        feeDetail.feeCcy
-      );
-
-      if (Number.isFinite(directAmount) && directCoin) {
-        feeAmount = directAmount;
-        feeCoin = directCoin;
-      } else if (feeDetail.newFees && typeof feeDetail.newFees === "object") {
-        const nf = feeDetail.newFees;
-        const parsedAmount = toFiniteNumber(nf.t ?? nf.totalFee ?? nf.r ?? nf.c);
-        if (Number.isFinite(parsedAmount)) {
-          feeAmount = parsedAmount;
-          feeCoin = inferredFeeCoin;
-        }
-      } else {
-        const pools = [
-          feeDetail.fees,
-          feeDetail.data
-        ];
-        for (const pool of pools) {
-          if (!pool || typeof pool !== "object") continue;
-          const entries = Object.entries(pool);
-          if (!entries.length) continue;
-          const [coinKey, amountVal] = entries[0];
-          const parsedAmount = toFiniteNumber(amountVal);
-          const parsedCoin = normalizeFeeCoin(coinKey);
-          if (Number.isFinite(parsedAmount) && parsedCoin) {
-            feeAmount = parsedAmount;
-            feeCoin = parsedCoin;
-            break;
-          }
-        }
-      }
-    }
-  }
-
-  if (Number.isFinite(feeAmount) && !feeCoin) {
-    feeCoin = inferredFeeCoin;
-  }
-
-  if (Number.isFinite(feeAmount)) {
-    feeAmount = Math.abs(feeAmount);
-  }
-
-  const feeUSDT = convertFeeToUsdt(symbol, feeAmount, feeCoin, avgPrice);
-  return {
-    feeAmount: Number.isFinite(feeAmount) ? feeAmount : null,
-    feeCoin: feeCoin || null,
-    feeUSDT: Number.isFinite(feeUSDT) ? feeUSDT : null
-  };
-}
-
-async function getOrder(symbol, { orderId = null, clientOrderId = null } = {}) {
-  const params = new URLSearchParams({ symbol });
-  if (orderId) params.set("orderId", orderId);
-  else if (clientOrderId) params.set("clientOid", clientOrderId);
-  else throw new Error("getOrder requires orderId or clientOrderId");
-
-  const res = await request(
-    config.baseUrl,
-    config.apiKey,
-    config.secretKey,
-    config.passphrase,
-    "GET",
-    `/api/v2/spot/trade/orderInfo?${params.toString()}`,
-    null,
-    1
-  );
-
-  const row = Array.isArray(res) ? res[0] : (Array.isArray(res?.list) ? res.list[0] : res);
-  if (!row || typeof row !== "object") return null;
-
-  const avgPrice = Number(row.priceAvg || row.avgPrice || row.fillPrice || row.price || 0);
-  const feeMeta = parseOrderFee(row, symbol, avgPrice);
-
-  return {
-    orderId: row.orderId || row.order_id || orderId || null,
-    clientOrderId: row.clientOid || row.clientOrderId || clientOrderId || null,
-    symbol: row.symbol || symbol,
-    side: String(row.side || "").toLowerCase(),
-    requestedSize: Number(row.size || row.quantity || 0),
-    filledSize: Number(row.baseVolume || row.filledQty || row.filledQuantity || row.dealSize || 0),
-    avgPrice,
-    feeAmount: feeMeta.feeAmount,
-    feeCoin: feeMeta.feeCoin,
-    feeUSDT: feeMeta.feeUSDT,
-    status: normalizeOrderStatus(row.state || row.status),
-    raw: row,
-    timestamp: Date.now()
-  };
-}
-
-/**
- * Fetch individual fill records for an order from Bitget v2.
- * Returns VWAP avgPrice and aggregated fee computed from all fills.
- * Used as fallback when orderInfo returns avgPrice=0 for a FILLED order.
- */
-async function getOrderFills(symbol, orderId) {
-  const params = new URLSearchParams({ symbol, orderId });
-  let res;
-  try {
-    res = await request(
-      config.baseUrl,
-      config.apiKey,
-      config.secretKey,
-      config.passphrase,
-      "GET",
-      `/api/v2/spot/trade/fills?${params.toString()}`,
-      null,
-      1
-    );
-  } catch (err) {
-    logEvent(LOG_FILE, "WARN", `getOrderFills failed for ${symbol}/${orderId}: ${err.message}`);
-    return { avgPrice: null, feeAmount: null, feeCoin: null, feeUSDT: null };
-  }
-
-  // Bitget v2 wraps fills in fillList or returns array directly
-  const list = Array.isArray(res)
-    ? res
-    : (Array.isArray(res?.fillList) ? res.fillList
-      : (Array.isArray(res?.data) ? res.data : []));
-
-  if (!list.length) {
-    return { avgPrice: null, feeAmount: null, feeCoin: null, feeUSDT: null };
-  }
-
-  // Compute VWAP from individual fill legs
-  let totalQty = 0;
-  let totalVal = 0;
-  let totalFeeAmount = 0;
-  let fillFeeCoin = null;
-  for (const f of list) {
-    const fPrice = Number(f.price || f.fillPrice || 0);
-    const fQty   = Number(f.size  || f.fillSize  || f.qty || 0);
-    const fFee   = Math.abs(Number(f.fee || f.fillFee || 0));
-    if (fPrice > 0 && fQty > 0) {
-      totalQty += fQty;
-      totalVal += fPrice * fQty;
-      totalFeeAmount += fFee;
-      if (!fillFeeCoin) fillFeeCoin = normalizeFeeCoin(f.feeCoin || f.fillFeeCoin);
-    }
-  }
-
-  if (totalQty <= 0) {
-    return { avgPrice: null, feeAmount: null, feeCoin: null, feeUSDT: null };
-  }
-
-  const avgPrice  = totalVal / totalQty;
-  const feeAmount = totalFeeAmount > 0 ? totalFeeAmount : null;
-  const feeCoin   = fillFeeCoin || null;
-  const feeUSDT   = convertFeeToUsdt(symbol, feeAmount, feeCoin, avgPrice);
-  return { avgPrice, feeAmount, feeCoin, feeUSDT };
-}
-
-async function reconcileOrder(symbol, side, requestedSize, orderMeta) {
-  const startedAt = Date.now();
-  let latest = orderMeta;
-
-  // Poll strategy: first attempt immediately (market orders fill in <500ms on Bitget),
-  // then backoff. Total max wait: ~2.7s vs old 3.6s, and usually resolves at attempt 0.
-  const delays = [0, 400, 800, 1500];
-  for (let attempt = 0; attempt < delays.length; attempt++) {
-    const status = normalizeOrderStatus(latest?.status);
-    if (isTerminalOrderStatus(status)) break;
-    if (delays[attempt] > 0) await sleep(delays[attempt]);
-    const fetched = await getOrder(symbol, {
-      orderId: latest?.orderId,
-      clientOrderId: latest?.clientOrderId
-    });
-    if (fetched) latest = { ...latest, ...fetched };
-  }
-
-  const status    = normalizeOrderStatus(latest?.status);
-  const filledSize = Number(latest?.filledSize || 0);
-  let avgPrice    = Number(latest?.avgPrice || 0);
-  let feeAmount   = toFiniteNumber(latest?.feeAmount);
-  let feeCoin     = normalizeFeeCoin(latest?.feeCoin);
-  let feeUSDT     = toFiniteNumber(latest?.feeUSDT);
-  let fillsUsed   = false;
-
-  // Fallback: orderInfo sometimes returns avgPrice=0 even on FILLED orders.
-  // Query /fills endpoint for VWAP-accurate price and fee from individual legs.
-  if (status === "FILLED" && (!Number.isFinite(avgPrice) || avgPrice <= 0) && latest?.orderId) {
-    const fills = await getOrderFills(symbol, latest.orderId);
-    if (Number.isFinite(fills.avgPrice) && fills.avgPrice > 0) {
-      avgPrice  = fills.avgPrice;
-      fillsUsed = true;
-      logEvent(LOG_FILE, "INFO", `reconcile ${symbol}: avgPrice from /fills VWAP=${safeToFixed(avgPrice, 6)} (orderInfo returned 0)`);
-      // Prefer fills fee data if orderInfo fee is also missing
-      if (!Number.isFinite(feeAmount) || feeAmount <= 0) {
-        feeAmount = fills.feeAmount;
-        feeCoin   = fills.feeCoin;
-        feeUSDT   = fills.feeUSDT;
-      }
-    }
-  }
-
-  if (status === "REJECTED" || status === "CANCELED") {
-    throw new Error(`Order ${status.toLowerCase()}: ${symbol} ${side}`);
-  }
-  if (status === "OPEN" || status === "UNKNOWN") {
-    throw new Error(`Order not finalized: ${symbol} ${side} status=${status}`);
-  }
-  if (!Number.isFinite(filledSize) || filledSize <= 0) {
-    throw new Error(`Order returned no filled size: ${symbol} ${side} status=${status}`);
-  }
-
-  const reconcileLatencyMs = Date.now() - startedAt;
-  logEvent(LOG_FILE, "DEBUG",
-    `reconcile ${symbol} done: status=${status} avgPrice=${safeToFixed(avgPrice,6)} ` +
-    `fee=${safeToFixed(feeUSDT,6)}USDT latency=${reconcileLatencyMs}ms fills=${fillsUsed}`);
-
-  return {
-    ...latest,
-    status,
-    requestedSize,
-    filledSize,
-    avgPrice,
-    feeAmount,
-    feeCoin,
-    feeUSDT,
-    fillsUsed,
-    partialFill: filledSize > 0 && filledSize + 1e-12 < requestedSize,
-    reconcileLatencyMs
-  };
+// Initialize order manager with dependencies (after config and sleep are available)
+function initOrderManager() {
+  orderManager = createOrderManager({ config, request, logEvent, LOG_FILE, safeToFixed, sleep });
 }
 
 async function safeExecute(fn, context) {
@@ -754,9 +437,14 @@ function normalizeConfig() {
 
   // 5. Mode profile semantics enforcement
   const mode = config.activeMode || config.selectedMode || 'normal';
-  if (mode === 'aggressive' || mode === 'hyper') {
+  if (mode === 'conservative') {
+    if (config.requireEdge === undefined) config.requireEdge = true;
+    if (config.minConfirmation === undefined) config.minConfirmation = 4;
+  } else if (mode === 'aggressive' || mode === 'hyper') {
     config._effectiveRisk = Math.min(config._effectiveRisk, 0.2);
     config._effectiveMaxTrades = Math.min(config._effectiveMaxTrades, 999);
+    if (config.requireEdge === undefined) config.requireEdge = false;
+    if (config.minConfirmation === undefined) config.minConfirmation = 3;
   }
 
   // 6. Market profile allowEntries: respect dashboard but guard bearish/choppy
@@ -1289,6 +977,7 @@ let shutdownInProgress = false;
 let shutdownExitCode = 0;
 const alertTimestamps = {};
 const unlistedCoinsCache = new Set();
+const unsupportedTimeframeCache = new Set(); // Pairs that don't support signalTimeframe (e.g. R* on 3min)
 const jobLocks = {
   market: false,
   reports: false,
@@ -1366,7 +1055,7 @@ function requestSafeExit(source = "manual", exitCode = 0) {
   shutdownRequested = true;
 
   if (loopTimer) {
-    clearInterval(loopTimer);
+    clearTimeout(loopTimer);
     loopTimer = null;
   }
   if (holdLoopTimer) {
@@ -1693,6 +1382,11 @@ async function getCandles(symbol, timeframe = "3min", limit = 50, silent = false
     }
     return candles;
   } catch (err) {
+    // Blacklist pair if it doesn't support the signal timeframe (HTTP 400)
+    if (err.status === 400 && timeframe === config.signalTimeframe) {
+      unsupportedTimeframeCache.add(symbol);
+      logEvent(LOG_FILE, "WARN", `Blacklisted ${symbol} — does not support ${timeframe} candles (HTTP 400)`);
+    }
     if (!silent) logEvent(LOG_FILE, "ERROR", `getCandles failed for ${symbol} (${timeframe}): ${err.message}`);
     throw err; // re-throw so caller knows
   } finally {
@@ -1701,6 +1395,49 @@ async function getCandles(symbol, timeframe = "3min", limit = 50, silent = false
 }
 
 async function getBalances() {
+  // ===== FUTURES MODE =====
+  if (futures.isFuturesMode(config)) {
+    // Dry-run: use virtual wallet, skip real API
+    if (config.dryRun) {
+      const paper = ensureDryRunPaperBalance(state);
+      return { ...paper.balances, usdt: paper.usdt };
+    }
+    await waitForSlot();
+    try {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const futuresBalance = await futures.getFuturesBalance(request, config);
+      // Return in same format as spot for compatibility
+      const balances = { usdt: futuresBalance.available || 0 };
+      // Validate exchange-side position leverage against configured leverage (warns on drift)
+      try {
+        await futures.getFuturesPositions(request, config, logEvent, LOG_FILE);
+      } catch (_) {}
+      // Also fetch spot balances for any held coins (for recovery/detection)
+      try {
+        const spotData = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", "/api/v2/spot/account/assets");
+        const byCoin = Object.fromEntries(
+          (Array.isArray(spotData) ? spotData : []).map(item => [String(item.coin || "").toUpperCase(), Number(item.available || 0)])
+        );
+        for (const [coin, available] of Object.entries(byCoin)) {
+          if (available > 0 && coin !== "USDT") {
+            balances[coin.toLowerCase()] = available;
+          }
+        }
+      } catch (_) {}
+      // Cache futures balance metadata for position tracking
+      state._futuresBalance = {
+        equity: futuresBalance.equity,
+        marginUsed: futuresBalance.marginUsed,
+        unrealizedPnl: futuresBalance.unrealizedPnl,
+        marginRatio: futuresBalance.marginRatio
+      };
+      return balances;
+    } finally {
+      releaseSlot();
+    }
+  }
+
+  // ===== SPOT MODE (original) =====
   await waitForSlot();
   try {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -1807,46 +1544,6 @@ async function getPortfolioValue() {
   });
 }
 
-function computeEquityLegacy(balances, priceMap) {
-  let total = balances.usdt || 0;
-  const breakdown = {};
-  const dustThreshold = config.logDustThreshold ?? 0.01;
-  const qtyDustThreshold = config.logQtyDustThreshold ?? 1e-8;
-  const summary = [];
-
-  for (const [coin, bal] of Object.entries(balances)) {
-    if (coin === 'usdt') continue;
-    const qty = bal || 0;
-    if (qty <= 0) continue;
-    const lowerCoin = coin.toLowerCase();
-    const price = priceMap[lowerCoin];
-    if (!price || price <= 0) {
-      logEvent(LOG_FILE, "WARN", `Missing/zero price for ${lowerCoin} (balance=${qty})`);
-      continue;
-    }
-    const value = qty * price;
-
-    // Always add to total equity, even if it's dust
-    total += value;
-
-    if (qty < qtyDustThreshold || value < dustThreshold) {
-      continue;
-    }
-    breakdown[lowerCoin] = value;
-    summary.push(`${lowerCoin}: qty=${qty}, price=${price}, value=${safeToFixed(value)}`);
-  }
-  if (summary.length > 0) {
-    logEvent(LOG_FILE, "DEBUG", `Equity assets | ${summary.join(" | ")}`);
-  }
-  logEvent(LOG_FILE, "DEBUG", `Equity computed | total=${safeToFixed(total, 2)} | assets=${Object.keys(breakdown).join(",") || "none"}`);
-  return {
-    totalEquity: total,
-    usdtFree: balances.usdt,
-    balances: balances,
-    breakdown: breakdown
-  };
-}
-
 async function getTickers() {
   const data = await request(config.baseUrl, config.apiKey, config.secretKey, config.passphrase, "GET", "/api/v2/spot/market/tickers");
   const tickers = extractTickerRows(data);
@@ -1936,6 +1633,7 @@ async function getTickersCached() {
 
 let lastAutoPairRotationAt = 0;
 let lastAutoPairRotationSignature = "";
+let lastMarketScanData = null; // Cached for independent AI scheduler
 
 function getAutoPairRotationConfig() {
   const defaults = {
@@ -2178,7 +1876,11 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     const symbol = extractTickerSymbol(row);
     if (!symbol.endsWith("USDT")) continue;
     if (symbol.includes("3L") || symbol.includes("3S") || symbol.includes("5L") || symbol.includes("5S")) continue;
+    // Skip Bitget reward tokens (R-pairs) — inflated volume, no 3min candle support
+    const baseCoin = symbol.replace(/USDT$/i, "");
+    if (/^R[A-Z]{1,6}$/.test(baseCoin)) continue;
     if (stopLossBlacklist.has(symbol)) continue;
+    if (unsupportedTimeframeCache.has(symbol)) continue; // Skip pairs that don't support signalTimeframe
 
     const last = extractTickerPrice(row);
     const quoteVol = extractTickerQuoteVolume(row);
@@ -2256,7 +1958,7 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
       changed: false,
       reason: "no-candidates",
       activeCategories,
-      blacklistCount: stopLossBlacklist.size,
+      blacklistCount: stopLossBlacklist.size + unsupportedTimeframeCache.size,
       candidates: [],
       pending: false,
       pendingAt: null,
@@ -2283,7 +1985,7 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     topPairs: rotationCfg.topPairs,
     activePairs: config.pairs,
     activeCategories,
-    blacklistCount: stopLossBlacklist.size,
+    blacklistCount: stopLossBlacklist.size + unsupportedTimeframeCache.size,
     candidates: rotationCandidates,
     pending: false,
     pendingAt: null,
@@ -2297,7 +1999,11 @@ async function maybeRotatePairUniverseInner({ now, state, force = false }) {
     candidates: scored,
     now,
     report,
-    log: (level, message, meta) => logEvent(LOG_FILE, level, message, meta)
+    log: (level, message, meta) => logEvent(LOG_FILE, level, message, meta),
+    context: {
+      openPositions: getOpenPositions(state).length,
+      exposurePct: getOpenExposureUsdt(state) / (state.startOfDayEquity || 1)
+    }
   });
   const aiRotationStatus = formatAiAgentRotationStatus(aiResult, config.aiAgent?.lastDecision);
   config.lastAutoPairRotation.aiAgent = {
@@ -2393,58 +2099,128 @@ async function getBalancesCached() {
   }
 }
 
-function getCoinBalanceLegacy(symbol, balances) {
-  const coin = symbol.replace("USDT", "").toLowerCase();
-  // Case-insensitive lookup
-  const actual = Object.keys(balances).find(k => k.toLowerCase() === coin);
-  return actual ? balances[actual] : 0;
-}
+// ================= FUTURES ORDER PLACEMENT =================
+async function placeOrderFutures(symbol, side, size, clientOrderId = null, simulatedPrice = null, reduceOnly = false) {
+  const futuresCfg = futures.getFuturesConfig(config);
 
-// Detect open position from balance (recovery if state.position missing)
-function detectOpenPositionFromBalanceLegacy(balances, priceMap, config) {
-  const minRecover = config.minRecoverUSDT || config.minManagedPositionUSDT || config.minHoldUSDT || 5;
-  logEvent(LOG_FILE, "DEBUG", `Recovery scan | threshold=${safeToFixed(minRecover, 2)} USDT`);
-  for (const [coin, qty] of Object.entries(balances)) {
-    if (coin.toLowerCase() === 'usdt') continue;
-    if (!qty || qty <= 0) continue;
-    const coinLower = coin.toLowerCase();
-    const price = priceMap[coinLower];
-    if (!price) {
-      logEvent(LOG_FILE, "WARN", `Missing price for ${coinLower} (balance=${qty})`);
-      continue;
-    }
-    const value = qty * price;
-    const coinUpper = coinLower.toUpperCase();
-    logEvent(LOG_FILE, "DEBUG", `Recovery asset | ${coinUpper} qty=${qty} price=${price} value=${safeToFixed(value)}`);
-    if (value >= minRecover) {
-      const symbol = coinUpper + 'USDT';
-      logEvent(LOG_FILE, "INFO", `Recovered position | ${symbol} value=${safeToFixed(value)}`);
-      return {
-        symbol,
-        entry: price,
-        currentPrice: price,
-        qty: qty,
-        sizeUSDT: value,
-        peak: price,
-        trailingActive: false,
-        stopPct: -0.02, // default 2% stop until next evaluation
-        entryTime: Date.now(),
-        entryReason: {
-          score: null,
-          marketMode: null,
-          rsi: null,
-          atrPct: null,
-          notes: "Recovered from balance â€“ entry price estimated"
-        },
-        source: "recovery"
-      };
-    }
+  // Ensure leverage and margin mode are set before sizing and order placement
+  await futures.ensureFuturesSetup(request, config, symbol, logEvent, LOG_FILE);
+
+  // Get contract info for sizing
+  const contractInfo = await futures.getContractInfo(request, config, symbol);
+  if (!contractInfo) {
+    throw new Error(`No contract info for ${symbol}`);
   }
-  logEvent(LOG_FILE, "INFO", "Position recovery scan complete: no valid position found");
-  return null;
+
+  // Convert USDT notional to contract quantity (size is already in USDT from entryFlow)
+  const price = Number(simulatedPrice) || Number(cachedPrices?.[symbol.replace(/USDT$/i, "").toLowerCase()] || 0);
+  const contracts = futures.usdtToContracts(Number(size), futuresCfg.leverage, price, contractInfo.contractMultiplier);
+
+  if (contracts <= 0) {
+    throw new Error(`Calculated 0 contracts for ${symbol}: size=${size} price=${price} leverage=${futuresCfg.leverage}`);
+  }
+
+  if (config.dryRun) {
+    // Dry-run: simulate futures order
+    const buySide = String(side).toLowerCase() === "buy";
+    const execProfile = getPaperExecutionProfile(symbol);
+    const slippagePct = buySide ? Number(execProfile.buySlippagePct) : Number(execProfile.sellSlippagePct);
+    const feeRate = buySide ? Number(execProfile.buyFeeRate) : Number(execProfile.sellFeeRate);
+    const simPrice = price > 0 ? (buySide ? price * (1 + slippagePct) : price * (1 - slippagePct)) : price;
+    const notional = contracts * simPrice * contractInfo.contractMultiplier;
+    const feeUSDT = notional * feeRate;
+
+    logEvent(LOG_FILE, "SIMULATE", `FUTURES ORDER ${side} ${symbol} contracts=${contracts} leverage=${futuresCfg.leverage}x price=${simPrice} fee=${safeToFixed(feeUSDT, 6)}`);
+
+    return {
+      orderId: `SIM_F_${Date.now()}`,
+      clientOrderId: clientOrderId || `SIM_F_${Date.now()}`,
+      symbol,
+      side,
+      requestedSize: contracts,
+      filledSize: contracts,
+      avgPrice: simPrice,
+      feeAmount: feeUSDT,
+      feeCoin: "USDT",
+      feeUSDT,
+      status: "FILLED",
+      reconcileLatencyMs: 0,
+      fillsUsed: false,
+      dryRun: true,
+      isFutures: true,
+      contracts,
+      leverage: futuresCfg.leverage,
+      marginMode: futuresCfg.marginMode
+    };
+  }
+
+  // Live futures order
+  if (clientOrderId) inFlightClientOrders.add(clientOrderId);
+  try {
+    const result = await futures.placeFuturesOrder(request, config, {
+      symbol,
+      side,
+      orderType: "market",
+      size: contracts,
+      reduceOnly: reduceOnly,
+      clientOid: clientOrderId
+    }, logEvent, LOG_FILE);
+
+    // Poll for fill
+    const pollDelays = [0, 500, 1000, 2000];
+    let orderStatus = result;
+    for (let i = 0; i < pollDelays.length; i++) {
+      if (pollDelays[i] > 0) await sleep(pollDelays[i]);
+      const fetched = await futures.getFuturesOrder(request, config, symbol, result.orderId);
+      if (fetched && ["FILLED", "PARTIAL", "CANCELED", "REJECTED"].includes(fetched.status)) {
+        orderStatus = { ...orderStatus, ...fetched };
+        break;
+      }
+      if (fetched) orderStatus = { ...orderStatus, ...fetched };
+    }
+
+    if (orderStatus.status === "REJECTED" || orderStatus.status === "CANCELED") {
+      throw new Error(`Futures order ${orderStatus.status}: ${symbol} ${side}`);
+    }
+
+    // Invalidate caches
+    cachedBalances = null;
+    cachedTickers = null;
+    cachedPrices = null;
+
+    return {
+      orderId: orderStatus.orderId,
+      clientOrderId: orderStatus.clientOrderId || clientOrderId,
+      symbol,
+      side,
+      requestedSize: contracts,
+      filledSize: orderStatus.filledSize || contracts,
+      avgPrice: orderStatus.avgPrice || price,
+      feeAmount: orderStatus.fee || null,
+      feeCoin: "USDT",
+      feeUSDT: orderStatus.fee || null,
+      status: futures.normalizeFuturesOrderStatus(orderStatus.status),
+      reconcileLatencyMs: 0,
+      fillsUsed: false,
+      dryRun: false,
+      isFutures: true,
+      contracts,
+      leverage: futuresCfg.leverage,
+      marginMode: futuresCfg.marginMode
+    };
+  } catch (err) {
+    if (clientOrderId) {
+      cachedBalances = null;
+      cachedTickers = null;
+      cachedPrices = null;
+    }
+    throw err;
+  } finally {
+    if (clientOrderId) inFlightClientOrders.delete(clientOrderId);
+  }
 }
 
-async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPrice = null) {
+async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPrice = null, reduceOnly = false) {
   if (executionKillSwitch) {
     throw new Error("Execution kill switch active");
   }
@@ -2452,6 +2228,12 @@ async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPri
     throw new Error(`Duplicate in-flight clientOrderId: ${clientOrderId}`);
   }
 
+  // ===== FUTURES MODE: delegate to futures module =====
+  if (futures.isFuturesMode(config)) {
+    return await placeOrderFutures(symbol, side, size, clientOrderId, simulatedPrice, reduceOnly);
+  }
+
+  // ===== SPOT MODE (original logic) =====
   let scale = symbolScales[symbol];
   if (!Number.isInteger(scale)) {
     try {
@@ -2581,7 +2363,7 @@ async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPri
         timestamp: Date.now(),
       apiLatencyMs
     };
-    const reconciled = await reconcileOrder(symbol, side, sizeNum, initialOrder);
+    const reconciled = await orderManager.reconcileOrder(symbol, side, sizeNum, initialOrder);
     if (apiLatencyMs > 10000 && reconciled.status !== "FILLED") {
       throw new Error(`Execution latency too high: ${apiLatencyMs}ms`);
     }
@@ -2595,9 +2377,9 @@ async function placeOrder(symbol, side, size, clientOrderId = null, simulatedPri
   } catch (err) {
     if (clientOrderId) {
       try {
-        const recoveredOrder = await getOrder(symbol, { clientOrderId });
+        const recoveredOrder = await orderManager.getOrder(symbol, { clientOrderId });
         if (recoveredOrder) {
-          return await reconcileOrder(symbol, side, sizeNum, recoveredOrder);
+          return await orderManager.reconcileOrder(symbol, side, sizeNum, recoveredOrder);
         }
       } catch (_) {}
     }
@@ -2634,7 +2416,7 @@ async function runBot() {
   loopInProgress = true;
   try {
     const loopStartedAt = Date.now();
-    const now = Date.now();
+    const now = loopStartedAt;
     const today = jakartaDateKey(now);
 
     if (config.lastAutoPairRotation?.pending === true && getOpenPositions(state).length === 0 && !state.position) {
@@ -2653,6 +2435,7 @@ async function runBot() {
       ensureDryRunPaperBalance(state);
     }
 
+    let stateDirty = false;
     if (state.date !== today) {
       state.date = today;
       state.tradesToday = 0;
@@ -2666,39 +2449,36 @@ async function runBot() {
       state.lastReportedPnlBySymbol = {};
       state.entryBlockBySymbol = {};
       state.recentEntriesBySymbol = {};
-      saveState(STATE_PATH, state);
+      stateDirty = true;
     } else if (config.dryRun && shouldRefreshDryRunStartOfDayEquity(state, today)) {
       state.startOfDayEquity = currentEquity;
-      saveState(STATE_PATH, state);
+      stateDirty = true;
     } else if (!state.startOfDayEquity || state.startOfDayEquity <= 0) {
       state.startOfDayEquity = currentEquity;
-      saveState(STATE_PATH, state);
+      stateDirty = true;
     }
-    if (cleanupExpiredEntryBlocks(state, now)) {
-      saveState(STATE_PATH, state);
-    }
-    if (cleanupRecentEntries(state, now)) {
-      saveState(STATE_PATH, state);
-    }
+    if (cleanupExpiredEntryBlocks(state, now)) stateDirty = true;
+    if (cleanupRecentEntries(state, now)) stateDirty = true;
     const journalRoundsToday = countClosedRoundsForDate(today);
     if (state.tradesToday !== journalRoundsToday) {
       state.tradesToday = journalRoundsToday;
-      saveState(STATE_PATH, state);
+      stateDirty = true;
     }
     syncManagedPositionsToJournal(state, config);
     const realizedPnlPct = state.startOfDayEquity > 0 ? state.realizedPnlToday / state.startOfDayEquity : 0;
     if (realizedPnlPct >= config.dailyProfitTargetPct) {
       state.haltedForDay = true;
       state.haltReason = `Daily profit target reached (+${safeToFixed(realizedPnlPct * 100)}%)`;
-      saveState(STATE_PATH, state);
+      stateDirty = true;
       logEvent(LOG_FILE, "INFO", "Halted: " + state.haltReason);
     }
     if (realizedPnlPct <= config.dailyLossLimitPct) {
       state.haltedForDay = true;
       state.haltReason = `Daily loss limit hit (${safeToFixed(realizedPnlPct * 100)}%)`;
-      saveState(STATE_PATH, state);
+      stateDirty = true;
       logEvent(LOG_FILE, "INFO", "Halted: " + state.haltReason);
     }
+    if (stateDirty) saveState(STATE_PATH, state);
 
     // ===== STEP 4: POSITION RECOVERY =====
     // Scan all non-USDT balances in portfolio:
@@ -2707,6 +2487,7 @@ async function runBot() {
     const DUST_THRESHOLD_USDT = config.minManagedPositionUSDT ?? 3;
     const RECOVERY_THRESHOLD_USDT = Math.max(config.minRecoverUSDT ?? DUST_THRESHOLD_USDT, DUST_THRESHOLD_USDT);
     const managedSymbolsSet = new Set(getOpenPositions(state).map(pos => pos.symbol));
+    let recoveryDirty = false;
 
     for (const [coin, qty] of Object.entries(balances)) {
       if (coin === "usdt") continue;
@@ -2728,7 +2509,7 @@ async function runBot() {
           position = state.position;
           delete state.lastReportedPnlBySymbol[symbol];
           managedSymbolsSet.delete(symbol);
-          saveState(STATE_PATH, state);
+          recoveryDirty = true;
         }
         continue; // skip dust regardless
       }
@@ -2791,7 +2572,7 @@ async function runBot() {
         state.position = state.positions[0] || null;
         position = state.position;
         managedSymbolsSet.add(symbol);
-        saveState(STATE_PATH, state);
+        recoveryDirty = true;
 
         if (!recentlyBoughtByBot) {
           logTrade({
@@ -2816,12 +2597,13 @@ async function runBot() {
           await report(`⚠️ POSITION RECOVERED\nPair: ${symbol}\nEstimated Entry: ${safeToFixed(price)}\nValue: ${safeToFixed(value)} USDT\n\nBot detected an existing position from balance.`);
           state.lastRecoveryTime = Date.now();
           state.lastRecoverySymbol = symbol;
-          saveState(STATE_PATH, state);
+          recoveryDirty = true;
         } else if (!recentlyBoughtByBot) {
           logEvent(LOG_FILE, "DEBUG", `Recovery message suppressed | last=${lastRecoverySymbol}`);
         }
       }
     }
+    if (recoveryDirty) saveState(STATE_PATH, state);
     syncManagedPositionsToJournal(state, config);
 
     // ===== STEP 5: POSITION VALIDATION =====
@@ -2978,6 +2760,7 @@ async function runBot() {
     let marketMode = "Unknown";
     let volatilityState = "Unknown";
     let entryCandidates = [];
+    let bestShortEligible = null;
     let scanConfig = applyMarketProfile(config, resolveMarketProfileKey(null));
     const marketJob = await withJobLock(
       "market",
@@ -2986,7 +2769,9 @@ async function runBot() {
         const marketProfileKey = resolveMarketProfileKey(baseScan.marketMode);
         scanConfig = applyMarketProfile(config, marketProfileKey);
         const scanResult = marketProfileKey ? await scanMarket(scanConfig, getCandles, botLog) : baseScan;
-        ({ marketData, topScoring, watchlist, marketMode, volatilityState, entryCandidates } = scanResult);
+        ({ marketData, topScoring, watchlist, marketMode, volatilityState, entryCandidates, bestShortEligible } = scanResult);
+        // Cache for independent AI scheduler
+        lastMarketScanData = { marketMode, volatilityState, entryCandidates };
       },
       "Skipping market scan: previous market job still running"
     );
@@ -3187,6 +2972,7 @@ async function runBot() {
       marketMode,
       volatilityState,
       bestEligible,
+      bestShortEligible,
       usdtFree,
       currentEquity,
       now,
@@ -3210,7 +2996,9 @@ async function runBot() {
       logEvent,
       LOG_FILE,
       safeToFixed,
-      cachedPrices
+      cachedPrices,
+      request,
+      futures
     });
     if (Number.isFinite(entryFlowResult.currentPositionPrice)) {
       currentPositionPrice = entryFlowResult.currentPositionPrice;
@@ -3218,8 +3006,7 @@ async function runBot() {
     position = state.position;
 
   } catch (err) {
-    logEvent(LOG_FILE, "ERROR", "runBot: " + err.message);
-    logEvent(LOG_FILE, "ERROR", err.message);
+    logEvent(LOG_FILE, "ERROR", "runBot error: " + err.message);
   } finally {
     loopInProgress = false;
     if (shutdownRequested) {
@@ -3379,109 +3166,6 @@ async function runHoldManagerCycle() {
   }
 }
 
-// ================= CONFIG NORMALIZATION =================
-function normalizeConfig() {
-  const clampNum = (value, min, max, fallback) => {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return fallback;
-    return Math.max(min, Math.min(max, n));
-  };
-
-  const rawRisk = clampNum(config.riskPercent, 0.01, 0.2, 0.15);
-  const rawFee = clampNum(config.roundTripFeePct, 0, 0.01, 0.004);
-  const rawSlippage = clampNum(config.slippageBufferPct, 0, 0.005, 0.001);
-  const baseCooldown = clampNum(config.cooldownMs, 60000, 3600000, 300000);
-  const rawMinExpectedNet = clampNum(config.minExpectedNetPct, 0, 0.03, 0.003);
-  const rawTakeProfit = clampNum(config.takeProfitPct, 0.001, 0.2, 0.012);
-  const rawTrailingActivation = clampNum(config.trailingActivationPct, 0.001, 0.2, 0.008);
-  const rawBreakEvenArmed = clampNum(config.breakEvenArmedPct, 0.0005, 0.2, 0.006);
-  const totalCostPct = rawFee + rawSlippage;
-  const minNetBufferPct = Math.max(rawMinExpectedNet, 0.001);
-
-  let effectiveCooldown = baseCooldown;
-  if (rawRisk >= 0.15) effectiveCooldown = Math.max(baseCooldown, 600000);
-  else if (rawRisk >= 0.1) effectiveCooldown = Math.max(baseCooldown, 300000);
-  else effectiveCooldown = Math.max(baseCooldown, 180000);
-
-  const effectiveTakeProfit = Math.max(rawTakeProfit, totalCostPct + minNetBufferPct);
-  let effectiveBreakEvenArmed = Math.max(rawBreakEvenArmed, totalCostPct + 0.0005);
-  let effectiveTrailingActivation = Math.max(rawTrailingActivation, effectiveBreakEvenArmed + 0.0005);
-  if (effectiveTrailingActivation >= effectiveTakeProfit) {
-    effectiveTrailingActivation = Math.max(effectiveBreakEvenArmed + 0.0003, effectiveTakeProfit * 0.8);
-  }
-  if (effectiveBreakEvenArmed >= effectiveTrailingActivation) {
-    effectiveBreakEvenArmed = Math.max(totalCostPct + 0.0005, effectiveTrailingActivation - 0.0005);
-  }
-
-  config._effectiveRisk = rawRisk;
-  config._effectiveCooldown = effectiveCooldown;
-  config._effectiveSlippageBufferPct = rawSlippage;
-  config._effectiveRoundTripFeePct = rawFee;
-  config._effectiveMinExpectedNetPct = rawMinExpectedNet;
-  config._effectiveTakeProfitPct = effectiveTakeProfit;
-  config._effectiveTrailingActivationPct = effectiveTrailingActivation;
-  config._effectiveBreakEvenArmedPct = effectiveBreakEvenArmed;
-  config._effectiveCostPct = totalCostPct;
-  const maxRoundsPerDay = Number.isFinite(config.maxRoundsPerDay) ? config.maxRoundsPerDay : config.maxTradesPerDay;
-  config._effectiveMaxTrades = Number.isFinite(maxRoundsPerDay) ? maxRoundsPerDay : 20;
-  config.maxRoundsPerDay = config._effectiveMaxTrades;
-  config.maxTradesPerDay = config._effectiveMaxTrades;
-
-  const mode = config.activeMode || config.selectedMode || 'normal';
-  if (mode === 'conservative') {
-    if (config.requireEdge === undefined) config.requireEdge = true;
-    if (config.minConfirmation === undefined) config.minConfirmation = 4;
-  } else if (mode === 'aggressive' || mode === 'hyper') {
-    if (config.requireEdge === undefined) config.requireEdge = false;
-    if (config.minConfirmation === undefined) config.minConfirmation = 3;
-    config._effectiveRisk = Math.min(config._effectiveRisk, 0.2);
-    config._effectiveMaxTrades = Math.min(config._effectiveMaxTrades, 999);
-  }
-  // 'normal' and 'range_scalp' keep their current overrides
-
-  // 6. Market profile allowEntries: respect dashboard but guard bearish/choppy
-  config._effectiveAllowEntries = true; // default
-  const profileKey = config.selectedMarketProfile || 'auto';
-  if (profileKey !== 'auto') {
-    const mp = config.marketProfiles?.[profileKey];
-    if (mp) {
-      const bearishProfiles = ['bearish', 'choppy'];
-      if (bearishProfiles.includes(profileKey)) {
-        config._effectiveAllowEntries = false;
-      } else {
-        config._effectiveAllowEntries = mp.allowEntries !== false;
-      }
-    }
-  } else {
-    // auto mode: will be determined after market detection (in applyMarketProfile)
-    // Default to true; actual value set later based on activeMarketProfile
-    config._effectiveAllowEntries = true;
-  }
-
-  // 7. Sanity check numeric fields (NaN/Infinity guard)
-  const numericFields = [
-    'minBuyUSDT', 'maxBuyUSDT', 'reserveUSDT',
-    'minManagedPositionUSDT', 'minRecoverUSDT',
-    'takeProfitPct', 'trailingActivationPct', 'trailingDrawdownPct',
-    'trailingProtectionPct', 'exitRSIThreshold',
-    'minExpectedNetPct', 'minScalpTargetPct', 'maxScalpTargetPct',
-    'minAtrPct', 'maxAtrPct', 'minTrendRsi', 'minVolumeRatio', 'maxEmaGapPct',
-    'minCandleStrength', 'breakoutPct', 'maxOpenPositions', 'exposureCapPct',
-    'pairReentryBlockLossPct', 'pairReentryBlockMinutes'
-  ];
-  for (const field of numericFields) {
-    if (config[field] !== undefined) {
-      const val = Number(config[field]);
-      if (!isFinite(val) || isNaN(val)) {
-        console.warn(`[SAFETY] Invalid ${field}=${config[field]}, using fallback`);
-        // Fallbacks
-        if (field.includes('Pct')) config[field] = 0.01;
-        else if (field.includes('USDT')) config[field] = 5;
-        else config[field] = 1;
-      }
-    }
-  }
-}
 
 // ================= LOOP =================
 async function startBot() {
@@ -3540,6 +3224,7 @@ async function startBot() {
   await animateValidationStage(0.8, 1, "checking ranges, intervals, and config conflicts", 1000);
   printValidationPassed();
   await initScales();
+  initOrderManager();
 
   // Startup auto-rotate should happen before the first market scan / buy cycle,
   // while still honoring open-position and recovery guards.
@@ -3562,6 +3247,58 @@ async function startBot() {
     logEvent(LOG_FILE, "INFO", `Auto pair rotation scheduler started | interval=${rotationCfg.refreshIntervalHours}h`);
   } else {
     logEvent(LOG_FILE, "INFO", "Auto pair rotation disabled — running on fixed pairSettings");
+  }
+
+  // ===== INDEPENDENT AI AGENT SCHEDULER =====
+  // Runs independently from pair rotation with richer context (market regime, positions, indicators).
+  const aiAgentSettings = getAiAgentSettings(config);
+  if (aiAgentSettings.enabled && config.aiAgent?.independentSchedule !== false) {
+    const aiIntervalHours = Math.max(1, Math.min(6, Number(config.aiAgent?.independentIntervalHours || 2)));
+    const aiIntervalMs = aiIntervalHours * 60 * 60 * 1000;
+    setInterval(async () => {
+      if (shutdownRequested) return;
+      if (jobLocks.rotation) return;
+      try {
+        // Build rich context from current state
+        const openPositions = getOpenPositions(state);
+        const currentExposure = getOpenExposureUsdt(state);
+        const currentEquity = state.startOfDayEquity || 1;
+        const entryCandidates = lastMarketScanData?.entryCandidates || null;
+        const aiContext = {
+          marketMode: lastMarketScanData?.marketMode || null,
+          volatilityState: lastMarketScanData?.volatilityState || null,
+          openPositions: openPositions.length,
+          exposurePct: currentExposure / currentEquity,
+          unrealizedPnlPct: openPositions.reduce((sum, pos) => {
+            const entry = Number(pos?.entry || 0);
+            const current = Number(pos?.currentPrice || 0);
+            if (entry > 0 && current > 0) return sum + ((current - entry) / entry);
+            return sum;
+          }, 0),
+          entryCandidates: entryCandidates ? entryCandidates.map(c => ({
+            symbol: c.symbol,
+            rsi: c.rsi,
+            atrPct: c.atrPct,
+            volumeRatio: c.volumeRatio,
+            eligible: c.eligible
+          })) : null
+        };
+
+        await runAiAgentAfterRotation({
+          config,
+          rotation: config.lastAutoPairRotation || { activePairs: config.pairs, topPairs: config.pairs?.length, activeCategories: "-" },
+          candidates: config.lastAutoPairRotation?.candidates || [],
+          now: Date.now(),
+          report,
+          log: (level, message, meta) => logEvent(LOG_FILE, level, message, meta),
+          context: aiContext
+        });
+        logEvent(LOG_FILE, "INFO", `Independent AI agent run completed | profile=${config.selectedMarketProfile}`);
+      } catch (err) {
+        logEvent(LOG_FILE, "ERROR", `Independent AI agent run failed: ${err.message}`);
+      }
+    }, aiIntervalMs);
+    logEvent(LOG_FILE, "INFO", `Independent AI agent scheduler started | interval=${aiIntervalHours}h`);
   }
 
   async function scheduleNextRun() {
