@@ -612,6 +612,10 @@
     <div class="field-grid">
       <div class="field"><label>Liquidation Buffer %</label><input id="futuresLiquidationBufferEditor" type="number" min="5" max="50" step="1" value="15"><div class="hint" style="margin-top:6px">Exit jika harga dalam X% dari liquidation price. Default 15%.</div></div>
       <div class="field"><label>Funding Rate Threshold</label><input id="futuresFundingThresholdEditor" type="number" min="0" max="1" step="0.001" value="0.001"><div class="hint" style="margin-top:6px">Peringatan jika funding rate melebihi threshold ini.</div></div>
+      <div class="field"><label>Margin Circuit Breaker</label><input id="futuresMarginCircuitBreakerEditor" type="checkbox" checked><div class="hint" style="margin-top:6px">Otomatis blokir entry & close posisi jika margin ratio terlalu tinggi.</div></div>
+      <div class="field"><label>Margin Warning %</label><input id="futuresMarginWarningEditor" type="number" min="50" max="95" step="1" value="70"><div class="hint" style="margin-top:6px">Log peringatan saat margin ratio mencapai level ini.</div></div>
+      <div class="field"><label>Margin Entry Block %</label><input id="futuresMarginEntryBlockEditor" type="number" min="60" max="98" step="1" value="80"><div class="hint" style="margin-top:6px">Blokir entry baru saat margin ratio mencapai level ini.</div></div>
+      <div class="field"><label>Margin Critical %</label><input id="futuresMarginCriticalEditor" type="number" min="70" max="99" step="1" value="90"><div class="hint" style="margin-top:6px">Tutup posisi terburuk otomatis saat margin ratio mencapai level ini.</div></div>
     </div>
     <div class="note" style="margin-top:10px">⚠️ <strong>Peringatan:</strong> Futures trading dengan leverage tinggi memiliki risiko tinggi. Pastikan Anda memahami risiko liquidation sebelum mengaktifkan mode ini. Gunakan dry-run terlebih dahulu untuk testing.</div>
   </div>
@@ -806,6 +810,10 @@ function ensureFuturesConfig(){
   if(f.enableShorts==null)f.enableShorts=true;
   if(f.liquidationBufferPct==null)f.liquidationBufferPct=0.15;
   if(f.fundingRateThreshold==null)f.fundingRateThreshold=0.001;
+  if(f.enableMarginCircuitBreaker==null)f.enableMarginCircuitBreaker=true;
+  if(f.marginRatioWarningPct==null)f.marginRatioWarningPct=70;
+  if(f.marginRatioEntryBlockPct==null)f.marginRatioEntryBlockPct=80;
+  if(f.marginRatioCriticalPct==null)f.marginRatioCriticalPct=90;
 }
 function renderFuturesConfig(){
   ensureFuturesConfig();
@@ -818,6 +826,10 @@ function renderFuturesConfig(){
   sEv('futuresEnableShortsEditor',f.enableShorts);
   sEv('futuresLiquidationBufferEditor',Math.round(f.liquidationBufferPct*100));
   sEv('futuresFundingThresholdEditor',f.fundingRateThreshold);
+  sEv('futuresMarginCircuitBreakerEditor',f.enableMarginCircuitBreaker);
+  sEv('futuresMarginWarningEditor',f.marginRatioWarningPct);
+  sEv('futuresMarginEntryBlockEditor',f.marginRatioEntryBlockPct);
+  sEv('futuresMarginCriticalEditor',f.marginRatioCriticalPct);
   // Info box
   document.getElementById('futuresStatusText').textContent=tm==='futures'?'FUTURES MODE (Active)':'Spot Mode';
   document.getElementById('futuresLeverageText').textContent=tm==='futures'?f.leverage+'x':'-';
@@ -825,7 +837,7 @@ function renderFuturesConfig(){
   document.getElementById('futuresShortsText').textContent=tm==='futures'?(f.enableShorts?'Enabled':'Disabled'):'-';
   document.getElementById('futuresLiqBufferText').textContent=tm==='futures'?Math.round(f.liquidationBufferPct*100)+'%':'-';
   // Disable futures fields when in spot mode
-  const futuresFields=['futuresLeverageEditor','futuresMarginModeEditor','futuresMaxLeverageEditor','futuresEnableShortsEditor','futuresLiquidationBufferEditor','futuresFundingThresholdEditor'];
+  const futuresFields=['futuresLeverageEditor','futuresMarginModeEditor','futuresMaxLeverageEditor','futuresEnableShortsEditor','futuresLiquidationBufferEditor','futuresFundingThresholdEditor','futuresMarginCircuitBreakerEditor','futuresMarginWarningEditor','futuresMarginEntryBlockEditor','futuresMarginCriticalEditor'];
   futuresFields.forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.disabled=(tm!=='futures');
@@ -1115,6 +1127,10 @@ function applyCfg(){
   nc.futures.enableShorts=Boolean(gEv('futuresEnableShortsEditor'));
   nc.futures.liquidationBufferPct=Math.max(0.05,Math.min(0.5,(Number(gEv('futuresLiquidationBufferEditor'))||15)/100));
   nc.futures.fundingRateThreshold=Number(gEv('futuresFundingThresholdEditor'))||0.001;
+  nc.futures.enableMarginCircuitBreaker=Boolean(gEv('futuresMarginCircuitBreakerEditor'));
+  nc.futures.marginRatioWarningPct=Math.max(50,Math.min(95,Number(gEv('futuresMarginWarningEditor'))||70));
+  nc.futures.marginRatioEntryBlockPct=Math.max(60,Math.min(98,Number(gEv('futuresMarginEntryBlockEditor'))||80));
+  nc.futures.marginRatioCriticalPct=Math.max(70,Math.min(99,Number(gEv('futuresMarginCriticalEditor'))||90));
   const ps={};
   for(const c of document.getElementById('pairEditor').querySelectorAll('[data-pe]')){
     const s=c.getAttribute('data-pe');

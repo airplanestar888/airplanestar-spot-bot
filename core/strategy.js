@@ -661,16 +661,21 @@ async function evaluateExit(position, balances, config, getCandles) {
   const normalSL = pnl <= stopPct && !useTrailing;
 
   // Liquidation protection for futures positions
+  // Buffer is distance-based: exit when price is within liqBufferPct of the
+  // entry-to-liquidation distance. A fixed % of liqPrice breaks at high leverage
+  // because the buffer can exceed the entry-to-liq distance, triggering above entry.
   const liqPrice = Number(position.liquidationPrice || 0);
   const liqBufferPct = config.futures?.liquidationBufferPct || 0.15;
   let liquidationDanger = false;
-  if (liqPrice > 0) {
+  if (liqPrice > 0 && entry > 0) {
     if (isShort) {
-      // Short: liquidation when price rises to liqPrice
-      liquidationDanger = price >= liqPrice * (1 - liqBufferPct);
+      // Short: liquidation when price rises to liqPrice; exit when within buffer distance
+      const distToLiq = liqPrice - entry;
+      if (distToLiq > 0) liquidationDanger = price >= liqPrice - distToLiq * liqBufferPct;
     } else {
-      // Long: liquidation when price drops to liqPrice
-      liquidationDanger = price <= liqPrice * (1 + liqBufferPct);
+      // Long: liquidation when price drops to liqPrice; exit when within buffer distance
+      const distToLiq = entry - liqPrice;
+      if (distToLiq > 0) liquidationDanger = price <= liqPrice + distToLiq * liqBufferPct;
     }
   }
 

@@ -29,12 +29,57 @@ function getFuturesConfig(config) {
     enableShorts: raw.enableShorts !== false,
     maxLeverage,
     liquidationBufferPct: Math.max(0.05, Math.min(0.5, Number(raw.liquidationBufferPct) || 0.15)),
-    fundingRateThreshold: Number(raw.fundingRateThreshold) || 0.001
+    fundingRateThreshold: Number(raw.fundingRateThreshold) || 0.001,
+    enableMarginCircuitBreaker: raw.enableMarginCircuitBreaker !== false,
+    marginRatioWarningPct: Math.max(50, Math.min(95, Number(raw.marginRatioWarningPct) || 70)),
+    marginRatioEntryBlockPct: Math.max(60, Math.min(98, Number(raw.marginRatioEntryBlockPct) || 80)),
+    marginRatioCriticalPct: Math.max(70, Math.min(99, Number(raw.marginRatioCriticalPct) || 90))
   };
 }
 
 function isFuturesMode(config) {
   return String(config.tradingMode || "spot").toLowerCase() === "futures";
+}
+
+/**
+ * Check margin ratio against circuit breaker thresholds.
+ * @param {Object} config - bot config
+ * @param {number} marginRatio - current margin ratio from exchange (percentage, e.g. 75 = 75%)
+ * @returns {{ status: string, marginRatio: number, threshold: number, message: string }}
+ */
+function checkMarginCircuitBreaker(config, marginRatio) {
+  const futuresCfg = getFuturesConfig(config);
+  if (!futuresCfg.enableMarginCircuitBreaker) {
+    return { status: "ok", marginRatio, threshold: 0, message: "" };
+  }
+  const mr = Number(marginRatio) || 0;
+  if (mr <= 0) return { status: "ok", marginRatio: 0, threshold: 0, message: "" };
+
+  if (mr >= futuresCfg.marginRatioCriticalPct) {
+    return {
+      status: "critical",
+      marginRatio: mr,
+      threshold: futuresCfg.marginRatioCriticalPct,
+      message: `Margin ratio ${mr.toFixed(1)}% ≥ critical threshold ${futuresCfg.marginRatioCriticalPct}%`
+    };
+  }
+  if (mr >= futuresCfg.marginRatioEntryBlockPct) {
+    return {
+      status: "block_entries",
+      marginRatio: mr,
+      threshold: futuresCfg.marginRatioEntryBlockPct,
+      message: `Margin ratio ${mr.toFixed(1)}% ≥ entry block threshold ${futuresCfg.marginRatioEntryBlockPct}%`
+    };
+  }
+  if (mr >= futuresCfg.marginRatioWarningPct) {
+    return {
+      status: "warning",
+      marginRatio: mr,
+      threshold: futuresCfg.marginRatioWarningPct,
+      message: `Margin ratio ${mr.toFixed(1)}% ≥ warning threshold ${futuresCfg.marginRatioWarningPct}%`
+    };
+  }
+  return { status: "ok", marginRatio: mr, threshold: 0, message: "" };
 }
 
 // ================= CONTRACT INFO =================
@@ -126,10 +171,9 @@ async function ensureFuturesSetup(request, config, symbol, logEvent, LOG_FILE) {
     return;
   }
 
-  const key = `${symbol}:${config.futures?.leverage}:${config.futures?.marginMode}`;
-  if (initializedSymbols.has(key)) return;
-
   const futuresCfg = getFuturesConfig(config);
+  const key = `${symbol}:${futuresCfg.leverage}:${futuresCfg.marginMode}`;
+  if (initializedSymbols.has(key)) return;
 
   try {
     await setMarginMode(request, config, symbol, futuresCfg.marginMode);
@@ -397,5 +441,6 @@ module.exports = {
   calcFuturesPnl,
   calcLiquidationDistance,
   usdtToContracts,
-  contractsToUsdt
+  contractsToUsdt,
+  checkMarginCircuitBreaker
 };

@@ -2106,6 +2106,19 @@ async function placeOrderFutures(symbol, side, size, clientOrderId = null, simul
   // Ensure leverage and margin mode are set before sizing and order placement
   await futures.ensureFuturesSetup(request, config, symbol, logEvent, LOG_FILE);
 
+  // Margin check: ensure sufficient available margin for new positions (skip for close orders)
+  if (!reduceOnly && !config.dryRun) {
+    try {
+      const bal = await futures.getFuturesBalance(request, config);
+      if (bal.available > 0 && Number(size) > bal.available) {
+        throw new Error(`Insufficient margin for ${symbol}: need ${size} USDT, available ${bal.available} USDT`);
+      }
+    } catch (err) {
+      if (err.message.includes("Insufficient margin")) throw err;
+      logEvent(LOG_FILE, "DEBUG", `Margin check skipped for ${symbol}: ${err.message}`);
+    }
+  }
+
   // Get contract info for sizing
   const contractInfo = await futures.getContractInfo(request, config, symbol);
   if (!contractInfo) {
@@ -2430,6 +2443,24 @@ async function runBot() {
     let currentEquity = portfolio.totalEquity;
     let currentPositionPrice = 0;
 
+    // ===== STEP 2b: MARGIN RATIO CIRCUIT BREAKER =====
+    let entryBlockedByMarginRatio = false;
+    let marginRatioCritical = false;
+    const marginRatio = Number(state._futuresBalance?.marginRatio || 0);
+    if (futures.isFuturesMode(config) && marginRatio > 0) {
+      const mrCheck = futures.checkMarginCircuitBreaker(config, marginRatio);
+      if (mrCheck.status === "critical") {
+        marginRatioCritical = true;
+        entryBlockedByMarginRatio = true;
+        logEvent(LOG_FILE, "ERROR", `MARGIN CIRCUIT BREAKER: ${mrCheck.message} — closing worst position and blocking entries`);
+      } else if (mrCheck.status === "block_entries") {
+        entryBlockedByMarginRatio = true;
+        logEvent(LOG_FILE, "WARN", `MARGIN CIRCUIT BREAKER: ${mrCheck.message} — blocking new entries`);
+      } else if (mrCheck.status === "warning") {
+        logEvent(LOG_FILE, "WARN", `MARGIN WARNING: ${mrCheck.message}`);
+      }
+    }
+
     // ===== STEP 3: DAILY RESET =====
     if (config.dryRun) {
       ensureDryRunPaperBalance(state);
@@ -2751,6 +2782,8 @@ async function runBot() {
       entryGateStatus = `position slots full (${openPositionsBeforeEntry.length}/${maxOpenPositions})`;
     } else if (entryBlockedByExposureCap) {
       entryGateStatus = `exposure cap reached (${safeToFixed(currentExposureUsdt, 2)}/${safeToFixed(exposureCapUsdt, 2)} USDT)`;
+    } else if (entryBlockedByMarginRatio) {
+      entryGateStatus = `margin ratio critical (${safeToFixed(marginRatio, 1)}%)`;
     }
 
     // ===== STEP 7: MARKET SCANNING =====
@@ -2951,7 +2984,8 @@ async function runBot() {
         reporting,
         logEvent,
         LOG_FILE,
-        safeToFixed
+        safeToFixed,
+        marginRatioCritical
       });
       lastHoldReportTime = exitFlowResult.lastHoldReportTime;
       position = state.position;
@@ -2961,7 +2995,7 @@ async function runBot() {
     }
 
     // ===== STEP 11: ENTRY FLOW =====
-    if (entryBlockedByLossStreak || entryBlockedByCooldown || entryBlockedByDailyTradeLimit || entryBlockedByPositionSlots || entryBlockedByExposureCap) {
+    if (entryBlockedByLossStreak || entryBlockedByCooldown || entryBlockedByDailyTradeLimit || entryBlockedByPositionSlots || entryBlockedByExposureCap || entryBlockedByMarginRatio) {
       return;
     }
 

@@ -1450,7 +1450,11 @@
     "maxLeverage": 20,
     "enableShorts": true,
     "liquidationBufferPct": 0.15,
-    "fundingRateThreshold": 0.001
+    "fundingRateThreshold": 0.001,
+    "enableMarginCircuitBreaker": true,
+    "marginRatioWarningPct": 70,
+    "marginRatioEntryBlockPct": 80,
+    "marginRatioCriticalPct": 90
   },
   "tradingMode": "futures"
 }

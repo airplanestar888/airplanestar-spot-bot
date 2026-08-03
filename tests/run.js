@@ -630,6 +630,91 @@ async function testExpectedNetEdgeGate() {
   assert.equal(candTooHigh.eligible, false, "candidate with thin edge should not be eligible");
 }
 
+async function testMarginCircuitBreakerThresholds() {
+  const futures = require("../core/futures");
+  const cfg = {
+    futures: {
+      leverage: 10,
+      enableMarginCircuitBreaker: true,
+      marginRatioWarningPct: 70,
+      marginRatioEntryBlockPct: 80,
+      marginRatioCriticalPct: 90
+    }
+  };
+  // Below all thresholds → ok
+  const ok = futures.checkMarginCircuitBreaker(cfg, 50);
+  assert.equal(ok.status, "ok");
+  assert.equal(ok.marginRatio, 50);
+
+  // At warning threshold → warning
+  const warn = futures.checkMarginCircuitBreaker(cfg, 70);
+  assert.equal(warn.status, "warning");
+  assert.equal(warn.marginRatio, 70);
+  assert.match(warn.message, /warning/);
+
+  // Between warning and entry block → still warning
+  const warn2 = futures.checkMarginCircuitBreaker(cfg, 75);
+  assert.equal(warn2.status, "warning");
+
+  // At entry block threshold → block_entries
+  const block = futures.checkMarginCircuitBreaker(cfg, 80);
+  assert.equal(block.status, "block_entries");
+  assert.match(block.message, /entry block/);
+
+  // Between entry block and critical → still block_entries
+  const block2 = futures.checkMarginCircuitBreaker(cfg, 85);
+  assert.equal(block2.status, "block_entries");
+
+  // At critical threshold → critical
+  const crit = futures.checkMarginCircuitBreaker(cfg, 90);
+  assert.equal(crit.status, "critical");
+  assert.match(crit.message, /critical/);
+
+  // Above critical → still critical
+  const crit2 = futures.checkMarginCircuitBreaker(cfg, 98);
+  assert.equal(crit2.status, "critical");
+}
+
+async function testMarginCircuitBreakerDisabled() {
+  const futures = require("../core/futures");
+  const cfg = { futures: { enableMarginCircuitBreaker: false } };
+  const result = futures.checkMarginCircuitBreaker(cfg, 99);
+  assert.equal(result.status, "ok");
+  assert.equal(result.threshold, 0);
+}
+
+async function testMarginCircuitBreakerDefaults() {
+  const futures = require("../core/futures");
+  // Missing fields → sensible defaults
+  const cfg = { futures: { leverage: 10 } };
+  const fc = futures.getFuturesConfig(cfg);
+  assert.equal(fc.enableMarginCircuitBreaker, true);
+  assert.equal(fc.marginRatioWarningPct, 70);
+  assert.equal(fc.marginRatioEntryBlockPct, 80);
+  assert.equal(fc.marginRatioCriticalPct, 90);
+
+  // Clamping: values out of range
+  const clamped = futures.getFuturesConfig({ futures: { marginRatioWarningPct: 10, marginRatioEntryBlockPct: 200, marginRatioCriticalPct: -5 } });
+  assert.equal(clamped.marginRatioWarningPct, 50);  // clamped to min 50
+  assert.equal(clamped.marginRatioEntryBlockPct, 98); // clamped to max 98
+  assert.equal(clamped.marginRatioCriticalPct, 70);   // clamped to min 70
+
+  // Zero or missing → defaults
+  const zero = futures.getFuturesConfig({ futures: { marginRatioWarningPct: 0, marginRatioEntryBlockPct: 0, marginRatioCriticalPct: 0 } });
+  assert.equal(zero.marginRatioWarningPct, 70);
+  assert.equal(zero.marginRatioEntryBlockPct, 80);
+  assert.equal(zero.marginRatioCriticalPct, 90);
+}
+
+async function testMarginCircuitBreakerZeroRatio() {
+  const futures = require("../core/futures");
+  const cfg = { futures: { enableMarginCircuitBreaker: true } };
+  // Zero or negative margin ratio → ok (no position open)
+  assert.equal(futures.checkMarginCircuitBreaker(cfg, 0).status, "ok");
+  assert.equal(futures.checkMarginCircuitBreaker(cfg, -1).status, "ok");
+  assert.equal(futures.checkMarginCircuitBreaker(cfg, null).status, "ok");
+}
+
 async function main() {
   const results = [];
   results.push(await run("config merge", testConfigMerge));
@@ -647,6 +732,10 @@ async function main() {
   results.push(await run("getLiveFundingRate cache + parse", testGetLiveFundingRateCacheAndParse));
   results.push(await run("getFuturesPositions leverage validation", testGetFuturesPositionsLeverageValidation));
   results.push(await run("expected net edge gate", testExpectedNetEdgeGate));
+  results.push(await run("margin circuit breaker thresholds", testMarginCircuitBreakerThresholds));
+  results.push(await run("margin circuit breaker disabled", testMarginCircuitBreakerDisabled));
+  results.push(await run("margin circuit breaker defaults + clamping", testMarginCircuitBreakerDefaults));
+  results.push(await run("margin circuit breaker zero ratio", testMarginCircuitBreakerZeroRatio));
 
   if (results.every(Boolean)) {
     console.log("ALL TESTS PASSED");

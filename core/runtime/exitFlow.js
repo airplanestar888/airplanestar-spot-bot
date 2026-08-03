@@ -23,7 +23,8 @@ async function handleExitFlow({
   reporting,
   logEvent,
   LOG_FILE,
-  safeToFixed
+  safeToFixed,
+  marginRatioCritical
 }) {
   const calcSellSlippagePct = (intendedPrice, fillPrice) => {
     if (!Number.isFinite(intendedPrice) || intendedPrice <= 0 || !Number.isFinite(fillPrice) || fillPrice <= 0) return null;
@@ -352,6 +353,80 @@ async function handleExitFlow({
         ? (holdPrice - peakPriceFromPct) / peakPriceFromPct
         : 0
     });
+  }
+
+  // ===== MARGIN RATIO CIRCUIT BREAKER: force-close worst position =====
+  if (marginRatioCritical && !exitOccurred && positions.length > 0) {
+    // Find position with worst PnL
+    let worstPos = null;
+    let worstPnl = Infinity;
+    for (const pos of positions) {
+      const posPrice = Number(
+        (Array.isArray(marketData) ? marketData.find(m => m.symbol === pos.symbol)?.price : 0) || 0
+      ) || (pos.symbol === state.position?.symbol ? Number(currentPositionPrice) : 0) || Number(pos.entry || 0);
+      const posSide = pos.side || "long";
+      const posPnl = posSide === "short"
+        ? (Number(pos.entry || 0) - posPrice) / Number(pos.entry || 1)
+        : (posPrice - Number(pos.entry || 0)) / Number(pos.entry || 1);
+      if (posPnl < worstPnl) {
+        worstPnl = posPnl;
+        worstPos = pos;
+      }
+    }
+
+    if (worstPos) {
+      const symbol = worstPos.symbol;
+      const coinBal = getCoinBalance(symbol, balances);
+      if (coinBal && coinBal > 0) {
+        const exitSide = worstPos.side === "short" ? "buy" : "sell";
+        const isFuturesExit = worstPos.isFutures === true || worstPos.side === "short";
+        const exitPrice = Number(
+          (Array.isArray(marketData) ? marketData.find(m => m.symbol === symbol)?.price : 0) || 0
+        ) || (symbol === state.position?.symbol ? Number(currentPositionPrice) : 0) || Number(worstPos.entry || 0);
+
+        logEvent(LOG_FILE, "ERROR", `MARGIN CIRCUIT BREAKER: force-closing ${symbol} (worst PnL ${(worstPnl * 100).toFixed(2)}%)`);
+        const exitResult = await safeExecute(async () => placeOrder(symbol, exitSide, coinBal, null, exitPrice, isFuturesExit));
+
+        if (exitResult.success) {
+          const orderResult = exitResult.result;
+          const exitFillPrice = Number.isFinite(orderResult.avgPrice) && orderResult.avgPrice > 0
+            ? Number(orderResult.avgPrice) : exitPrice;
+          const exitQty = Number(orderResult.filledSize || coinBal || 0);
+          const entryFillPrice = Number(worstPos.entryFillPrice || worstPos.entry || 0);
+          const entryCostUSDT = entryFillPrice > 0 && exitQty > 0 ? entryFillPrice * exitQty : Number(worstPos.sizeUSDT || 0);
+          const exitValueUSDT = exitFillPrice > 0 && exitQty > 0 ? exitFillPrice * exitQty : 0;
+          const isShortPos = worstPos.side === "short";
+          const grossPnlUSDT = isShortPos ? entryCostUSDT - exitValueUSDT : exitValueUSDT - entryCostUSDT;
+          const grossPnlFraction = entryCostUSDT > 0 ? grossPnlUSDT / entryCostUSDT : 0;
+          const pnlAbsolute = grossPnlUSDT;
+
+          // Remove position from state
+          const posIdx = positions.indexOf(worstPos);
+          if (posIdx !== -1) positions.splice(posIdx, 1);
+          state.positions = positions;
+          state.position = positions[0] || null;
+          state.realizedPnlToday = Number(state.realizedPnlToday || 0) + pnlAbsolute;
+          exitOccurred = true;
+
+          logEvent(LOG_FILE, "INFO", `MARGIN CIRCUIT BREAKER: closed ${symbol} exit=${safeToFixed(exitFillPrice, 6)} pnl=${safeToFixed(grossPnlFraction * 100, 2)}%`);
+          await report(reporting.buildExitReport({
+            symbol,
+            side: worstPos.side,
+            entryPrice: entryFillPrice,
+            exitPrice: exitFillPrice,
+            pnlPct: grossPnlFraction * 100,
+            pnlAbsolute,
+            reason: "margin ratio critical",
+            exitQty,
+            entryFeeUSDT: Number(worstPos.entryFeeUSDT || 0),
+            exitFeeUSDT: Number(orderResult.feeUSDT || 0)
+          }));
+          saveState(STATE_PATH, state);
+        } else {
+          logEvent(LOG_FILE, "ERROR", `MARGIN CIRCUIT BREAKER: failed to close ${symbol}: ${exitResult.error?.message || "unknown"}`);
+        }
+      }
+    }
   }
 
   // Send hold summary if due, if PnL changed significantly, or if an exit occurred (to show updated state)

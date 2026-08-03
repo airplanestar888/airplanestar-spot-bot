@@ -94,7 +94,14 @@ function validateConfig(config, selection = {}) {
     ...validateMinMax(config, "minAtrPct", "maxAtrPct"),
     ...validateMinMax(config, "rsiBandLower", "rsiBandUpper"),
     ...validateMinMax(config, "optimalRsiLow", "optimalRsiHigh"),
-    ...validateMinMax(config, "optimalAtrLow", "optimalAtrHigh")
+    ...validateMinMax(config, "optimalAtrLow", "optimalAtrHigh"),
+    ...validateNumericRange(config.futures || {}, "leverage", { min: 1, max: 20 }),
+    ...validateNumericRange(config.futures || {}, "maxLeverage", { min: 1, max: 20 }),
+    ...validateNumericRange(config.futures || {}, "liquidationBufferPct", { min: 0.05, max: 0.5 }),
+    ...validateNumericRange(config.futures || {}, "fundingRateThreshold", { min: 0, max: 1 }),
+    ...validateNumericRange(config.futures || {}, "marginRatioWarningPct", { min: 50, max: 95 }),
+    ...validateNumericRange(config.futures || {}, "marginRatioEntryBlockPct", { min: 60, max: 98 }),
+    ...validateNumericRange(config.futures || {}, "marginRatioCriticalPct", { min: 70, max: 99 })
   ];
 
   const warnings = [];
